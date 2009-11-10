@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="3.5" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>9.0.30729</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>ExoGraph</RootNamespace>
+    <AssemblyName>ExoGraph</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <SccProjectName>SAK</SccProjectName>
+    <SccLocalPath>SAK</SccLocalPath>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccProvider>SAK</SccProvider>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Web" />
+    <Reference Include="System.Xml.Linq">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data.DataSetExtensions">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="GraphPropertyList.cs" />
+    <Compile Include="GraphReferenceProperty.cs" />
+    <Compile Include="GraphReferencePropertyList.cs" />
+    <Compile Include="GraphValueProperty.cs" />
+    <Compile Include="GraphValuePropertyList.cs" />
+    <Compile Include="GraphPathList.cs" />
+    <Compile Include="GraphPathChangedEventArgs.cs" />
+    <Compile Include="GraphInstanceList.cs" />
+    <Compile Include="GraphFilterChangedEventArgs.cs" />
+    <Compile Include="GraphInitEvent.cs" />
+    <Compile Include="GraphPropertyGetEvent.cs" />
+    <Compile Include="GraphReferenceChangeEvent.cs" />
+    <Compile Include="GraphValueChangeEvent.cs" />
+    <Compile Include="GraphListChangeEvent.cs" />
+    <Compile Include="GraphCustomEvent.cs" />
+    <Compile Include="GraphEventScope.cs" />
+    <Compile Include="GraphEventScopeExitedEventArgs.cs" />
+    <Compile Include="ReadOnlyList.cs" />
+    <Compile Include="GraphTypeList.cs" />
+    <Compile Include="GraphContextProvider.cs" />
+    <Compile Include="GraphProperty.cs" />
+    <Compile Include="GraphEvent.cs" />
+    <Compile Include="GraphReference.cs" />
+    <Compile Include="GraphFilter.cs" />
+    <Compile Include="GraphContext.cs" />
+    <Compile Include="GraphTransaction.cs" />
+    <Compile Include="GraphPath.cs" />
+    <Compile Include="GraphStep.cs" />
+    <Compile Include="GraphInstance.cs" />
+    <Compile Include="GraphType.cs" />
+    <Compile Include="IGraphContextProvider.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StronglyTypedGraphContext.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
