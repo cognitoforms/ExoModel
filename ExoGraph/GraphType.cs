@@ -152,6 +152,14 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Defines the delegate the custom event handlers must implement to subscribe.
+		/// </summary>
+		/// <typeparam name="TEvent"></typeparam>
+		/// <param name="instance"></param>
+		/// <param name="event"></param>
+		public delegate void CustomEvent<TEvent>(GraphInstance instance, TEvent @event);
+
+		/// <summary>
 		/// Adds a domain event handler for a specific domain event raised by the current graph type.
 		/// </summary>
 		/// <typeparam name="TDomainEvent">
@@ -159,11 +167,11 @@ namespace ExoGraph
 		/// as an argument when the domain event is raised
 		/// </typeparam>
 		/// <param name="handler">The event handler for the domain event</param>
-		public void Subscribe<TEvent>(Action<GraphInstance, TEvent> handler)
+		public void Subscribe<TEvent>(CustomEvent<TEvent> handler)
 		{
 			object currentHandler;
 			if (domainEvents.TryGetValue(typeof(TEvent), out currentHandler))
-				domainEvents[typeof(TEvent)] = (Action<GraphInstance, TEvent>)currentHandler + handler;
+				domainEvents[typeof(TEvent)] = (CustomEvent<TEvent>)currentHandler + handler;
 			else
 				domainEvents[typeof(TEvent)] = handler;
 		}
@@ -176,11 +184,11 @@ namespace ExoGraph
 		/// as an argument when the domain event is raised
 		/// </typeparam>
 		/// <param name="handler">The event handler for the domain event</param>
-		public void Unsubscribe<TEvent>(Action<GraphInstance, TEvent> handler)
+		public void Unsubscribe<TEvent>(CustomEvent<TEvent> handler)
 		{
 			object currentHandler;
 			if (domainEvents.TryGetValue(typeof(TEvent), out currentHandler))
-				domainEvents[typeof(TEvent)] = (Action<GraphInstance, TEvent>)currentHandler - handler;
+				domainEvents[typeof(TEvent)] = (CustomEvent<TEvent>)currentHandler - handler;
 		}
 
 		/// <summary>
@@ -192,7 +200,7 @@ namespace ExoGraph
 		{
 			object currentHandler;
 			if (domainEvents.TryGetValue(typeof(TEvent), out currentHandler))
-				((Action<GraphInstance, TEvent>)currentHandler)(customEvent.Instance, customEvent.CustomEvent);
+				((CustomEvent<TEvent>)currentHandler)(customEvent.Instance, customEvent.CustomEvent);
 		}
 
 		/// <summary>

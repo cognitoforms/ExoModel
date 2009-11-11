@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Text;
 using System.Collections.Generic;
-using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.ObjectModel;
 using System.Collections;
@@ -186,7 +185,8 @@ namespace ExoGraph.UnitTest
 
 		protected override void ClearItems()
 		{
-			Entity[] removed = this.ToArray();
+			TEntity[] removed = new TEntity[Count];
+			CopyTo(removed, 0);
 			base.ClearItems();
 			OnChanged((IEnumerable)null, removed);
 		}

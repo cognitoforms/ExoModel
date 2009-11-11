@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace ExoGraph
@@ -53,8 +52,8 @@ namespace ExoGraph
 			context.Event -= context_Event;
 			using (new GraphEventScope())
 			{
-				foreach (GraphEvent graphEvent in this.Reverse<GraphEvent>())
-					graphEvent.Revert();
+				for (int i = events.Count - 1; i >= 0; i--)
+					events[i].Revert();
 			}
 		}
 
