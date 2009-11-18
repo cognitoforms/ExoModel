@@ -75,11 +75,6 @@ namespace ExoGraph
 				graphTypes.Add(type, graphType);
 			}
 
-			Type prgSection = Type.GetType("VC3.TestView.Business.PrgSection, VC3.TestView");
-
-			GraphType psType;
-			graphTypes.TryGetValue(prgSection, out psType);
-
 			// Create a dictionary of valid declaring types to introspect
 			Dictionary<Type, Type> declaringTypes = new Dictionary<Type, Type>();
 			foreach (Type type in types)

@@ -42,17 +42,22 @@ namespace ExoGraph.UnitTest
 					new Type[] { typeof(CustomerBase) })
 			{ }
 
-			protected override GraphInstance GetInstance(object instance)
+			protected override GraphInstance GetGraphInstance(object instance)
 			{
 				if (instance is Entity)
 					return ((Entity)instance).instance;
 				return null;
 			}
 
-			public override object CreateInstance(GraphType type, string id)
+			protected override string GetId(object instance)
+			{
+				throw new NotImplementedException();
+			}
+
+			protected override object GetInstance(GraphType type, string id)
 			{
 				if (id == null)
-					return Type.GetType(type.Name).GetConstructor(Type.EmptyTypes).Invoke(null);
+					return Type.GetType(type.QualifiedName).GetConstructor(Type.EmptyTypes).Invoke(null);
 
 				throw new NotSupportedException("Creating instances of existing objects is not supported by this test context.");
 			}
@@ -62,7 +67,7 @@ namespace ExoGraph.UnitTest
 
 			}
 
-			internal new GraphInstance GetInstance(Entity entity)
+			internal GraphInstance GetInstance(Entity entity)
 			{
 				return entity.instance;
 			}

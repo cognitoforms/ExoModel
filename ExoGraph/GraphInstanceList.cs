@@ -126,7 +126,7 @@ namespace ExoGraph
 		public bool Remove(GraphInstance item)
 		{
 			IList list = GetList();
-			if (list == null || !list.Contains(item))
+			if (list == null || !list.Contains(item.Instance))
 				return false;
 			
 			list.Remove(item.Instance);

@@ -15,21 +15,6 @@ namespace ExoGraph.UnitTest
 		Dictionary<string, GraphEvent> events;
 
 		/// <summary>
-		/// Gets the graph type with the specified name.
-		/// </summary>
-		/// <param name="name"></param>
-		/// <returns></returns>
-		public GraphType GetGraphType(string name)
-		{
-			foreach (GraphType type in GraphContext.Current.GraphTypes)
-			{
-				if (type.Name.StartsWith(GetType().Namespace + "." + name + ","))
-					return type;
-			}
-			return null;
-		}
-
-		/// <summary>
 		/// Subscribes to all events raised by ExoGraph.
 		/// </summary>
 		void SubscribeToEvents()
@@ -38,8 +23,8 @@ namespace ExoGraph.UnitTest
 			events = new Dictionary<string, GraphEvent>();
 
 			// Obtain graph type for customer and contact types
-			GraphType customerType = GetGraphType("Customer");
-			GraphType contactType = GetGraphType("Contact");
+			GraphType customerType = GraphContext.Current.GraphTypes["Customer"];
+			GraphType contactType = GraphContext.Current.GraphTypes["Contact"];
 
 			// Subscribe to init event
 			customerType.Init +=
@@ -107,8 +92,8 @@ namespace ExoGraph.UnitTest
 			using (GraphContext.Current.BeginTransaction())
 			{
 				// Obtain graph type for customer and contact types
-				GraphType customerType = GetGraphType("Customer");
-				GraphType contactType = GetGraphType("Contact");
+				GraphType customerType = GraphContext.Current.GraphTypes["Customer"];
+				GraphType contactType = GraphContext.Current.GraphTypes["Contact"];
 
 				// Create a customer
 				customer = customerType.Create();
