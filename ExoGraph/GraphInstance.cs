@@ -58,6 +58,28 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Gets the identifier for persisted instances.
+		/// </summary>
+		public string Id
+		{
+			get
+			{
+				return Type.Context.GetId(instance);
+			}
+		}
+
+		/// <summary>
+		/// Indicates whether the instance is new or has been persisted.
+		/// </summary>
+		public bool IsNew
+		{
+			get
+			{
+				return Id == null;
+			}
+		}
+
+		/// <summary>
 		/// The actual graph object instance.
 		/// </summary>
 		public object Instance
@@ -245,7 +267,7 @@ namespace ExoGraph
 		{
 			object reference = Type.Context.GetProperty(instance, property);
 			if (reference != null)
-				return Type.Context.GetInstance(reference);
+				return Type.Context.GetGraphInstance(reference);
 			return null;
 		}
 

@@ -51,15 +51,17 @@ namespace ExoGraph
 			using (new GraphEventScope())
 			{
 				GraphContext context = Instance.Type.Context;
+				GraphInstanceList list = Instance.GetList(Property);
+
 				if (added != null)
 				{
 					foreach (GraphInstance item in added)
-						context.RemoveFromList(Instance.Instance, Property.Name, item.Instance);
+						list.Remove(item);
 				}
 				if (removed != null)
 				{
 					foreach (GraphInstance item in removed)
-						context.AddToList(Instance.Instance, Property.Name, item.Instance);
+						list.Add(item);
 				}
 			}
 		}

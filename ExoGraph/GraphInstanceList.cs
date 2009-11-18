@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections;
 
 namespace ExoGraph
@@ -25,6 +26,15 @@ namespace ExoGraph
 
 		#endregion
 
+		#region Methods
+
+		IList GetList()
+		{
+			return owner.Type.Context.GetProperty(owner.Instance, property.Name) as IList;
+		}
+
+		#endregion
+
 		#region ICollection<GraphInstance> Members
 
 		/// <summary>
@@ -33,7 +43,10 @@ namespace ExoGraph
 		/// <param name="item"></param>
 		public void Add(GraphInstance item)
 		{
-			owner.Type.Context.AddToList(owner.Instance, property.Name, item.Instance);
+			IList list = GetList();
+			if (list == null)
+				throw new NullReferenceException("Cannot add item '" + item + "' to the " + property.Name + " list on '" + owner + "' because the list is null.");
+			list.Add(item.Instance);
 		}
 
 		/// <summary>
@@ -41,10 +54,15 @@ namespace ExoGraph
 		/// </summary>
 		public void Clear()
 		{
+			// Get the list and exit immediately if it does not contain any items
+			IList list = GetList();
+			if (list == null || list.Count == 0)
+				return;
+
+			// Remove all of the items from the list
 			using (new GraphEventScope())
 			{
-				foreach (GraphReference reference in owner.GetOutReferences(property))
-					Remove(reference.Out);
+				list.Clear();
 			}
 		}
 
@@ -55,11 +73,8 @@ namespace ExoGraph
 		/// <returns></returns>
 		public bool Contains(GraphInstance item)
 		{
-			foreach (GraphReference reference in owner.GetOutReferences(property))
-				if (reference.Out == item)
-					return true;
-
-			return false;
+			IList list = GetList();
+			return list != null && list.Contains(item.Instance);
 		}
 
 		/// <summary>
@@ -69,8 +84,14 @@ namespace ExoGraph
 		/// <param name="arrayIndex"></param>
 		void ICollection<GraphInstance>.CopyTo(GraphInstance[] array, int arrayIndex)
 		{
-			foreach (GraphReference reference in owner.GetOutReferences(property))
-				array[arrayIndex++] = reference.Out;
+			// Get the list and exit immediately if there are no items to copy
+			IList list = GetList();
+			if (list == null || list.Count == 0)
+				return;
+
+			// Copy all instances in the list to the specified array
+			foreach (object instance in list)
+				array[arrayIndex++] = owner.Type.Context.GetGraphInstance(instance);
 		}
 
 		/// <summary>
@@ -80,10 +101,8 @@ namespace ExoGraph
 		{
 			get
 			{
-				int count = 0;
-				foreach (GraphReference reference in owner.GetOutReferences(property))
-					count++;
-				return count;
+				IList list = GetList();
+				return list == null ? 0 : list.Count;
 			}
 		}
 
@@ -94,7 +113,8 @@ namespace ExoGraph
 		{
 			get
 			{
-				return false;
+				IList list = GetList();
+				return list == null || list.IsReadOnly;
 			}
 		}
 
@@ -105,7 +125,12 @@ namespace ExoGraph
 		/// <returns></returns>
 		public bool Remove(GraphInstance item)
 		{
-			return owner.Type.Context.RemoveFromList(owner.Instance, property.Name, item.Instance);
+			IList list = GetList();
+			if (list == null || !list.Contains(item))
+				return false;
+			
+			list.Remove(item.Instance);
+			return true;
 		}
 
 		#endregion
@@ -114,8 +139,12 @@ namespace ExoGraph
 
 		IEnumerator<GraphInstance> IEnumerable<GraphInstance>.GetEnumerator()
 		{
-			foreach (GraphReference reference in owner.GetOutReferences(property))
-				yield return reference.Out;
+			IList list = GetList();
+			if (list != null)
+			{
+				foreach (object instance in list)
+					yield return owner.Type.Context.GetGraphInstance(instance);
+			}
 		}
 
 		#endregion
@@ -124,8 +153,12 @@ namespace ExoGraph
 
 		IEnumerator IEnumerable.GetEnumerator()
 		{
-			foreach (GraphReference reference in owner.GetOutReferences(property))
-				yield return reference.Out;
+			IList list = GetList();
+			if (list != null)
+			{
+				foreach (object instance in list)
+					yield return owner.Type.Context.GetGraphInstance(instance);
+			}
 		}
 
 		#endregion

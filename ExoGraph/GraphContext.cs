@@ -162,8 +162,8 @@ namespace ExoGraph
 				else
 					new GraphReferenceChangeEvent(
 						instance, (GraphReferenceProperty)property,
-						originalValue == null ? null : GetInstance(originalValue), 
-						currentValue == null ? null : GetInstance(currentValue)
+						originalValue == null ? null : GetGraphInstance(originalValue), 
+						currentValue == null ? null : GetGraphInstance(currentValue)
 					).Notify();
 			}
 
@@ -180,29 +180,27 @@ namespace ExoGraph
 		protected void OnListChanged(GraphInstance instance, GraphReferenceProperty property, IEnumerable added, IEnumerable removed)
 		{
 			// Create a new graph list change event and notify subscribers
-			new GraphListChangeEvent(instance, property, GetInstances(added), GetInstances(removed)).Notify();
+			new GraphListChangeEvent(instance, property, EnumerateInstances(added), EnumerateInstances(removed)).Notify();
 		}
 
-		IEnumerable<GraphInstance> GetInstances(IEnumerable items)
+		IEnumerable<GraphInstance> EnumerateInstances(IEnumerable items)
 		{
 			if (items != null)
 				foreach (object instance in items)
-					yield return GetInstance(instance);
+					yield return GetGraphInstance(instance);
 		}
 
-		protected internal abstract GraphInstance GetInstance(object instance);
+		protected internal abstract GraphInstance GetGraphInstance(object instance);
 
 		protected internal abstract GraphType GetGraphType(object instance);
 
-		public abstract object CreateInstance(GraphType type, string id);
+		protected internal abstract string GetId(object instance);
+
+		protected internal abstract object GetInstance(GraphType type, string id);
 
 		protected internal abstract object GetProperty(object instance, string property);
 
 		protected internal abstract void SetProperty(object instance, string property, object value);
-
-		protected internal abstract void AddToList(object instance, string property, object value);
-
-		protected internal abstract bool RemoveFromList(object instance, string property, object value);
 
 		protected internal abstract void DeleteInstance(object instance);
 
@@ -214,11 +212,12 @@ namespace ExoGraph
 		/// Creates a new <see cref="GraphType"/> instance with the specified name
 		/// and associates it with the current graph context.
 		/// </summary>
-		/// <param name="name"></param>
+		/// <param name="name">The unique name of the type</param>
+		/// <param name="qualifiedName">The fully qualified name of the type</param>
 		/// <returns></returns>
-		protected GraphType CreateGraphType(string name)
+		protected GraphType CreateGraphType(string name, string qualifiedName)
 		{
-			GraphType type = new GraphType(this, name);
+			GraphType type = new GraphType(this, name, qualifiedName);
 			graphTypes.Add(type);
 			return type;
 		}

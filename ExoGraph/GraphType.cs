@@ -11,6 +11,7 @@ namespace ExoGraph
 		#region Fields
 
 		string name;
+		string qualifiedName;
 		GraphContext context;
 		GraphType baseType;
 		GraphTypeList subTypes = new GraphTypeList();
@@ -25,10 +26,11 @@ namespace ExoGraph
 
 		#region Contructors
 
-		public GraphType(GraphContext context, string name)
+		public GraphType(GraphContext context, string name, string qualifiedName)
 		{
 			this.context = context;
 			this.name = name;
+			this.qualifiedName = qualifiedName;
 		}
 
 		#endregion
@@ -48,6 +50,14 @@ namespace ExoGraph
 			get
 			{
 				return name;
+			}
+		}
+
+		public string QualifiedName
+		{
+			get
+			{
+				return qualifiedName;
 			}
 		}
 
@@ -244,12 +254,12 @@ namespace ExoGraph
 
 		public GraphInstance Create()
 		{
-			return context.GetInstance(context.CreateInstance(this, null));
+			return context.GetGraphInstance(context.GetInstance(this, null));
 		}
 
 		public GraphInstance Create(string id)
 		{
-			return context.GetInstance(context.CreateInstance(this, id));
+			return context.GetGraphInstance(context.GetInstance(this, id));
 		}
 
 		/// <summary>

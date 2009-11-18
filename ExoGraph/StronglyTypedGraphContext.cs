@@ -68,12 +68,17 @@ namespace ExoGraph
 		IDictionary<Type, GraphType> InferGraphTypes(IEnumerable<Type> types, IEnumerable<Type> baseTypes)
 		{
 			// Create instance types for each specified type
-			SortedList<Type, GraphType> graphTypes = new SortedList<Type, GraphType>(new TypeComparer());
+			SortedDictionary<Type, GraphType> graphTypes = new SortedDictionary<Type, GraphType>(new TypeComparer());
 			foreach (Type type in types)
 			{
-				GraphType graphType = CreateGraphType(type.AssemblyQualifiedName);
+				GraphType graphType = CreateGraphType(type.Name, type.AssemblyQualifiedName);
 				graphTypes.Add(type, graphType);
 			}
+
+			Type prgSection = Type.GetType("VC3.TestView.Business.PrgSection, VC3.TestView");
+
+			GraphType psType;
+			graphTypes.TryGetValue(prgSection, out psType);
 
 			// Create a dictionary of valid declaring types to introspect
 			Dictionary<Type, Type> declaringTypes = new Dictionary<Type, Type>();
@@ -104,15 +109,20 @@ namespace ExoGraph
 				if (baseGraphType != null)
 					SetBaseType(graphType, baseGraphType);
 
+				// Determine if any inherited properties on the type have been replaced using the new keyword
+				Dictionary<string, bool> isNewProperty = new Dictionary<string,bool>();
+				foreach (PropertyInfo property in type.GetProperties())
+					isNewProperty[property.Name] = isNewProperty.ContainsKey(property.Name);
+
 				// Process all properties on the instance type to create references
 				foreach (PropertyInfo property in type.GetProperties())
 				{
 					// Exit immediately if the property was not in the list of valid declaring types
-					if (!declaringTypes.ContainsKey(property.DeclaringType))
+					if (!declaringTypes.ContainsKey(property.DeclaringType) || (isNewProperty[property.Name] && property.DeclaringType != type))
 						continue;
 
 					// Copy properties inherited from base graph types
-					if (baseGraphType != null && baseGraphType.Properties.Contains(property.Name))
+					if (baseGraphType != null && baseGraphType.Properties.Contains(property.Name) && !isNewProperty[property.Name]) 
 						AddProperty(graphType, baseGraphType.Properties[property.Name]);
 
 					// Create references based on properties that relate to other instance types
@@ -145,22 +155,6 @@ namespace ExoGraph
 			instance.GetType().GetProperty(property).SetValue(instance, value, null);
 		}
 
-		protected internal override void AddToList(object instance, string property, object value)
-		{
-			((IList)GetProperty(instance, property)).Add(value);
-		}
-
-		protected internal override bool RemoveFromList(object instance, string property, object value)
-		{
-			IList list = (IList)GetProperty(instance, property);
-			if (list.Contains(value))
-			{
-				list.Remove(value);
-				return true;
-			}
-			return false;
-		}
-
 		#endregion
 
 		#region TypeComparer
@@ -176,11 +170,29 @@ namespace ExoGraph
 				if (x == y)
 					return 0;
 				else if (x.IsSubclassOf(y))
-					return -1;
-				else if (y.IsSubclassOf(x))
 					return 1;
-				else
+				else if (y.IsSubclassOf(x))
+					return -1;
+				else if (x.BaseType == y.BaseType)
 					return x.FullName.CompareTo(y.FullName);
+				else
+					return GetQualifiedTypeName(x).CompareTo(GetQualifiedTypeName(y));
+			}
+
+			/// <summary>
+			/// Gets the fully-qualified name of the type including all base classes.
+			/// </summary>
+			/// <param name="type"></param>
+			/// <returns></returns>
+			string GetQualifiedTypeName(Type type)
+			{
+				string typeName = "";
+				while (type != null)
+				{
+					typeName = type.FullName + ":" + typeName;
+					type = type.BaseType;
+				}
+				return typeName;
 			}
 		}
 
