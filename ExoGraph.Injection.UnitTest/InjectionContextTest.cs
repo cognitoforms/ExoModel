@@ -23,13 +23,18 @@ namespace ExoGraph.Injection.UnitTest
 			: base(new Type[] { typeof(CustomerBase), typeof(Customer), typeof(Contact) })
 		{ }
 
-		public override object CreateInstance(GraphType type, string id)
+		protected override void DeleteInstance(object instance)
+		{ }
+
+		protected override string GetId(object instance)
+		{
+			throw new NotImplementedException();
+		}
+
+		protected override object GetInstance(GraphType type, string id)
 		{
 			return Type.GetType(type.Name).GetConstructor(Type.EmptyTypes).Invoke(null);
 		}
-
-		protected override void DeleteInstance(object instance)
-		{ }
 	}
 
 	#endregion
