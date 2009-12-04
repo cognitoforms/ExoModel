@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Web;
+using System.Collections.Generic;
 
 namespace ExoGraph
 {
@@ -10,6 +11,8 @@ namespace ExoGraph
 	/// </summary>
 	public class GraphContextProvider : IGraphContextProvider
 	{
+		static List<GraphContext> pool = new List<GraphContext>();
+
 		[ThreadStatic]
 		Storage context;
 
@@ -31,12 +34,46 @@ namespace ExoGraph
 			{
 				GraphContext context = GetStorage().Context;
 				if (context == null)
-					OnCreateContext();
+				{
+					if (pool.Count > 0)
+					{
+						lock (pool)
+						{
+							Context = pool[0];
+							pool.RemoveAt(0);
+						}
+					}
+					else
+						OnCreateContext();
+				}
 				return GetStorage().Context;
 			}
 			set
 			{
 				GetStorage().Context = value;
+			}
+		}
+
+		/// <summary>
+		/// Adds the specified <see cref="GraphContext"/> to the context pool.
+		/// </summary>
+		/// <param name="context"></param>
+		public static void AddToPool(GraphContext context)
+		{
+			lock (pool)
+			{
+				pool.Add(context);
+			}
+		}
+
+		/// <summary>
+		/// Removes all <see cref="GraphContext"/> instances from the pool.
+		/// </summary>
+		public static void FlushPool()
+		{
+			lock (pool)
+			{
+				pool.Clear();
 			}
 		}
 
@@ -97,7 +134,7 @@ namespace ExoGraph
 		public class CreateContextEventArgs : EventArgs
 		{
 			GraphContextProvider provider;
-			
+
 			/// <summary>
 			/// Creates a new <see cref="CreateContextEventArgs"/> which allows
 			/// event subscribers to create a new <see cref="GraphContext"/>.
@@ -134,6 +171,38 @@ namespace ExoGraph
 		class Storage
 		{
 			public GraphContext Context { get; set; }
+		}
+
+		#endregion
+
+		#region PoolModule
+
+		public class PoolModule : IHttpModule
+		{
+			#region IHttpModule Members
+
+			void IHttpModule.Dispose()
+			{
+				FlushPool();
+			}
+
+			void IHttpModule.Init(HttpApplication context)
+			{
+				context.ReleaseRequestState += new EventHandler(context_ReleaseRequestState);
+			}
+
+			void context_ReleaseRequestState(object sender, EventArgs e)
+			{
+				Storage storage = (Storage)((HttpApplication)sender).Context.Items[typeof(GraphContextProvider)];
+
+				if (storage != null)
+				{
+					AddToPool(storage.Context);
+					storage.Context = null;
+				}
+			}
+
+			#endregion
 		}
 
 		#endregion
