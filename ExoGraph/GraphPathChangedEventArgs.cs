@@ -22,10 +22,7 @@ namespace ExoGraph
 
 		protected override void OnNotify()
 		{
-			throw new NotImplementedException();
+			throw new NotSupportedException("Path change events do not broadcast globally.");
 		}
-
-		public override void Revert()
-		{ }
 	}
 }

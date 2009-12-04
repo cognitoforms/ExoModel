@@ -1,5 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Collections;
+using System.Xml.Serialization;
+using System.Runtime.Serialization;
+using System.Xml;
+using System.Xml.Schema;
+using System;
 
 namespace ExoGraph
 {
@@ -10,6 +15,7 @@ namespace ExoGraph
 	{
 		#region Fields
 
+		string id;
 		object instance;
 		GraphType type;
 
@@ -37,6 +43,7 @@ namespace ExoGraph
 		/// <param name="instance"></param>
 		internal GraphInstance(GraphType type, object instance)
 		{
+			this.id = type.Context.GetId(instance) ?? type.Context.GenerateId();
 			this.type = type;
 			this.instance = instance;
 			this.hasBeenAccessed = new bool[type.Properties.Count];
@@ -60,11 +67,16 @@ namespace ExoGraph
 		/// <summary>
 		/// Gets the identifier for persisted instances.
 		/// </summary>
+		[DataMember]
 		public string Id
 		{
 			get
 			{
-				return Type.Context.GetId(instance);
+				return Type.Context.GetId(instance) ?? id;
+			}
+			private set
+			{
+				id = value;
 			}
 		}
 
@@ -75,7 +87,7 @@ namespace ExoGraph
 		{
 			get
 			{
-				return Id == null;
+				return Type.Context.GetId(instance) == null;
 			}
 		}
 
@@ -152,6 +164,10 @@ namespace ExoGraph
 		/// </param>
 		internal void AddReference(GraphReferenceProperty property, GraphInstance instance, bool isLoading)
 		{
+			// Exit immediately if the property represents a boundary between scopes graphs
+			if (property.IsBoundary)
+				return;
+
 			// Create and add this reference to the parent and child instances
 			GraphReference reference = new GraphReference(property, this, instance);
 
@@ -187,6 +203,10 @@ namespace ExoGraph
 		/// <param name="reference">The reference to remove</param>
 		internal void RemoveReference(GraphReference reference)
 		{
+			// Exit immediately if the reference is null
+			if (reference == null)
+				return;
+
 			ReferenceSet references;
 
 			// Remove the out reference
@@ -209,7 +229,10 @@ namespace ExoGraph
 			if (!isInitialized)
 			{
 				isInitialized = true;
-				new GraphInitEvent(this).Notify();
+				if (IsNew)
+					new GraphInitEvent.InitNew(this).Notify();
+				else
+					new GraphInitEvent.InitExisting(this).Notify();
 			}
 		}
 

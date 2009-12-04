@@ -10,13 +10,14 @@ namespace ExoGraph
 		#region Fields
 
 		Type propertyType;
+		Attribute[] attributes;
 
 		#endregion
 
 		#region Constructors
 
-		internal GraphValueProperty(GraphType declaringType, string name, int index, Type propertyType)
-			: base(declaringType, name, index)
+		internal GraphValueProperty(GraphType declaringType, string name, int index, bool isStatic, Type propertyType, Attribute[] attributes)
+			: base(declaringType, name, index, isStatic, attributes)
 		{
 			this.propertyType = propertyType;
 		}

@@ -1,11 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 
 namespace ExoGraph
 {
 	/// <summary>
 	/// Base class for classes that represent specific events with an object graph.
 	/// </summary>
+	[DataContract]
+	[KnownType(typeof(GraphInitEvent))]
+	[KnownType(typeof(GraphInitEvent.InitNew))]
+	[KnownType(typeof(GraphInitEvent.InitExisting))]
+	[KnownType(typeof(GraphDeleteEvent))]
+	[KnownType(typeof(GraphPropertyGetEvent))]
+	[KnownType(typeof(GraphValueChangeEvent))]
+	[KnownType(typeof(GraphReferenceChangeEvent))]
+	[KnownType(typeof(GraphListChangeEvent))]
 	public abstract class GraphEvent : EventArgs
 	{
 		/// <summary>
@@ -25,11 +35,16 @@ namespace ExoGraph
 		/// <summary>
 		/// Gets the <see cref="GraphInstance"/> the event is for.
 		/// </summary>
+		[DataMember(Order = 1)]
 		public GraphInstance Instance
 		{
 			get
 			{
 				return instance;
+			}
+			internal set
+			{
+				instance = value;
 			}
 		}
 
@@ -51,10 +66,5 @@ namespace ExoGraph
 		/// Allows subclasses to perform event specific notification logic.
 		/// </summary>
 		protected abstract void OnNotify();
-
-		/// <summary>
-		/// Allows subclasses to reverse the changes that caused the event to occur.
-		/// </summary>
-		public abstract void Revert();
 	}
 }

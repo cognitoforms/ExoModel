@@ -1,9 +1,11 @@
-﻿namespace ExoGraph
+﻿using System.Runtime.Serialization;
+namespace ExoGraph
 {
 	/// <summary>
 	/// Represents a change to a value property in the graph.
 	/// </summary>
-	public class GraphValueChangeEvent : GraphEvent
+	[DataContract(Name = "ValueChange")]
+	public class GraphValueChangeEvent : GraphEvent, ITransactedGraphEvent
 	{
 		GraphValueProperty property;
 		object originalValue;
@@ -25,19 +27,29 @@
 			}
 		}
 
+		[DataMember]
 		public object OriginalValue
 		{
 			get
 			{
 				return originalValue;
 			}
+			private set
+			{
+				originalValue = value;
+			}
 		}
 
+		[DataMember]
 		public object CurrentValue
 		{
 			get
 			{
 				return currentValue;
+			}
+			private set
+			{
+				currentValue = value;
 			}
 		}
 
@@ -52,14 +64,6 @@
 		}
 
 		/// <summary>
-		/// Restores the property to the original value.
-		/// </summary>
-		public override void Revert()
-		{
-			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, OriginalValue);
-		}
-
-		/// <summary>
 		/// Returns the description of the property value change.
 		/// </summary>
 		/// <returns></returns>
@@ -67,5 +71,27 @@
 		{
 			return string.Format("Changed {0} on '{1}' from '{2}' to '{3}'", Property, Instance, OriginalValue, CurrentValue);
 		}
+
+		#region ITransactedGraphEvent Members
+
+		void ITransactedGraphEvent.Perform()
+		{
+			throw new System.NotImplementedException();
+		}
+
+		void ITransactedGraphEvent.Commit()
+		{
+			throw new System.NotImplementedException();
+		}
+
+		/// <summary>
+		/// Restores the property to the original value.
+		/// </summary>
+		void ITransactedGraphEvent.Rollback()
+		{
+			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, OriginalValue);
+		}
+
+		#endregion
 	}
 }

@@ -21,14 +21,40 @@
 			}
 		}
 
-		public override void Revert()
-		{
-			// TODO: Figure out a pattern to allow custom events to support optional reversion
-		}
-
 		protected override void OnNotify()
 		{
 			Instance.Type.RaiseEvent(this);
 		}
+
+		#region Transacted
+
+		internal class Transacted<TEvent> : GraphCustomEvent<TEvent>, ITransactedGraphEvent
+			where TEvent : ITransactedGraphEvent
+		{
+			internal Transacted(GraphInstance instance, TEvent customEvent)
+				: base(instance, customEvent)
+			{ }
+
+			#region ITransactedGraphEvent Members
+
+			void ITransactedGraphEvent.Perform()
+			{
+				CustomEvent.Perform();
+			}
+
+			void ITransactedGraphEvent.Commit()
+			{
+				CustomEvent.Commit();
+			}
+
+			void ITransactedGraphEvent.Rollback()
+			{
+				CustomEvent.Rollback();
+			}
+
+			#endregion
+		}
+
+		#endregion
 	}
 }

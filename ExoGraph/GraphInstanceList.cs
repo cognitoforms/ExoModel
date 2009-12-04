@@ -30,7 +30,10 @@ namespace ExoGraph
 
 		IList GetList()
 		{
-			return owner.Type.Context.GetProperty(owner.Instance, property.Name) as IList;
+			if (owner == null)
+				return property.DeclaringType.Context.GetProperty(property.DeclaringType, property.Name) as IList;
+			else
+				return property.DeclaringType.Context.GetProperty(owner.Instance, property.Name) as IList;
 		}
 
 		#endregion
@@ -91,7 +94,7 @@ namespace ExoGraph
 
 			// Copy all instances in the list to the specified array
 			foreach (object instance in list)
-				array[arrayIndex++] = owner.Type.Context.GetGraphInstance(instance);
+				array[arrayIndex++] = property.DeclaringType.Context.GetGraphInstance(instance);
 		}
 
 		/// <summary>
@@ -143,7 +146,7 @@ namespace ExoGraph
 			if (list != null)
 			{
 				foreach (object instance in list)
-					yield return owner.Type.Context.GetGraphInstance(instance);
+					yield return property.DeclaringType.Context.GetGraphInstance(instance);
 			}
 		}
 
@@ -157,7 +160,7 @@ namespace ExoGraph
 			if (list != null)
 			{
 				foreach (object instance in list)
-					yield return owner.Type.Context.GetGraphInstance(instance);
+					yield return property.DeclaringType.Context.GetGraphInstance(instance);
 			}
 		}
 

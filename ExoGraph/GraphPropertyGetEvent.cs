@@ -1,8 +1,10 @@
-﻿namespace ExoGraph
+﻿using System.Runtime.Serialization;
+namespace ExoGraph
 {
 	/// <summary>
 	/// Represents the retrieval of a property in the graph.
 	/// </summary>
+	[DataContract]
 	public class GraphPropertyGetEvent : GraphEvent
 	{
 		GraphProperty property;
@@ -41,9 +43,6 @@
 			if (IsFirstAccess)
 				Instance.OnFirstAccess(property);
 		}
-
-		public override void Revert()
-		{ }
 
 		public override string ToString()
 		{

@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ExoGraph</RootNamespace>
     <AssemblyName>ExoGraph</AssemblyName>
-    <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SccProjectName>SAK</SccProjectName>
     <SccLocalPath>SAK</SccLocalPath>
@@ -38,11 +38,21 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Runtime.Serialization">
+      <RequiredTargetFramework>3.0</RequiredTargetFramework>
+    </Reference>
     <Reference Include="System.Web" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GraphDeleteEvent.cs" />
     <Compile Include="GraphPropertyList.cs" />
     <Compile Include="GraphReferenceProperty.cs" />
     <Compile Include="GraphReferencePropertyList.cs" />
@@ -60,6 +70,8 @@
     <Compile Include="GraphCustomEvent.cs" />
     <Compile Include="GraphEventScope.cs" />
     <Compile Include="GraphEventScopeExitedEventArgs.cs" />
+    <Compile Include="ITransactedGraphEvent.cs">
+    </Compile>
     <Compile Include="ReadOnlyList.cs" />
     <Compile Include="GraphTypeList.cs" />
     <Compile Include="GraphContextProvider.cs" />
@@ -76,9 +88,6 @@
     <Compile Include="IGraphContextProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StronglyTypedGraphContext.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="app.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

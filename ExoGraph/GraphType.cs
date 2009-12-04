@@ -1,11 +1,14 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 
 namespace ExoGraph
 {
 	/// <summary>
 	/// Represents a specific type in a graph hierarchy.
 	/// </summary>
+	[DataContract]
 	public class GraphType
 	{
 		#region Fields
@@ -19,18 +22,21 @@ namespace ExoGraph
 		IList<GraphReferenceProperty> inReferences = new List<GraphReferenceProperty>();
 		GraphReferencePropertyList outReferences = new GraphReferencePropertyList();
 		GraphValuePropertyList values = new GraphValuePropertyList();
-		Dictionary<Type, object> domainEvents = new Dictionary<Type, object>();
+		Dictionary<Type, object> customEvents = new Dictionary<Type, object>();
+		Dictionary<Type, object> transactedCustomEvents = new Dictionary<Type, object>();
 		GraphPathList paths = new GraphPathList();
+		Attribute[] attributes;
 
 		#endregion
 
 		#region Contructors
 
-		public GraphType(GraphContext context, string name, string qualifiedName)
+		internal GraphType(GraphContext context, string name, string qualifiedName, Attribute[] attributes)
 		{
 			this.context = context;
 			this.name = name;
 			this.qualifiedName = qualifiedName;
+			this.attributes = attributes;
 		}
 
 		#endregion
@@ -170,35 +176,48 @@ namespace ExoGraph
 		public delegate void CustomEvent<TEvent>(GraphInstance instance, TEvent @event);
 
 		/// <summary>
-		/// Adds a domain event handler for a specific domain event raised by the current graph type.
+		/// Adds a custom event handler for a specific custom event raised by the current graph type.
 		/// </summary>
 		/// <typeparam name="TDomainEvent">
-		/// The type of the domain event parameter that will be passed
-		/// as an argument when the domain event is raised
+		/// The type of the custom event parameter that will be passed
+		/// as an argument when the custom event is raised
 		/// </typeparam>
-		/// <param name="handler">The event handler for the domain event</param>
+		/// <param name="handler">The event handler for the custom event</param>
 		public void Subscribe<TEvent>(CustomEvent<TEvent> handler)
 		{
 			object currentHandler;
-			if (domainEvents.TryGetValue(typeof(TEvent), out currentHandler))
-				domainEvents[typeof(TEvent)] = (CustomEvent<TEvent>)currentHandler + handler;
+
+			if (typeof(ITransactedGraphEvent).IsAssignableFrom(typeof(TEvent)))
+				transactedCustomEvents[typeof(TEvent)] =
+					transactedCustomEvents.TryGetValue(typeof(TEvent), out currentHandler) ?
+					(CustomEvent<TEvent>)currentHandler + handler : handler;
 			else
-				domainEvents[typeof(TEvent)] = handler;
+				customEvents[typeof(TEvent)] =
+						customEvents.TryGetValue(typeof(TEvent), out currentHandler) ?
+						(CustomEvent<TEvent>)currentHandler + handler : handler;
 		}
 
 		/// <summary>
-		/// Removes a domain event handler for a specific domain event raised by the current graph type.
+		/// Removes a custom event handler for a specific custom event raised by the current graph type.
 		/// </summary>
 		/// <typeparam name="TDomainEvent">
-		/// The type of the domain event parameter that will be passed
+		/// The type of the custom event parameter that will be passed
 		/// as an argument when the domain event is raised
 		/// </typeparam>
-		/// <param name="handler">The event handler for the domain event</param>
+		/// <param name="handler">The event handler for the custom event</param>
 		public void Unsubscribe<TEvent>(CustomEvent<TEvent> handler)
 		{
 			object currentHandler;
-			if (domainEvents.TryGetValue(typeof(TEvent), out currentHandler))
-				domainEvents[typeof(TEvent)] = (CustomEvent<TEvent>)currentHandler - handler;
+			if (typeof(ITransactedGraphEvent).IsAssignableFrom(typeof(TEvent)))
+			{
+				if (transactedCustomEvents.TryGetValue(typeof(TEvent), out currentHandler))
+					transactedCustomEvents[typeof(TEvent)] = (CustomEvent<TEvent>)currentHandler - handler;
+			}
+			else
+			{
+				if (customEvents.TryGetValue(typeof(TEvent), out currentHandler))
+					customEvents[typeof(TEvent)] = (CustomEvent<TEvent>)currentHandler - handler;
+			}
 		}
 
 		/// <summary>
@@ -209,8 +228,39 @@ namespace ExoGraph
 		internal void RaiseEvent<TEvent>(GraphCustomEvent<TEvent> customEvent)
 		{
 			object currentHandler;
-			if (domainEvents.TryGetValue(typeof(TEvent), out currentHandler))
+			if (customEvents.TryGetValue(typeof(TEvent), out currentHandler))
 				((CustomEvent<TEvent>)currentHandler)(customEvent.Instance, customEvent.CustomEvent);
+		}
+
+		/// <summary>
+		/// Indicates whether the current type has one or more attributes of the specified type.
+		/// </summary>
+		/// <typeparam name="TAttribute"></typeparam>
+		/// <returns></returns>
+		public bool HasAttribute<TAttribute>()
+			where TAttribute : Attribute
+		{
+			return GetAttributes<TAttribute>().Length > 0;
+		}
+
+		/// <summary>
+		/// Returns an array of attributes defined on the current type.
+		/// </summary>
+		/// <typeparam name="TAttribute"></typeparam>
+		/// <returns></returns>
+		public TAttribute[] GetAttributes<TAttribute>()
+			where TAttribute : Attribute
+		{
+			List<TAttribute> matches = new List<TAttribute>();
+
+			// Find matching attributes on the current property
+			foreach (Attribute attribute in attributes)
+			{
+				if (attribute is TAttribute)
+					matches.Add((TAttribute)attribute);
+			}
+
+			return matches.ToArray();
 		}
 
 		/// <summary>
@@ -269,6 +319,110 @@ namespace ExoGraph
 		public override string ToString()
 		{
 			return name;
+		}
+
+
+		/// <summary>
+		/// Gets the <see cref="GraphInstance"/> assigned to the specified property.
+		/// </summary>
+		/// <param name="property">The name of the property</param>
+		/// <returns>The instance assigned to the property, or null if the property does not have a value</returns>
+		public GraphInstance GetReference(string property)
+		{
+			object reference = Context.GetProperty(null, property);
+			if (reference != null)
+				return Context.GetGraphInstance(reference);
+			return null;
+		}
+
+		/// <summary>
+		/// Gets the <see cref="GraphInstance"/> assigned to the specified property.
+		/// </summary>
+		/// <param name="property">The specific <see cref="GraphReferenceProperty"/></param>
+		/// <returns>The instance assigned to the property, or null if the property does not have a value</returns>
+		public GraphInstance GetReference(GraphReferenceProperty property)
+		{
+			return GetReference(property.Name);
+		}
+
+		/// <summary>
+		/// Gets the value assigned to the specified property.
+		/// </summary>
+		/// <param name="property">The name of the property</param>
+		/// <returns>The value of the property</returns>
+		public object GetValue(string property)
+		{
+			return Context.GetProperty(null, property);
+		}
+
+		/// <summary>
+		/// Gets the value assigned to the specified property.
+		/// </summary>
+		/// <param name="property">The specific <see cref="GraphValueProperty"/></param>
+		/// <returns>The value of the property</returns>
+		public object GetValue(GraphValueProperty property)
+		{
+			return GetValue(property.Name);
+		}
+
+		/// <summary>
+		/// Gets the list of <see cref="GraphInstance"/> items assigned to the specified property.
+		/// </summary>
+		/// <param name="property">The name of property</param>
+		/// <returns>The list of instances</returns>
+		public GraphInstanceList GetList(string property)
+		{
+			return GetList(OutReferences[property]);
+		}
+
+		/// <summary>
+		/// Gets the list of <see cref="GraphInstance"/> items assigned to the specified property.
+		/// </summary>
+		/// <param name="property">The specific <see cref="GraphReferenceProperty"/></param>
+		/// <returns>The list of instances</returns>
+		public GraphInstanceList GetList(GraphReferenceProperty property)
+		{
+			return new GraphInstanceList(null, property);
+		}
+
+		/// <summary>
+		/// Sets the reference for a property to the specified instance.
+		/// </summary>
+		/// <param name="property">The property the reference is for</param>
+		/// <param name="value">The value of the property</param>
+		public void SetReference(string property, GraphInstance value)
+		{
+			Context.SetProperty(null, property, value == null ? null : value.Instance);
+		}
+
+		/// <summary>
+		/// Sets the reference for a property to the specified instance.
+		/// </summary>
+		/// <param name="property">The property the reference is for</param>
+		/// <param name="value">The value of the property</param>
+		public void SetReference(GraphReferenceProperty property, GraphInstance value)
+		{
+			SetReference(property.Name, value);
+		}
+
+		/// <summary>
+		/// Sets a property to the specified value.
+		/// </summary>
+		/// <param name="property">The property to set</param>
+		/// <param name="value">The value of the property</param>
+		public void SetValue(string property, object value)
+		{
+			Context.SetProperty(null, property, value);
+		}
+
+		/// <summary>
+		/// Sets a property to the specified value.
+		/// </summary>
+		/// <param name="property">The property to set</param>
+		/// <param name="value">The value of the property</param>
+		public void SetValue(GraphValueProperty property, object value)
+		{
+			SetValue(property.Name, value);
 		}
 
 		/// <summary>

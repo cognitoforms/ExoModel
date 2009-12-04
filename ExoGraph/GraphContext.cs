@@ -17,6 +17,11 @@ namespace ExoGraph
 		/// </summary>
 		GraphTypeList graphTypes = new GraphTypeList();
 
+		/// <summary>
+		/// Tracks the next auto-generated id assigned to new instances.
+		/// </summary>
+		int nextId;
+
 		#endregion
 
 		#region Properties
@@ -93,6 +98,27 @@ namespace ExoGraph
 		{
 			if (Event != null)
 				Event(this, graphEvent);
+		}
+
+		/// <summary>
+		/// Generates a unique identifier to assign to new instances that do not yet have an id.
+		/// </summary>
+		/// <returns></returns>
+		internal string GenerateId()
+		{
+			return "?" + ++nextId;
+		}
+
+		/// <summary>
+		/// Ensures that the numeric value incorporated in the specified id will not be reassigned
+		/// to new instances.
+		/// </summary>
+		/// <param name="id"></param>
+		internal void ReserveId(string id)
+		{
+			if (id != null)
+			{
+			}
 		}
 
 		/// <summary>
@@ -200,7 +226,11 @@ namespace ExoGraph
 
 		protected internal abstract object GetProperty(object instance, string property);
 
+		protected internal abstract object GetProperty(GraphType type, string property);
+
 		protected internal abstract void SetProperty(object instance, string property, object value);
+
+		protected internal abstract void SetProperty(GraphType type, string property, object value);
 
 		protected internal abstract void DeleteInstance(object instance);
 
@@ -208,16 +238,19 @@ namespace ExoGraph
 
 		#region Graph Type Methods
 
+
+
 		/// <summary>
 		/// Creates a new <see cref="GraphType"/> instance with the specified name
 		/// and associates it with the current graph context.
 		/// </summary>
 		/// <param name="name">The unique name of the type</param>
 		/// <param name="qualifiedName">The fully qualified name of the type</param>
+		/// <param name="attributes">The attributes assigned to the type</param>
 		/// <returns></returns>
-		protected GraphType CreateGraphType(string name, string qualifiedName)
+		protected virtual GraphType CreateGraphType(string name, string qualifiedName, Attribute[] attributes)
 		{
-			GraphType type = new GraphType(this, name, qualifiedName);
+			GraphType type = new GraphType(this, name, qualifiedName, attributes);
 			graphTypes.Add(type);
 			return type;
 		}
@@ -227,7 +260,7 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="type">The type of the sub type</param>
 		/// <param name="baseType">The type of the base type</param>
-		protected void SetBaseType(GraphType subType, GraphType baseType)
+		protected virtual void SetBaseType(GraphType subType, GraphType baseType)
 		{
 			subType.SetBaseType(baseType);
 		}
@@ -238,11 +271,14 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="declaringType">The <see cref="GraphType"/> the property is for</param>
 		/// <param name="name">The name of the property</param>
+		/// <param name="isStatic">Indicates whether the property is statically defined on the type</param>
+		/// <param name="isBoundary">Indicates whether the property crosses scoping boundaries and should not be actively tracked</param>
 		/// <param name="propertyType">The <see cref="GraphType"/> of the property</param>
 		/// <param name="isList">Indicates whether the property represents a list of references or a single reference</param>
-		protected void AddProperty(GraphType declaringType, string name, GraphType propertyType, bool isList)
+		/// <param name="attributes">The attributes assigned to the property</param>
+		protected virtual void AddProperty(GraphType declaringType, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
 		{
-			declaringType.AddProperty(new GraphReferenceProperty(declaringType, name, declaringType.Properties.Count, propertyType, isList));
+			declaringType.AddProperty(new GraphReferenceProperty(declaringType, name, declaringType.Properties.Count, isStatic, isBoundary, propertyType, isList, attributes));
 		}
 
 		/// <summary>
@@ -252,14 +288,15 @@ namespace ExoGraph
 		/// <param name="declaringType">The <see cref="GraphType"/> the property is for</param>
 		/// <param name="name">The name of the property</param>
 		/// <param name="propertyType">The <see cref="Type"/> of the property</param>
-		protected void AddProperty(GraphType declaringType, string name, Type propertyType)
+		/// <param name="attributes">The attributes assigned to the property</param>
+		protected virtual void AddProperty(GraphType declaringType, string name, bool isStatic, Type propertyType, Attribute[] attributes)
 		{
-			declaringType.AddProperty(new GraphValueProperty(declaringType, name, declaringType.Properties.Count, propertyType));
+			declaringType.AddProperty(new GraphValueProperty(declaringType, name, declaringType.Properties.Count, isStatic, propertyType, attributes));
 		}
 
 
 		/// <summary>
-		/// Adds a existing property to the specified <see cref="GraphType"/> that is
+		/// Adds an existing property to the specified <see cref="GraphType"/> that is
 		/// inherited from a base type.
 		/// </summary>
 		/// <param name="declaringType">The <see cref="GraphType"/> the property is for</param>

@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Xml.Serialization;
+using System.Xml.Schema;
+using System.Xml;
+using System.Runtime.Serialization;
 
 namespace ExoGraph
 {
@@ -8,11 +12,16 @@ namespace ExoGraph
 	/// Tracks all <see cref="GraphEvent"/> occurrences within a context and allows changes
 	/// to be recorded or rolled back entirely.
 	/// </summary>
-	public class GraphTransaction : IDisposable, IEnumerable<GraphEvent>
+	[XmlSchemaProvider("GetSchema")]
+	[DataContract]
+	public class GraphTransaction : IDisposable, IEnumerable<GraphEvent>//, IXmlSerializable
 	{
 		GraphContext context;
 		GraphFilter filter;
+
+		[DataMember(Name = "Changes")]
 		List<GraphEvent> events = new List<GraphEvent>();
+
 		bool isActive = true;
 
 		internal GraphTransaction(GraphContext context, GraphFilter filter)
@@ -29,8 +38,9 @@ namespace ExoGraph
 		/// <param name="e"></param>
 		void context_Event(object sender, GraphEvent e)
 		{
-			events.Add(e);
-			Console.WriteLine(e.ToString());
+			// Only track events that change the graph
+			if (e is ITransactedGraphEvent)
+				events.Add(e);
 		}
 
 		/// <summary>
@@ -40,6 +50,11 @@ namespace ExoGraph
 		{
 			isActive = false;
 			context.Event -= context_Event;
+			using (new GraphEventScope())
+			{
+				for (int i = events.Count - 1; i >= 0; i--)
+					((ITransactedGraphEvent)events[i]).Commit();
+			}
 		}
 
 		/// <summary>
@@ -53,7 +68,7 @@ namespace ExoGraph
 			using (new GraphEventScope())
 			{
 				for (int i = events.Count - 1; i >= 0; i--)
-					events[i].Revert();
+					((ITransactedGraphEvent)events[i]).Rollback();
 			}
 		}
 

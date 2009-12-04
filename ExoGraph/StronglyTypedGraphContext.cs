@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Collections;
@@ -71,7 +72,8 @@ namespace ExoGraph
 			SortedDictionary<Type, GraphType> graphTypes = new SortedDictionary<Type, GraphType>(new TypeComparer());
 			foreach (Type type in types)
 			{
-				GraphType graphType = CreateGraphType(type.Name, type.AssemblyQualifiedName);
+
+				GraphType graphType = CreateGraphType(type.Name, type.AssemblyQualifiedName, type.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 				graphTypes.Add(type, graphType);
 			}
 
@@ -122,17 +124,17 @@ namespace ExoGraph
 
 					// Create references based on properties that relate to other instance types
 					else if (graphTypes.TryGetValue(property.PropertyType, out subGraphType))
-						AddProperty(graphType, property.Name, subGraphType, false);
+						AddProperty(graphType, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, subGraphType, false, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 
 					// Create references based on properties that are lists of other instance types
 					else if (typeof(IList).IsAssignableFrom(property.PropertyType) &&
 						property.PropertyType.GetProperty("Item", new Type[] { typeof(int) }) != null &&
 						graphTypes.TryGetValue(property.PropertyType.GetProperty("Item", new Type[] { typeof(int) }).PropertyType, out subGraphType))
-						AddProperty(graphType, property.Name, subGraphType, true);
+						AddProperty(graphType, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, subGraphType, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 
 					// Create values for all other properties
 					else
-						AddProperty(graphType, property.Name, property.PropertyType);
+						AddProperty(graphType, property.Name, property.GetGetMethod().IsStatic, property.PropertyType, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 				}
 			}
 
@@ -148,6 +150,16 @@ namespace ExoGraph
 		protected internal override void SetProperty(object instance, string property, object value)
 		{
 			instance.GetType().GetProperty(property).SetValue(instance, value, null);
+		}
+
+		protected internal override object GetProperty(GraphType type, string property)
+		{
+			return Type.GetType(type.QualifiedName).GetProperty(property).GetValue(null, null);
+		}
+
+		protected internal override void SetProperty(GraphType type, string property, object value)
+		{
+			Type.GetType(type.QualifiedName).GetProperty(property).SetValue(null, value, null);
 		}
 
 		#endregion
