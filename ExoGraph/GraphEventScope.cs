@@ -84,6 +84,23 @@ namespace ExoGraph
 
 		#endregion
 
+		#region Methods
+
+		/// <summary>
+		/// Causes the specified action to be performed when the outermost graph event
+		/// scope has exited, or performs the action immediately if there is not a current scope.
+		/// </summary>
+		/// <param name="action"></param>
+		public static void OnExit(Action action)
+		{
+			if (current == null)
+				action();
+			else
+				current.Exited += (sender, e) => action();
+		}
+
+		#endregion
+
 		#region IDisposable Members
 
 		/// <summary>
