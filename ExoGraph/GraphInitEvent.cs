@@ -13,6 +13,10 @@ namespace ExoGraph
 			: base(instance)
 		{ }
 
+		internal GraphInitEvent(GraphType type, string id)
+			: base(type, id)
+		{ }
+
 		protected override void OnNotify()
 		{
 			Instance.Type.RaiseInit(this);
@@ -31,72 +35,60 @@ namespace ExoGraph
 		[DataContract(Name = "InitNew")]
 		public class InitNew : GraphInitEvent, ITransactedGraphEvent
 		{
-			GraphType type;
-
 			internal InitNew(GraphInstance instance)
 				: base(instance)
-			{
-				this.type = instance.Type;
-			}
+			{ }
 
-			internal InitNew(GraphType type)
-				: base(null)
-			{
-				this.type = type;
-			}
-
-			public GraphType Type
-			{
-				get
-				{
-					return type;
-				}
-			}
-
-			/// <summary>
-			/// Gets or sets the name of the <see cref="GraphType"/> in order to allow the type to
-			/// be serialized by name instead of serializing the entire type instance.
-			/// </summary>
-			[DataMember(Name = "Type")]
-			string TypeName
-			{
-				get
-				{
-					return type.Name;
-				}
-				set
-				{
-					type = GraphContext.Current.GraphTypes[value];
-				}
-			}
+			internal InitNew(GraphType type, string id)
+				: base(type, id)
+			{ }
 
 			#region ITransactedGraphEvent Members
 
 			/// <summary>
 			/// Creates a new <see cref="GraphInstance"/> of the specified <see cref="GraphType"/>.
 			/// </summary>
-			void ITransactedGraphEvent.Perform()
+			void ITransactedGraphEvent.Perform(GraphTransaction transaction)
 			{
-				if (Instance != null)
-					Instance = Type.Create();
+				// Creates a new instance
+				if (Instance.Instance == null)
+				{
+					// Get the id of the instance surrogate
+					string id = Instance.Id;
+
+					// Create a new instance and assign this a the instance the event is for
+					Instance = Instance.Type.Create();
+
+					// Set the id of the new instance to the id of the original surrogate
+					Instance.Id = id;
+					
+					// Force the new instance to initialize
+					Instance.OnAccess();
+				}
 			}
 
 			/// <summary>
 			/// 
 			/// </summary>
-			void ITransactedGraphEvent.Commit()
+			void ITransactedGraphEvent.Commit(GraphTransaction transaction)
 			{ }
 
 			/// <summary>
 			/// Deletes and removes the reference to the <see cref="GraphInstance"/> associated with
 			/// the current event, which effectively removes the instance from existence.
 			/// </summary>
-			void ITransactedGraphEvent.Rollback()
+			void ITransactedGraphEvent.Rollback(GraphTransaction transaction)
 			{
-				if (Instance != null)
+				// Ensure that the current instance has been resolved
+				Instance = EnsureInstance(transaction, Instance);
+
+				if (Instance.Instance != null)
 				{
+					// Delete the current instance
 					Instance.Delete();
-					Instance = null;
+
+					// Create a new proxy reference to the instance
+					Instance = new GraphInstance(Instance.Type, Instance.Id);
 				}
 			}
 

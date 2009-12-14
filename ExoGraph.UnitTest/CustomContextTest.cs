@@ -51,13 +51,16 @@ namespace ExoGraph.UnitTest
 
 			protected override string GetId(object instance)
 			{
-				throw new NotImplementedException();
+				int id = ((Entity)instance).Id;
+				return id == Int32.MinValue ? null : id.ToString();
 			}
 
 			protected override object GetInstance(GraphType type, string id)
 			{
 				if (id == null)
 					return Type.GetType(type.QualifiedName).GetConstructor(Type.EmptyTypes).Invoke(null);
+				else
+					return Type.GetType(type.QualifiedName).GetConstructor(new Type[] { typeof(int) }).Invoke(new object[] { Int32.Parse(id) });
 
 				throw new NotSupportedException("Creating instances of existing objects is not supported by this test context.");
 			}
@@ -115,6 +118,11 @@ namespace ExoGraph.UnitTest
 			{
 				base.OnListChanged(instance, property, added, removed);
 			}
+
+			protected override void Save(GraphInstance graphInstance)
+			{
+				throw new NotImplementedException();
+			}
 		}
 
 		#endregion
@@ -123,10 +131,25 @@ namespace ExoGraph.UnitTest
 
 		GraphInstance instance;
 		Dictionary<string, object> properties = new Dictionary<string, object>();
+		int id = Int32.MinValue;
 
 		public Entity()
 		{
 			instance = context.OnInit(this);
+		}
+
+		public Entity(int id)
+		{
+			this.id = id;
+			instance = context.OnInit(this);
+		}
+
+		public int Id
+		{
+			get
+			{
+				return id;
+			}
 		}
 
 		public static ExoGraph.GraphContext Context
@@ -228,6 +251,13 @@ namespace ExoGraph.UnitTest
 
 	public abstract class CustomerBase : Entity
 	{
+		protected CustomerBase()
+		{ }
+
+		protected CustomerBase(int id)
+			: base(id)
+		{ }
+
 		public string Name
 		{
 			get { return GetProperty<string>("Name"); }
@@ -242,8 +272,14 @@ namespace ExoGraph.UnitTest
 	public class Customer : CustomerBase
 	{
 		EntityList<Contact> otherContacts;
-		
+
 		public Customer()
+		{
+			otherContacts = new EntityList<Contact>(this, "OtherContacts");
+		}
+
+		public Customer(int id)
+			: base(id)
 		{
 			otherContacts = new EntityList<Contact>(this, "OtherContacts");
 		}
@@ -284,6 +320,13 @@ namespace ExoGraph.UnitTest
 
 	public class Contact : Entity
 	{
+		public Contact()
+		{ }
+
+		public Contact(int id)
+			: base(id)
+		{ }
+
 		public string Name
 		{
 			get { return GetProperty<string>("Name"); }

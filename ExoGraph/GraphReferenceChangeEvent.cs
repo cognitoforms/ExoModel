@@ -8,15 +8,15 @@ namespace ExoGraph
 	public class GraphReferenceChangeEvent : GraphEvent, ITransactedGraphEvent
 	{
 		GraphReferenceProperty property;
-		GraphInstance originalValue;
-		GraphInstance currentValue;
+		GraphInstance oldValue;
+		GraphInstance newValue;
 
-		internal GraphReferenceChangeEvent(GraphInstance instance, GraphReferenceProperty property, GraphInstance originalValue, GraphInstance currentValue)
+		internal GraphReferenceChangeEvent(GraphInstance instance, GraphReferenceProperty property, GraphInstance oldValue, GraphInstance newValue)
 			: base(instance)
 		{
 			this.property = property;
-			this.originalValue = originalValue;
-			this.currentValue = currentValue;
+			this.oldValue = oldValue;
+			this.newValue = newValue;
 		}
 
 		public GraphReferenceProperty Property
@@ -27,7 +27,7 @@ namespace ExoGraph
 			}
 		}
 
-		[DataMember(Name = "Property", Order = 2)]
+		[DataMember(Name = "property", Order = 2)]
 		string PropertyName
 		{
 			get
@@ -40,67 +40,83 @@ namespace ExoGraph
 			}
 		}
 
-		[DataMember(Order = 3)]
-		public GraphInstance OriginalValue
+		[DataMember(Name = "oldValue", Order = 3)]
+		public GraphInstance OldValue
 		{
 			get
 			{
-				return originalValue;
+				return oldValue;
 			}
 			private set
 			{
-				this.originalValue = value;
+				this.oldValue = value;
 			}
 		}
 
-		[DataMember(Order = 4)]
-		public GraphInstance CurrentValue
+		[DataMember(Name = "newValue", Order = 4)]
+		public GraphInstance NewValue
 		{
 			get
 			{
-				return currentValue;
+				return newValue;
 			}
 			private set
 			{
-				this.originalValue = value;
+				this.newValue = value;
 			}
 		}
 
 		protected override void OnNotify()
 		{
-			if (OriginalValue != null)
-				Instance.RemoveReference(Instance.GetOutReference(property, OriginalValue));
+			if (OldValue != null)
+				Instance.RemoveReference(Instance.GetOutReference(property, OldValue));
 
-			if (CurrentValue != null)
-				Instance.AddReference(property, CurrentValue, false);
+			if (NewValue != null)
+				Instance.AddReference(property, NewValue, false);
 
 			Instance.Type.RaiseReferenceChange(this);
 		}
 
 		public override string ToString()
 		{
-			return string.Format("Changed {0} on '{1}' from '{2}' to '{3}'", Property, Instance, OriginalValue, CurrentValue);
+			return string.Format("Changed {0} on '{1}' from '{2}' to '{3}'", Property, Instance, OldValue, NewValue);
 		}
 
 		#region ITransactedGraphEvent Members
 
 		/// <summary>
-		/// Sets the reference property to the current value.
+		/// Sets the reference property to the new value.
 		/// </summary>
-		void ITransactedGraphEvent.Perform()
+		void ITransactedGraphEvent.Perform(GraphTransaction transaction)
 		{
-			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, CurrentValue == null ? null : CurrentValue.Instance);
+			Instance = EnsureInstance(transaction, Instance);
+
+			if (OldValue != null)
+				OldValue = EnsureInstance(transaction, OldValue);
+
+			if (NewValue != null)
+				NewValue = EnsureInstance(transaction, NewValue);
+
+			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, NewValue == null ? null : NewValue.Instance);
 		}
 
-		void ITransactedGraphEvent.Commit()
+		void ITransactedGraphEvent.Commit(GraphTransaction transaction)
 		{ }
 
 		/// <summary>
-		/// Sets the reference property back to the original value.
+		/// Sets the reference property back to the old value.
 		/// </summary>
-		void ITransactedGraphEvent.Rollback()
+		void ITransactedGraphEvent.Rollback(GraphTransaction transaction)
 		{
-			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, OriginalValue == null ? null : OriginalValue.Instance);
+			Instance = EnsureInstance(transaction, Instance);
+
+			if (OldValue != null)
+				OldValue = EnsureInstance(transaction, OldValue);
+
+			if (NewValue != null)
+				NewValue = EnsureInstance(transaction, NewValue);
+
+			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, OldValue == null ? null : OldValue.Instance);
 		}
 
 		#endregion

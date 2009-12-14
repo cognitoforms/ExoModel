@@ -87,7 +87,7 @@ namespace ExoGraph
 		/// </remarks>
 		public GraphTransaction BeginTransaction()
 		{
-			return new GraphTransaction(this, null);
+			return new GraphTransaction(this);
 		}
 
 		/// <summary>
@@ -141,6 +141,10 @@ namespace ExoGraph
 
 		protected void OnPropertyGet(GraphInstance instance, GraphProperty property)
 		{
+			// Static notifications are not supported
+			if (property.IsStatic)
+				return;
+
 			GraphEvent propertyGet = new GraphPropertyGetEvent(instance, property);
 
 			propertyGet.Notify();
@@ -159,7 +163,7 @@ namespace ExoGraph
 			OnPropertyChanged(instance, instance.Type.Properties[property], oldValue, newValue);
 		}
 
-		protected void OnPropertyChanged(GraphInstance instance, GraphProperty property, object originalValue, object currentValue)
+		protected void OnPropertyChanged(GraphInstance instance, GraphProperty property, object oldValue, object newValue)
 		{
 			// Check to see what type of property was changed
 			if (property is GraphReferenceProperty)
@@ -170,32 +174,32 @@ namespace ExoGraph
 				// may allow setting lists, so this case must be handled appropriately.
 				if (reference.IsList)
 				{
-					// Notify the context that the items in the original list have been removed
-					if (originalValue is IList)
-						OnListChanged(instance, reference, null, (IList)originalValue);
+					// Notify the context that the items in the old list have been removed
+					if (oldValue is IList)
+						OnListChanged(instance, reference, null, (IList)oldValue);
 
 					// Then notify the context that the items in the new list have been added
-					if (currentValue is IList)
-						OnListChanged(instance, reference, (IList)currentValue, null);
+					if (newValue is IList)
+						OnListChanged(instance, reference, (IList)newValue, null);
 
 					// Finally, notify subclasses that the list reference has changed in case they
 					// are subscribing to list events to support tracking list changes
-					OnStopTrackingList(instance, reference, (IList)originalValue);
-					OnStopTrackingList(instance, reference, (IList)currentValue);
+					OnStopTrackingList(instance, reference, (IList)oldValue);
+					OnStopTrackingList(instance, reference, (IList)newValue);
 				}
 
 				// Notify subscribers that a reference property has changed
 				else
 					new GraphReferenceChangeEvent(
 						instance, (GraphReferenceProperty)property,
-						originalValue == null ? null : GetGraphInstance(originalValue), 
-						currentValue == null ? null : GetGraphInstance(currentValue)
+						oldValue == null ? null : GetGraphInstance(oldValue), 
+						newValue == null ? null : GetGraphInstance(newValue)
 					).Notify();
 			}
 
 			// Otherwise, notify subscribers that a value property has changed
 			else
-				new GraphValueChangeEvent(instance, (GraphValueProperty)property, originalValue, currentValue).Notify();
+				new GraphValueChangeEvent(instance, (GraphValueProperty)property, oldValue, newValue).Notify();
 		}
 
 		protected void OnListChanged(GraphInstance instance, string property, IEnumerable added, IEnumerable removed)
@@ -215,6 +219,22 @@ namespace ExoGraph
 				foreach (object instance in items)
 					yield return GetGraphInstance(instance);
 		}
+
+		/// <summary>
+		/// Called by subclasses to notify the context that a commit has occurred.
+		/// </summary>
+		/// <param name="instance"></param>
+		protected void OnSave(GraphInstance instance)
+		{
+			new GraphSaveEvent(instance).Notify();
+		}
+
+
+		/// <summary>
+		/// Saves changes to the specified instance and related instances in the graph.
+		/// </summary>
+		/// <param name="graphInstance"></param>
+		protected internal abstract void Save(GraphInstance graphInstance);
 
 		protected internal abstract GraphInstance GetGraphInstance(object instance);
 
@@ -278,7 +298,7 @@ namespace ExoGraph
 		/// <param name="attributes">The attributes assigned to the property</param>
 		protected virtual void AddProperty(GraphType declaringType, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
 		{
-			declaringType.AddProperty(new GraphReferenceProperty(declaringType, name, declaringType.Properties.Count, isStatic, isBoundary, propertyType, isList, attributes));
+			declaringType.AddProperty(new GraphReferenceProperty(declaringType, name, declaringType.GetNextPropertyIndex(), isStatic, isBoundary, propertyType, isList, attributes));
 		}
 
 		/// <summary>
@@ -291,7 +311,7 @@ namespace ExoGraph
 		/// <param name="attributes">The attributes assigned to the property</param>
 		protected virtual void AddProperty(GraphType declaringType, string name, bool isStatic, Type propertyType, Attribute[] attributes)
 		{
-			declaringType.AddProperty(new GraphValueProperty(declaringType, name, declaringType.Properties.Count, isStatic, propertyType, attributes));
+			declaringType.AddProperty(new GraphValueProperty(declaringType, name, declaringType.GetNextPropertyIndex(), isStatic, propertyType, attributes));
 		}
 
 

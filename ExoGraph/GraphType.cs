@@ -26,6 +26,7 @@ namespace ExoGraph
 		Dictionary<Type, object> transactedCustomEvents = new Dictionary<Type, object>();
 		GraphPathList paths = new GraphPathList();
 		Attribute[] attributes;
+		int lastPropertyIndex = -1;
 
 		#endregion
 
@@ -132,6 +133,7 @@ namespace ExoGraph
 		public event EventHandler<GraphReferenceChangeEvent> ReferenceChange;
 		public event EventHandler<GraphValueChangeEvent> ValueChange;
 		public event EventHandler<GraphListChangeEvent> ListChange;
+		public event EventHandler<GraphSaveEvent> Save;
 
 		#endregion
 
@@ -165,6 +167,12 @@ namespace ExoGraph
 		{
 			if (ListChange != null)
 				ListChange(this, listChangeEvent);
+		}
+
+		internal void RaiseSave(GraphSaveEvent graphSaveEvent)
+		{
+			if (Save != null)
+				Save(this, graphSaveEvent);
 		}
 
 		/// <summary>
@@ -437,6 +445,7 @@ namespace ExoGraph
 
 			this.baseType = baseType;
 			baseType.subTypes.Add(this);
+			lastPropertyIndex = baseType.lastPropertyIndex;
 		}
 
 		/// <summary>
@@ -454,6 +463,11 @@ namespace ExoGraph
 				values.Add((GraphValueProperty)property);
 
 			properties.Add(property);
+		}
+
+		internal int GetNextPropertyIndex()
+		{
+			return lastPropertyIndex++;
 		}
 
 		#endregion

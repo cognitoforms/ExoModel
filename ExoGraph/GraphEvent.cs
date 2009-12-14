@@ -8,6 +8,7 @@ namespace ExoGraph
 	/// Base class for classes that represent specific events with an object graph.
 	/// </summary>
 	[DataContract]
+	[KnownType(typeof(GraphSaveEvent))]
 	[KnownType(typeof(GraphInitEvent))]
 	[KnownType(typeof(GraphInitEvent.InitNew))]
 	[KnownType(typeof(GraphInitEvent.InitExisting))]
@@ -18,16 +19,24 @@ namespace ExoGraph
 	[KnownType(typeof(GraphListChangeEvent))]
 	public abstract class GraphEvent : EventArgs
 	{
-		/// <summary>
-		/// Stores the <see cref="GraphInstance"/> the event is for.
-		/// </summary>
 		GraphInstance instance;
+
+		/// <summary>
+		/// Creates a new <see cref="GraphEvent"/> for the specified <see cref="GraphType"/> and id.
+		/// </summary>
+		/// <param name="id"></param>
+		/// <param name="type"></param>
+		internal GraphEvent(GraphType type, string id)
+		{
+			this.instance = new GraphInstance(type, id);
+		}
 
 		/// <summary>
 		/// Creates a new <see cref="GraphEvent"/> for the specified <see cref="GraphInstance"/>.
 		/// </summary>
 		/// <param name="instance">The instance the event is for</param>
 		internal GraphEvent(GraphInstance instance)
+			: this(instance.Type, instance.Id)
 		{
 			this.instance = instance;
 		}
@@ -35,7 +44,7 @@ namespace ExoGraph
 		/// <summary>
 		/// Gets the <see cref="GraphInstance"/> the event is for.
 		/// </summary>
-		[DataMember(Order = 1)]
+		[DataMember(Name = "instance", Order = 1)]
 		public GraphInstance Instance
 		{
 			get
@@ -66,5 +75,17 @@ namespace ExoGraph
 		/// Allows subclasses to perform event specific notification logic.
 		/// </summary>
 		protected abstract void OnNotify();
+
+		/// <summary>
+		/// Verifies that the specified <see cref="GraphInstance"/> refers to a valid real instance
+		/// and if not, uses the type and id information to look up the real instance.
+		/// </summary>
+		/// <param name="transaction"></param>
+		/// <param name="instance"></param>
+		/// <returns></returns>
+		protected GraphInstance EnsureInstance(GraphTransaction transaction, GraphInstance instance)
+		{
+			return instance.Instance == null ? transaction.GetInstance(instance.Type, instance.Id) : instance;
+		}
 	}
 }

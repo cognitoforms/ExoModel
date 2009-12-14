@@ -5,10 +5,10 @@ namespace ExoGraph
 {
 	public interface ITransactedGraphEvent
 	{
-		void Perform();
+		void Perform(GraphTransaction transaction);
 
-		void Commit();
+		void Commit(GraphTransaction transaction);
 
-		void Rollback();
+		void Rollback(GraphTransaction transaction);
 	}
 }

@@ -8,15 +8,15 @@ namespace ExoGraph
 	public class GraphValueChangeEvent : GraphEvent, ITransactedGraphEvent
 	{
 		GraphValueProperty property;
-		object originalValue;
-		object currentValue;
+		object oldValue;
+		object newValue;
 
-		internal GraphValueChangeEvent(GraphInstance instance, GraphValueProperty property, object originalValue, object currentValue)
+		internal GraphValueChangeEvent(GraphInstance instance, GraphValueProperty property, object oldValue, object newValue)
 			: base(instance)
 		{
 			this.property = property;
-			this.originalValue = originalValue;
-			this.currentValue = currentValue;
+			this.oldValue = oldValue;
+			this.newValue = newValue;
 		}
 
 		public GraphValueProperty Property
@@ -27,29 +27,42 @@ namespace ExoGraph
 			}
 		}
 
-		[DataMember]
-		public object OriginalValue
+		[DataMember(Name = "property", Order = 2)]
+		string PropertyName
 		{
 			get
 			{
-				return originalValue;
+				return property.Name;
 			}
-			private set
+			set
 			{
-				originalValue = value;
+				property = (GraphValueProperty)Instance.Type.Properties[value];
 			}
 		}
 
-		[DataMember]
-		public object CurrentValue
+		[DataMember(Name = "oldValue", Order = 3)]
+		public object OldValue
 		{
 			get
 			{
-				return currentValue;
+				return oldValue;
 			}
 			private set
 			{
-				currentValue = value;
+				oldValue = value;
+			}
+		}
+
+		[DataMember(Name = "newValue", Order = 4)]
+		public object NewValue
+		{
+			get
+			{
+				return newValue;
+			}
+			private set
+			{
+				newValue = value;
 			}
 		}
 
@@ -69,27 +82,29 @@ namespace ExoGraph
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return string.Format("Changed {0} on '{1}' from '{2}' to '{3}'", Property, Instance, OriginalValue, CurrentValue);
+			return string.Format("Changed {0} on '{1}' from '{2}' to '{3}'", Property, Instance, OldValue, NewValue);
 		}
 
 		#region ITransactedGraphEvent Members
 
-		void ITransactedGraphEvent.Perform()
+		void ITransactedGraphEvent.Perform(GraphTransaction transaction)
 		{
-			throw new System.NotImplementedException();
+			Instance = EnsureInstance(transaction, Instance);
+
+			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, NewValue);
 		}
 
-		void ITransactedGraphEvent.Commit()
-		{
-			throw new System.NotImplementedException();
-		}
+		void ITransactedGraphEvent.Commit(GraphTransaction transaction)
+		{ }
 
 		/// <summary>
-		/// Restores the property to the original value.
+		/// Restores the property to the old value.
 		/// </summary>
-		void ITransactedGraphEvent.Rollback()
+		void ITransactedGraphEvent.Rollback(GraphTransaction transaction)
 		{
-			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, OriginalValue);
+			Instance = EnsureInstance(transaction, Instance);
+
+			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, OldValue);
 		}
 
 		#endregion

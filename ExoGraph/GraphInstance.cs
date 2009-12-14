@@ -11,6 +11,7 @@ namespace ExoGraph
 	/// <summary>
 	/// Represents an instance of a <see cref="GraphType"/> in a physical graph.
 	/// </summary>
+	[DataContract]
 	public class GraphInstance
 	{
 		#region Fields
@@ -49,6 +50,19 @@ namespace ExoGraph
 			this.hasBeenAccessed = new bool[type.Properties.Count];
 		}
 
+		/// <summary>
+		/// Creates a new <see cref="GraphInstance"/> for the specified <see cref="GraphType"/>
+		/// and id, but does not yet represent a real <see cref="GraphInstance"/>.
+		/// </summary>
+		/// <param name="graphType"></param>
+		/// <param name="id"></param>
+		internal GraphInstance(GraphType type, string id)
+		{
+			this.id = id;
+			this.type = type;
+			this.hasBeenAccessed = new bool[type.Properties.Count];
+		}
+
 		#endregion
 
 		#region Properties
@@ -64,17 +78,30 @@ namespace ExoGraph
 			}
 		}
 
+		[DataMember(Name = "type", Order = 1)]
+		string TypeName
+		{
+			get
+			{
+				return Type.Name;
+			}
+			set
+			{
+				type = GraphContext.Current.GraphTypes[value];
+			}
+		}
+
 		/// <summary>
 		/// Gets the identifier for persisted instances.
 		/// </summary>
-		[DataMember]
+		[DataMember(Name = "id", Order = 2)]
 		public string Id
 		{
 			get
 			{
-				return Type.Context.GetId(instance) ?? id;
+				return instance != null ? Type.Context.GetId(instance) ?? id : id;
 			}
-			private set
+			internal set
 			{
 				id = value;
 			}
@@ -382,6 +409,15 @@ namespace ExoGraph
 		public void SetValue(GraphValueProperty property, object value)
 		{
 			SetValue(property.Name, value);
+		}
+
+		/// <summary>
+		/// Saves changes to the current <see cref="GraphInstance"/> and all related 
+		/// instances in the graph.
+		/// </summary>
+		public void Save()
+		{
+			Type.Context.Save(this);
 		}
 
 		/// <summary>

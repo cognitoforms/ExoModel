@@ -114,6 +114,9 @@ namespace ExoGraph.UnitTest
 
 				// Raise a custom event
 				customer.RaiseEvent<CustomEvent>(new CustomEvent());
+
+				// Commit the instances
+				customer.Save();
 			}
 
 			// Verify that rollback occurred successfully

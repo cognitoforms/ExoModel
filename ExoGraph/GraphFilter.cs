@@ -100,23 +100,6 @@ namespace ExoGraph
 		}
 
 		/// <summary>
-		/// Begins a transaction for the instances included in the current graph filter.
-		/// </summary>
-		/// <returns>The transaction instance</returns>
-		/// <remarks>
-		/// The transaction subscribes to graph events and should be used inside a using block
-		/// to ensure that the subscriptions are eventually released.
-		/// <see cref="GraphTransaction.Commit"/> must be called to ensure the transaction is not rolled back.
-		/// <see cref="Rollback"/> may be called at any time to force the transaction to roll back.
-		/// After <see cref="Commit"/> or <see cref="Rollback"/> occurs, further graph events
-		/// will not be tracked by the transaction.
-		/// </remarks>
-		public GraphTransaction BeginTransaction()
-		{
-			return new GraphTransaction(root.Type.Context, this);
-		}
-
-		/// <summary>
 		/// Recursively loads a property path in the graph by walking steps.
 		/// </summary>
 		/// <param name="parent"></param>

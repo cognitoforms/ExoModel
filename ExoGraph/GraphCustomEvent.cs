@@ -37,19 +37,19 @@
 
 			#region ITransactedGraphEvent Members
 
-			void ITransactedGraphEvent.Perform()
+			void ITransactedGraphEvent.Perform(GraphTransaction transaction)
 			{
-				CustomEvent.Perform();
+				CustomEvent.Perform(transaction);
 			}
 
-			void ITransactedGraphEvent.Commit()
+			void ITransactedGraphEvent.Commit(GraphTransaction transaction)
 			{
-				CustomEvent.Commit();
+				CustomEvent.Commit(transaction);
 			}
 
-			void ITransactedGraphEvent.Rollback()
+			void ITransactedGraphEvent.Rollback(GraphTransaction transaction)
 			{
-				CustomEvent.Rollback();
+				CustomEvent.Rollback(transaction);
 			}
 
 			#endregion

@@ -52,6 +52,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GraphSaveEvent.cs" />
     <Compile Include="GraphDeleteEvent.cs" />
     <Compile Include="GraphPropertyList.cs" />
     <Compile Include="GraphReferenceProperty.cs" />

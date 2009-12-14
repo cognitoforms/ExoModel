@@ -11,15 +11,15 @@ namespace ExoGraph
 	public class GraphListChangeEvent : GraphEvent, ITransactedGraphEvent
 	{
 		GraphReferenceProperty property;
-		IEnumerable<GraphInstance> added;
-		IEnumerable<GraphInstance> removed;
+		GraphInstance[] added;
+		GraphInstance[] removed;
 
 		internal GraphListChangeEvent(GraphInstance instance, GraphReferenceProperty property, IEnumerable<GraphInstance> added, IEnumerable<GraphInstance> removed)
 			: base(instance)
 		{
 			this.property = property;
-			this.added = added;
-			this.removed = removed;
+			this.added = added.ToArray();
+			this.removed = removed.ToArray();
 		}
 
 		public GraphReferenceProperty Property
@@ -30,7 +30,7 @@ namespace ExoGraph
 			}
 		}
 
-		[DataMember(Name = "Property")]
+		[DataMember(Name = "property", Order = 2)]
 		string PropertyName
 		{
 			get
@@ -51,12 +51,12 @@ namespace ExoGraph
 			}
 		}
 
-		[DataMember(Name = "Added")]
+		[DataMember(Name = "added", Order = 3)]
 		GraphInstance[] AddedArray
 		{
 			get
 			{
-				return added.ToArray<GraphInstance>();
+				return added;
 			}
 			set
 			{
@@ -73,12 +73,12 @@ namespace ExoGraph
 		}
 
 
-		[DataMember(Name = "Removed")]
+		[DataMember(Name = "removed", Order = 4)]
 		GraphInstance[] RemovedArray
 		{
 			get
 			{
-				return removed.ToArray<GraphInstance>();
+				return removed;
 			}
 			set
 			{
@@ -99,8 +99,24 @@ namespace ExoGraph
 
 		#region ITransactedGraphEvent Members
 
-		void ITransactedGraphEvent.Perform()
+		void Prepare(GraphTransaction transaction)
 		{
+			// Resolve the root instance
+			Instance = EnsureInstance(transaction, Instance);
+
+			// Resolve added instances
+			for (int i = 0; i < added.Length; i++)
+				added[i] = EnsureInstance(transaction, added[i]);
+
+			// Resolve removed instances
+			for (int i = 0; i < removed.Length; i++)
+				removed[i] = EnsureInstance(transaction, removed[i]);
+		}
+
+		void ITransactedGraphEvent.Perform(GraphTransaction transaction)
+		{
+			Prepare(transaction);
+
 			using (new GraphEventScope())
 			{
 				GraphContext context = Instance.Type.Context;
@@ -119,11 +135,13 @@ namespace ExoGraph
 			}
 		}
 
-		void ITransactedGraphEvent.Commit()
+		void ITransactedGraphEvent.Commit(GraphTransaction transaction)
 		{ }
 
-		void ITransactedGraphEvent.Rollback()
+		void ITransactedGraphEvent.Rollback(GraphTransaction transaction)
 		{
+			Prepare(transaction);
+
 			using (new GraphEventScope())
 			{
 				GraphContext context = Instance.Type.Context;
