@@ -26,7 +26,7 @@ namespace ExoGraph
 		Dictionary<Type, object> transactedCustomEvents = new Dictionary<Type, object>();
 		GraphPathList paths = new GraphPathList();
 		Attribute[] attributes;
-		int lastPropertyIndex = -1;
+		int nextPropertyIndex;
 
 		#endregion
 
@@ -445,7 +445,7 @@ namespace ExoGraph
 
 			this.baseType = baseType;
 			baseType.subTypes.Add(this);
-			lastPropertyIndex = baseType.lastPropertyIndex;
+			nextPropertyIndex = baseType.nextPropertyIndex - 1;
 		}
 
 		/// <summary>
@@ -467,7 +467,7 @@ namespace ExoGraph
 
 		internal int GetNextPropertyIndex()
 		{
-			return lastPropertyIndex++;
+			return nextPropertyIndex++;
 		}
 
 		#endregion
