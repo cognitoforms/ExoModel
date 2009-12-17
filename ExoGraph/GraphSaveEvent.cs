@@ -8,7 +8,7 @@ namespace ExoGraph
 	[DataContract(Name = "Save")]
 	public class GraphSaveEvent : GraphEvent, ITransactedGraphEvent
 	{
-		static List<IdChange> idChanges;
+		List<IdChange> idChanges;
 
 		internal GraphSaveEvent(GraphInstance instance)
 			: base(instance)
