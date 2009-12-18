@@ -78,7 +78,7 @@ namespace ExoGraph
 				}
 				set
 				{
-					Type = GraphContext.Current.GraphTypes[value];
+					Type = GraphContext.Current.GetGraphType(value);
 				}
 			}
 

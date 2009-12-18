@@ -47,7 +47,7 @@ namespace ExoGraph
 						continue;
 
 					// Subscribe to path change events
-					path.PathChange += path_PathChanged;
+					path.Change += path_PathChanged;
 
 					// Force the graph to load along this path
 					Load(root, path.FirstStep);
@@ -201,7 +201,7 @@ namespace ExoGraph
 		void IDisposable.Dispose()
 		{
 			foreach (GraphPath path in pathGraphs.Keys)
-				path.PathChange -= path_PathChanged;
+				path.Change -= path_PathChanged;
 		}
 
 		#endregion

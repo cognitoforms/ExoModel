@@ -13,12 +13,20 @@ namespace ExoGraph.Injection
 	public abstract class InjectionGraphContext : StronglyTypedGraphContext
 	{
 		public InjectionGraphContext(IEnumerable<Type> types)
-			: base(types, null)
+			: base(types)
+		{ }
+
+		public InjectionGraphContext(IEnumerable<Type> types, Func<GraphInstance, object> extensionFactory)
+			: base(types, null, extensionFactory)
 		{ }
 
 		public InjectionGraphContext(Assembly assembly)
-			: this(GetTypes(assembly))
-		{}
+			: base(GetTypes(assembly))
+		{ }
+
+		public InjectionGraphContext(Assembly assembly, Func<GraphInstance, object> extensionFactory)
+			: base(GetTypes(assembly), null, extensionFactory)
+		{ }
 
 		static IEnumerable<Type> GetTypes(Assembly assembly)
 		{

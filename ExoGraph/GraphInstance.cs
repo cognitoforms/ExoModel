@@ -26,6 +26,8 @@ namespace ExoGraph
 		Dictionary<GraphReferenceProperty, ReferenceSet> inReferences =
 			new Dictionary<GraphReferenceProperty, ReferenceSet>();
 
+		object extension;
+
 		bool[] hasBeenAccessed;
 
 		bool isInitialized;
@@ -87,7 +89,7 @@ namespace ExoGraph
 			}
 			set
 			{
-				type = GraphContext.Current.GraphTypes[value];
+				type = GraphContext.Current.GetGraphType(value);
 			}
 		}
 
@@ -149,6 +151,14 @@ namespace ExoGraph
 		#endregion
 
 		#region Methods
+
+		public TExtension GetExtension<TExtension>()
+			where TExtension : class
+		{
+			if (extension == null)
+				this.extension = Type.CreateExtension(this);
+			return extension as TExtension;
+		}
 
 		internal IEnumerable<GraphReference> GetInReferences(GraphReferenceProperty property)
 		{

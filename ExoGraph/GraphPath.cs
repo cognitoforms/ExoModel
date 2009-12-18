@@ -71,7 +71,7 @@ namespace ExoGraph
 		/// <summary>
 		/// Event that is raised when any property along the path is changed.
 		/// </summary>
-		public event EventHandler<GraphPathChangeEvent> PathChange;
+		public event EventHandler<GraphPathChangeEvent> Change;
 
 		#endregion
 
@@ -156,8 +156,8 @@ namespace ExoGraph
 		/// <param name="instance"></param>
 		internal void Notify(GraphInstance instance)
 		{
-			if (PathChange != null)
-				PathChange(this, new GraphPathChangeEvent(instance, this));
+			if (Change != null)
+				Change(this, new GraphPathChangeEvent(instance, this));
 		}
 
 		/// <summary>

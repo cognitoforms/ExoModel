@@ -39,7 +39,8 @@ namespace ExoGraph.UnitTest
 			public GraphContext()
 				: base(
 					new Type[] { typeof(Customer), typeof(Contact) },
-					new Type[] { typeof(CustomerBase) })
+					new Type[] { typeof(CustomerBase) },
+					null)
 			{ }
 
 			protected override GraphInstance GetGraphInstance(object instance)

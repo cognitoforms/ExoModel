@@ -26,18 +26,20 @@ namespace ExoGraph
 		Dictionary<Type, object> transactedCustomEvents = new Dictionary<Type, object>();
 		GraphPathList paths = new GraphPathList();
 		Attribute[] attributes;
+		Func<GraphInstance, object> extensionFactory;
 		int nextPropertyIndex;
 
 		#endregion
 
 		#region Contructors
 
-		internal GraphType(GraphContext context, string name, string qualifiedName, Attribute[] attributes)
+		internal GraphType(GraphContext context, string name, string qualifiedName, Attribute[] attributes, Func<GraphInstance, object> extensionFactory)
 		{
 			this.context = context;
 			this.name = name;
 			this.qualifiedName = qualifiedName;
 			this.attributes = attributes;
+			this.extensionFactory = extensionFactory;
 		}
 
 		#endregion
@@ -468,6 +470,18 @@ namespace ExoGraph
 		internal int GetNextPropertyIndex()
 		{
 			return nextPropertyIndex++;
+		}
+
+		/// <summary>
+		/// Creates an instance extension using the extension factory specified for the current <see cref="GraphType"/>.
+		/// </summary>
+		/// <returns></returns>
+		internal object CreateExtension(GraphInstance instance)
+		{
+			if (extensionFactory == null)
+				return null;
+			else
+				return extensionFactory(instance);
 		}
 
 		#endregion

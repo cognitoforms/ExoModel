@@ -21,12 +21,21 @@ namespace ExoGraph
 		#region Constructors
 
 		/// <summary>
+		/// Creates a new <see cref="StronglyTypesGraphContext"/> based on the specified types.
+		/// </summary>
+		/// <param name="types">The types to create graph types from</param>
+		public StronglyTypedGraphContext(IEnumerable<Type> types)
+			: this(types, null, null)
+		{ }
+
+		/// <summary>
 		/// Creates a new <see cref="StronglyTypesGraphContext"/> based on the specified types
 		/// and also including properties declared on the specified base types.
 		/// </summary>
 		/// <param name="types">The types to create graph types from</param>
 		/// <param name="baseTypes">The base types that contain properties to include on graph types</param>
-		public StronglyTypedGraphContext(IEnumerable<Type> types, IEnumerable<Type> baseTypes)
+		/// <param name="extensionFactory">The factory to use to create extensions for new graph instances</param>
+		public StronglyTypedGraphContext(IEnumerable<Type> types, IEnumerable<Type> baseTypes, Func<GraphInstance, object> extensionFactory)
 		{
 			// The list of types cannot be null
 			if (types == null)
@@ -37,12 +46,32 @@ namespace ExoGraph
 				baseTypes = new Type[0];
 
 			// Infer the graph types based on the specified types
-			graphTypes = InferGraphTypes(types, baseTypes);
+			graphTypes = InferGraphTypes(types, baseTypes, extensionFactory);
 		}
 		
 		#endregion
 
 		#region Methods
+
+		/// <summary>
+		/// Gets the <see cref="GraphType"/> that corresponds to the specified <see cref="Type"/>.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public override GraphType GetGraphType(Type type)
+		{
+			return GetGraphType(type.Name);
+		}
+
+		/// <summary>
+		/// Creates a <see cref="GraphType"/> that corresponds to the specified type name.
+		/// </summary>
+		/// <param name="typeName"></param>
+		/// <returns></returns>
+		protected override GraphType CreateGraphType(string typeName)
+		{
+			throw new NotImplementedException();
+		}
 
 		/// <summary>
 		/// Gets the <see cref="GraphType"/> for the specified graph object instance.
@@ -65,15 +94,16 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="types">The types to create graph types from</param>
 		/// <param name="baseTypes">The base types that contain properties to include on graph types</param>
+		/// <param name="extensionFactory">The factory to use to create extensions for new graph instances</param>
 		/// <returns>A dictionary of inferred <see cref="Type"/> and <see cref="GraphType"/> pairs</returns>
-		IDictionary<Type, GraphType> InferGraphTypes(IEnumerable<Type> types, IEnumerable<Type> baseTypes)
+		IDictionary<Type, GraphType> InferGraphTypes(IEnumerable<Type> types, IEnumerable<Type> baseTypes, Func<GraphInstance, object> extensionFactory)
 		{
 			// Create instance types for each specified type
 			SortedDictionary<Type, GraphType> graphTypes = new SortedDictionary<Type, GraphType>(new TypeComparer());
 			foreach (Type type in types)
 			{
 
-				GraphType graphType = CreateGraphType(type.Name, type.AssemblyQualifiedName, type.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+				GraphType graphType = CreateGraphType(type.Name, type.AssemblyQualifiedName, type.GetCustomAttributes(true).Cast<Attribute>().ToArray(), extensionFactory);
 				graphTypes.Add(type, graphType);
 			}
 

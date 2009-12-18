@@ -23,8 +23,8 @@ namespace ExoGraph.UnitTest
 			events = new Dictionary<string, GraphEvent>();
 
 			// Obtain graph type for customer and contact types
-			GraphType customerType = GraphContext.Current.GraphTypes["Customer"];
-			GraphType contactType = GraphContext.Current.GraphTypes["Contact"];
+			GraphType customerType = GraphContext.Current.GetGraphType("Customer");
+			GraphType contactType = GraphContext.Current.GetGraphType("Contact");
 
 			// Subscribe to init event
 			customerType.Init +=
@@ -47,7 +47,7 @@ namespace ExoGraph.UnitTest
 				(sender, e) => events["ListChange"] = e;
 
 			// Subscribe to path change event
-			customerType.GetPath("PrimaryContact.Name").PathChange +=
+			customerType.GetPath("PrimaryContact.Name").Change +=
 				(sender, e) => events["PathChange"] = null;
 
 			// Subscribe to a custom event
@@ -92,8 +92,8 @@ namespace ExoGraph.UnitTest
 			using (GraphContext.Current.BeginTransaction())
 			{
 				// Obtain graph type for customer and contact types
-				GraphType customerType = GraphContext.Current.GraphTypes["Customer"];
-				GraphType contactType = GraphContext.Current.GraphTypes["Contact"];
+				GraphType customerType = GraphContext.Current.GetGraphType("Customer");
+				GraphType contactType = GraphContext.Current.GetGraphType("Contact");
 
 				// Create a customer
 				customer = customerType.Create();

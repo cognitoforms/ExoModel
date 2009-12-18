@@ -47,18 +47,6 @@ namespace ExoGraph
 		/// </summary>
 		public static IGraphContextProvider Provider { get; set; }
 
-		/// <summary>
-		/// Gets the list of <see cref="GraphType"/> instances that are defined
-		/// for the current graph context.
-		/// </summary>
-		public GraphTypeList GraphTypes
-		{
-			get
-			{
-				return graphTypes;
-			}
-		}
-
 		#endregion
 
 		#region Events
@@ -258,7 +246,44 @@ namespace ExoGraph
 
 		#region Graph Type Methods
 
+		/// <summary>
+		/// Gets the <see cref="GraphType"/> that corresponds to the specified type name.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public GraphType GetGraphType(string typeName)
+		{
+			GraphType type = graphTypes[typeName];
+			if (type == null)
+			{
+				type = CreateGraphType(typeName);
+			}
+			return type;
+		}
 
+		/// <summary>
+		/// Gets the <see cref="GraphType"/> that corresponds to the specified <see cref="Type"/>.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public abstract GraphType GetGraphType(Type type);
+
+		/// <summary>
+		/// Gets the <see cref="GraphType"/> that corresponds to TType.
+		/// </summary>
+		/// <typeparam name="TType"></typeparam>
+		/// <returns></returns>
+		public GraphType GetGraphType<TType>()
+		{
+			return GetGraphType(typeof(TType));
+		}
+
+		/// <summary>
+		/// Creates a <see cref="GraphType"/> that corresponds to the specified type name.
+		/// </summary>
+		/// <param name="typeName"></param>
+		/// <returns></returns>
+		protected abstract GraphType CreateGraphType(string typeName);
 
 		/// <summary>
 		/// Creates a new <see cref="GraphType"/> instance with the specified name
@@ -267,10 +292,11 @@ namespace ExoGraph
 		/// <param name="name">The unique name of the type</param>
 		/// <param name="qualifiedName">The fully qualified name of the type</param>
 		/// <param name="attributes">The attributes assigned to the type</param>
+		/// <param name="extensionFactory">The factory to use to create extensions for new graph instances</param>
 		/// <returns></returns>
-		protected virtual GraphType CreateGraphType(string name, string qualifiedName, Attribute[] attributes)
+		protected virtual GraphType CreateGraphType(string name, string qualifiedName, Attribute[] attributes, Func<GraphInstance, object> extensionFactory)
 		{
-			GraphType type = new GraphType(this, name, qualifiedName, attributes);
+			GraphType type = new GraphType(this, name, qualifiedName, attributes, extensionFactory);
 			graphTypes.Add(type);
 			return type;
 		}
