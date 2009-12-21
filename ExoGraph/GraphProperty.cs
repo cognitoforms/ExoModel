@@ -1,12 +1,14 @@
 ﻿using System.Collections.Generic;
 using System;
+using System.Runtime.Serialization;
 
 namespace ExoGraph
 {
 	/// <summary>
 	/// Represents a property on a type in a graph hierarchy.
 	/// </summary>
-	public abstract class GraphProperty
+	[Serializable]
+	public abstract class GraphProperty : ISerializable
 	{
 		#region Fields
 
@@ -120,6 +122,45 @@ namespace ExoGraph
 		{
 			return name;
 		}
+
+		#endregion
+
+		#region ISerializable Members
+
+		void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+		{
+			info.SetType(typeof(Serialized));
+			info.AddValue("dt", DeclaringType);
+			info.AddValue("p", Name);
+		}
+
+		[Serializable]
+		class Serialized : ISerializable, IObjectReference
+		{
+			GraphType declaringType;
+			string name;
+
+			#region ISerializable Members
+			public Serialized(SerializationInfo info, StreamingContext context)
+			{
+				declaringType = (GraphType) info.GetValue("dt", typeof(GraphType));
+				name = info.GetString("p");
+			}
+
+			void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+			{
+				throw new NotImplementedException("this code should never run");
+			}
+			#endregion
+
+			#region IObjectReference Members
+			public object GetRealObject(StreamingContext context)
+			{
+				return declaringType.Properties[name];
+			}
+			#endregion
+		}
+
 
 		#endregion
 	}

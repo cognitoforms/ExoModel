@@ -88,6 +88,7 @@ namespace ExoGraph.Injection
 			/// Implementation of <see cref="IInstanceAware"/> that tracks the
 			/// <see cref="GraphInstance"/> on behalf of the real instance.
 			/// </summary>
+			[Serializable]
 			class InstanceTracker : IGraphInstance
 			{
 				GraphInstance instance;

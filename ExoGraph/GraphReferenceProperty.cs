@@ -4,6 +4,7 @@ namespace ExoGraph
 	/// <summary>
 	/// Represents a property that associates two types in a graph hierarchy.
 	/// </summary>
+	[Serializable]
 	public class GraphReferenceProperty : GraphProperty
 	{
 		#region Fields

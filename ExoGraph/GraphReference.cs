@@ -1,10 +1,12 @@
 ﻿using System.Collections.Generic;
+using System;
 
 namespace ExoGraph
 {
 	/// <summary>
 	/// Represents the association between two graph instances.
 	/// </summary>
+	[Serializable]
 	public class GraphReference : IEnumerable<GraphReference>
 	{
 		#region Fields

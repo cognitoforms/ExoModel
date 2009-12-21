@@ -12,6 +12,7 @@ namespace ExoGraph
 	/// Represents an instance of a <see cref="GraphType"/> in a physical graph.
 	/// </summary>
 	[DataContract]
+	[Serializable]
 	public class GraphInstance
 	{
 		#region Fields
@@ -469,6 +470,7 @@ namespace ExoGraph
 		/// For performance reasons, the set is optimized to store single <see cref="GraphReference"/> instances
 		/// without having to create a dictionary.
 		/// </remarks>
+		[Serializable]
 		class ReferenceSet : IEnumerable<GraphReference>
 		{
 			ReferenceDirection direction;

@@ -9,7 +9,8 @@ namespace ExoGraph
 	/// Represents a specific type in a graph hierarchy.
 	/// </summary>
 	[DataContract]
-	public class GraphType
+	[Serializable]
+	public class GraphType : ISerializable
 	{
 		#region Fields
 
@@ -484,6 +485,39 @@ namespace ExoGraph
 				return extensionFactory(instance);
 		}
 
+		#endregion
+
+		#region ISerializable Members
+		void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+		{
+			info.SetType(typeof(Serialized));
+			info.AddValue("name", Name);
+		}
+
+		[Serializable]
+		class Serialized : ISerializable, IObjectReference
+		{
+			string typeName;
+
+			#region ISerializable Members
+			public Serialized(SerializationInfo info, StreamingContext context)
+			{
+				typeName = info.GetString("name");
+			}
+
+			void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+			{
+				throw new NotImplementedException("this code should never run");
+			}
+			#endregion
+
+			#region IObjectReference Members
+			public object GetRealObject(StreamingContext context)
+			{
+				return GraphContext.Current.GetGraphType(typeName);
+			}
+			#endregion
+		}
 		#endregion
 	}
 }
