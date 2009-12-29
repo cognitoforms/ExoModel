@@ -44,7 +44,8 @@ namespace ExoGraph.Injection
 		/// <returns></returns>
 		protected override GraphInstance GetGraphInstance(object instance)
 		{
-			return ((IGraphInstance)instance).Instance;
+			var gi = instance as IGraphInstance;
+			return gi == null ? null : gi.Instance;
 		}
 
 		#region InstanceAspect
