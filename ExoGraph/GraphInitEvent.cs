@@ -19,7 +19,8 @@ namespace ExoGraph
 
 		protected override void OnNotify()
 		{
-			Instance.Type.RaiseInit(this);
+			for (GraphType type = Instance.Type; type != null; type = type.BaseType)
+				type.RaiseInit(this);
 		}
 
 		public override string ToString()
