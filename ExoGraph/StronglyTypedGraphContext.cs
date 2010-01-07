@@ -206,6 +206,7 @@ namespace ExoGraph
 
 		#region ValueProperty
 
+		[Serializable]
 		protected class ValueProperty : GraphValueProperty
 		{
 			PropertyInfo property;
@@ -231,6 +232,7 @@ namespace ExoGraph
 
 		#region ReferenceProperty
 
+		[Serializable]
 		class ReferenceProperty : GraphReferenceProperty
 		{
 			PropertyInfo property;
