@@ -1,4 +1,6 @@
 ﻿using System.Runtime.Serialization;
+using System;
+using System.ServiceModel.Dispatcher;
 namespace ExoGraph
 {
 	/// <summary>
@@ -7,6 +9,9 @@ namespace ExoGraph
 	[DataContract(Name = "ValueChange")]
 	public class GraphValueChangeEvent : GraphEvent, ITransactedGraphEvent
 	{
+		// Cache a converter to serialize and deserialize JSON data
+		static JsonQueryStringConverter jsonConverter = new JsonQueryStringConverter();
+	
 		GraphValueProperty property;
 		object oldValue;
 		object newValue;
@@ -49,9 +54,16 @@ namespace ExoGraph
 			}
 			private set
 			{
-				oldValue = value;
+				if (Property.PropertyType.IsAssignableFrom(typeof(DateTime)) && value is string)
+				{
+					string serializedDate = ((string)value).Replace("/Date(", "\"\\/Date(").Replace(")/", "-0500)\\/\"");
+					oldValue = jsonConverter.ConvertStringToValue(serializedDate, typeof(DateTime));
+				}
+				else
+					oldValue = value;
 			}
 		}
+
 
 		[DataMember(Name = "newValue", Order = 4)]
 		public object NewValue
@@ -62,7 +74,13 @@ namespace ExoGraph
 			}
 			private set
 			{
-				newValue = value;
+				if (Property.PropertyType.IsAssignableFrom(typeof(DateTime)) && value is string)
+				{
+					string serializedDate = ((string)value).Replace("/Date(", "\"\\/Date(").Replace(")/", "-0500)\\/\"");
+					newValue = jsonConverter.ConvertStringToValue(serializedDate, typeof(DateTime));
+				}
+				else
+					newValue = value;
 			}
 		}
 
@@ -91,7 +109,7 @@ namespace ExoGraph
 		{
 			Instance = EnsureInstance(transaction, Instance);
 
-			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, NewValue);
+			Property.SetValue(Instance.Instance, NewValue);
 		}
 
 		void ITransactedGraphEvent.Commit(GraphTransaction transaction)
@@ -104,7 +122,7 @@ namespace ExoGraph
 		{
 			Instance = EnsureInstance(transaction, Instance);
 
-			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, OldValue);
+			Property.SetValue(Instance.Instance, OldValue);
 		}
 
 		#endregion

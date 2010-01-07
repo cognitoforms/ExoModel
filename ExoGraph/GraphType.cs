@@ -340,10 +340,7 @@ namespace ExoGraph
 		/// <returns>The instance assigned to the property, or null if the property does not have a value</returns>
 		public GraphInstance GetReference(string property)
 		{
-			object reference = Context.GetProperty(null, property);
-			if (reference != null)
-				return Context.GetGraphInstance(reference);
-			return null;
+			return GetReference(OutReferences[property]);
 		}
 
 		/// <summary>
@@ -353,7 +350,10 @@ namespace ExoGraph
 		/// <returns>The instance assigned to the property, or null if the property does not have a value</returns>
 		public GraphInstance GetReference(GraphReferenceProperty property)
 		{
-			return GetReference(property.Name);
+			object reference = property.GetValue(null);
+			if (reference != null)
+				return Context.GetGraphInstance(reference);
+			return null;
 		}
 
 		/// <summary>
@@ -363,7 +363,7 @@ namespace ExoGraph
 		/// <returns>The value of the property</returns>
 		public object GetValue(string property)
 		{
-			return Context.GetProperty(null, property);
+			return GetValue(Values[property]);
 		}
 
 		/// <summary>
@@ -373,7 +373,7 @@ namespace ExoGraph
 		/// <returns>The value of the property</returns>
 		public object GetValue(GraphValueProperty property)
 		{
-			return GetValue(property.Name);
+			return property.GetValue(null);
 		}
 
 		/// <summary>
@@ -403,7 +403,7 @@ namespace ExoGraph
 		/// <param name="value">The value of the property</param>
 		public void SetReference(string property, GraphInstance value)
 		{
-			Context.SetProperty(null, property, value == null ? null : value.Instance);
+			SetReference(OutReferences[property], value);
 		}
 
 		/// <summary>
@@ -413,7 +413,7 @@ namespace ExoGraph
 		/// <param name="value">The value of the property</param>
 		public void SetReference(GraphReferenceProperty property, GraphInstance value)
 		{
-			SetReference(property.Name, value);
+			property.SetValue(null, value == null ? null : value.Instance);
 		}
 
 		/// <summary>
@@ -423,7 +423,7 @@ namespace ExoGraph
 		/// <param name="value">The value of the property</param>
 		public void SetValue(string property, object value)
 		{
-			Context.SetProperty(null, property, value);
+			SetValue(Values[property], value);
 		}
 
 		/// <summary>
@@ -433,7 +433,7 @@ namespace ExoGraph
 		/// <param name="value">The value of the property</param>
 		public void SetValue(GraphValueProperty property, object value)
 		{
-			SetValue(property.Name, value);
+			property.SetValue(null, value);
 		}
 
 		/// <summary>
@@ -457,6 +457,9 @@ namespace ExoGraph
 		/// <param name="property"></param>
 		internal void AddProperty(GraphProperty property)
 		{
+			if (property.DeclaringType == this)
+				property.Index = GetNextPropertyIndex();
+
 			if (property is GraphReferenceProperty)
 			{
 				outReferences.Add((GraphReferenceProperty)property);

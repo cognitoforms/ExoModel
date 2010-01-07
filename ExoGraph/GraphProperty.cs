@@ -23,11 +23,10 @@ namespace ExoGraph
 
 		#region Constructors
 
-		internal GraphProperty(GraphType declaringType, string name, int index, bool isStatic, Attribute[] attributes)
+		internal GraphProperty(GraphType declaringType, string name, bool isStatic, Attribute[] attributes)
 		{
 			this.declaringType = declaringType;
 			this.name = name;
-			this.index = index;
 			this.isStatic = isStatic;
 			this.attributes = attributes;
 		}
@@ -49,6 +48,10 @@ namespace ExoGraph
 			get
 			{
 				return index;
+			}
+			internal set
+			{
+				index = value;
 			}
 		}
 
@@ -118,10 +121,28 @@ namespace ExoGraph
 			return matches.ToArray();
 		}
 
+		/// <summary>
+		/// Returns the name of the property.
+		/// </summary>
+		/// <returns></returns>
 		public override string ToString()
 		{
 			return name;
 		}
+
+		/// <summary>
+		/// Gets the value of the property on the specified instance.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns></returns>
+		protected internal abstract object GetValue(object instance);
+
+		/// <summary>
+		/// Sets the value of the property on the specified instance.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="value"></param>
+		protected internal abstract void SetValue(object instance, object value);
 
 		#endregion
 

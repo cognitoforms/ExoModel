@@ -97,7 +97,7 @@ namespace ExoGraph
 			if (NewValue != null)
 				NewValue = EnsureInstance(transaction, NewValue);
 
-			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, NewValue == null ? null : NewValue.Instance);
+			Property.SetValue(Instance.Instance, NewValue == null ? null : NewValue.Instance);
 		}
 
 		void ITransactedGraphEvent.Commit(GraphTransaction transaction)
@@ -116,7 +116,7 @@ namespace ExoGraph
 			if (NewValue != null)
 				NewValue = EnsureInstance(transaction, NewValue);
 
-			Instance.Type.Context.SetProperty(Instance.Instance, Property.Name, OldValue == null ? null : OldValue.Instance);
+			Property.SetValue(Instance.Instance, OldValue == null ? null : OldValue.Instance);
 		}
 
 		#endregion

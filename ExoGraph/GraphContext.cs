@@ -232,14 +232,6 @@ namespace ExoGraph
 
 		protected internal abstract object GetInstance(GraphType type, string id);
 
-		protected internal abstract object GetProperty(object instance, string property);
-
-		protected internal abstract object GetProperty(GraphType type, string property);
-
-		protected internal abstract void SetProperty(object instance, string property, object value);
-
-		protected internal abstract void SetProperty(GraphType type, string property, object value);
-
 		protected internal abstract void DeleteInstance(object instance);
 
 		#endregion
@@ -310,36 +302,6 @@ namespace ExoGraph
 		{
 			subType.SetBaseType(baseType);
 		}
-
-		/// <summary>
-		/// Adds a property to the specified <see cref="GraphType"/> that represents an
-		/// association with another <see cref="GraphType"/> instance.
-		/// </summary>
-		/// <param name="declaringType">The <see cref="GraphType"/> the property is for</param>
-		/// <param name="name">The name of the property</param>
-		/// <param name="isStatic">Indicates whether the property is statically defined on the type</param>
-		/// <param name="isBoundary">Indicates whether the property crosses scoping boundaries and should not be actively tracked</param>
-		/// <param name="propertyType">The <see cref="GraphType"/> of the property</param>
-		/// <param name="isList">Indicates whether the property represents a list of references or a single reference</param>
-		/// <param name="attributes">The attributes assigned to the property</param>
-		protected virtual void AddProperty(GraphType declaringType, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
-		{
-			declaringType.AddProperty(new GraphReferenceProperty(declaringType, name, declaringType.GetNextPropertyIndex(), isStatic, isBoundary, propertyType, isList, attributes));
-		}
-
-		/// <summary>
-		/// Adds a property to the specified <see cref="GraphType"/> that represents an
-		/// strongly-typed value value with the specified <see cref="Type"/>.
-		/// </summary>
-		/// <param name="declaringType">The <see cref="GraphType"/> the property is for</param>
-		/// <param name="name">The name of the property</param>
-		/// <param name="propertyType">The <see cref="Type"/> of the property</param>
-		/// <param name="attributes">The attributes assigned to the property</param>
-		protected virtual void AddProperty(GraphType declaringType, string name, bool isStatic, Type propertyType, Attribute[] attributes)
-		{
-			declaringType.AddProperty(new GraphValueProperty(declaringType, name, declaringType.GetNextPropertyIndex(), isStatic, propertyType, attributes));
-		}
-
 
 		/// <summary>
 		/// Adds an existing property to the specified <see cref="GraphType"/> that is

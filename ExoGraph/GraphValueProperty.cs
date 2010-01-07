@@ -5,34 +5,21 @@ namespace ExoGraph
 	/// <summary>
 	/// Represents a property that exposes strongly-typed data as leaves of a graph hierarchy.
 	/// </summary>
-	public class GraphValueProperty : GraphProperty
+	public abstract class GraphValueProperty : GraphProperty
 	{
-		#region Fields
-
-		Type propertyType;
-		Attribute[] attributes;
-
-		#endregion
-
 		#region Constructors
 
-		internal GraphValueProperty(GraphType declaringType, string name, int index, bool isStatic, Type propertyType, Attribute[] attributes)
-			: base(declaringType, name, index, isStatic, attributes)
+		internal GraphValueProperty(GraphType declaringType, string name, bool isStatic, Type propertyType, Attribute[] attributes)
+			: base(declaringType, name, isStatic, attributes)
 		{
-			this.propertyType = propertyType;
+			this.PropertyType = propertyType;
 		}
 
 		#endregion
 
 		#region Properties
 
-		public Type PropertyType
-		{
-			get
-			{
-				return propertyType;
-			}
-		}
+		public Type PropertyType { get; private set; }
 
 		#endregion
 	}

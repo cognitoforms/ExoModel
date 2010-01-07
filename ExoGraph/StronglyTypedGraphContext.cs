@@ -154,17 +154,17 @@ namespace ExoGraph
 
 					// Create references based on properties that relate to other instance types
 					else if (graphTypes.TryGetValue(property.PropertyType, out subGraphType))
-						AddProperty(graphType, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, subGraphType, false, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						AddProperty(graphType, property, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, subGraphType, false, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 
 					// Create references based on properties that are lists of other instance types
 					else if (typeof(IList).IsAssignableFrom(property.PropertyType) &&
 						property.PropertyType.GetProperty("Item", new Type[] { typeof(int) }) != null &&
 						graphTypes.TryGetValue(property.PropertyType.GetProperty("Item", new Type[] { typeof(int) }).PropertyType, out subGraphType))
-						AddProperty(graphType, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, subGraphType, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						AddProperty(graphType, property, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, subGraphType, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 
 					// Create values for all other properties
 					else
-						AddProperty(graphType, property.Name, property.GetGetMethod().IsStatic, property.PropertyType, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						AddProperty(graphType, property, property.Name, property.GetGetMethod().IsStatic, property.PropertyType, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 				}
 			}
 
@@ -172,24 +172,84 @@ namespace ExoGraph
 			return graphTypes;
 		}
 
-		protected internal override object GetProperty(object instance, string property)
+		/// <summary>
+		/// Adds a property to the specified <see cref="GraphType"/> that represents an
+		/// association with another <see cref="GraphType"/> instance.
+		/// </summary>
+		/// <param name="declaringType">The <see cref="GraphType"/> the property is for</param>
+		/// <param name="name">The name of the property</param>
+		/// <param name="isStatic">Indicates whether the property is statically defined on the type</param>
+		/// <param name="isBoundary">Indicates whether the property crosses scoping boundaries and should not be actively tracked</param>
+		/// <param name="propertyType">The <see cref="GraphType"/> of the property</param>
+		/// <param name="isList">Indicates whether the property represents a list of references or a single reference</param>
+		/// <param name="attributes">The attributes assigned to the property</param>
+		protected virtual void AddProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
 		{
-			return instance.GetType().GetProperty(property).GetValue(instance, null);
+			AddProperty(declaringType, new ReferenceProperty(declaringType, property, name, isStatic, isBoundary, propertyType, isList, attributes));
 		}
 
-		protected internal override void SetProperty(object instance, string property, object value)
+		/// <summary>
+		/// Adds a property to the specified <see cref="GraphType"/> that represents an
+		/// strongly-typed value value with the specified <see cref="Type"/>.
+		/// </summary>
+		/// <param name="declaringType">The <see cref="GraphType"/> the property is for</param>
+		/// <param name="name">The name of the property</param>
+		/// <param name="propertyType">The <see cref="Type"/> of the property</param>
+		/// <param name="converter">The optional value type converter to use</param>
+		/// <param name="attributes">The attributes assigned to the property</param>
+		protected virtual void AddProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, Attribute[] attributes)
 		{
-			instance.GetType().GetProperty(property).SetValue(instance, value, null);
+			declaringType.AddProperty(new ValueProperty(declaringType, property, name, isStatic, propertyType, attributes));
 		}
 
-		protected internal override object GetProperty(GraphType type, string property)
+		#endregion
+
+		#region ValueProperty
+
+		protected class ValueProperty : GraphValueProperty
 		{
-			return Type.GetType(type.QualifiedName).GetProperty(property).GetValue(null, null);
+			PropertyInfo property;
+
+			protected internal ValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, Attribute[] attributes)
+				: base(declaringType, name, isStatic, propertyType, attributes)
+			{
+				this.property = property;
+			}
+
+			protected internal override object GetValue(object instance)
+			{
+				return property.GetValue(instance, null);
+			}
+
+			protected internal override void SetValue(object instance, object value)
+			{
+				property.SetValue(instance, value, null);
+			}
 		}
 
-		protected internal override void SetProperty(GraphType type, string property, object value)
+		#endregion
+
+		#region ReferenceProperty
+
+		class ReferenceProperty : GraphReferenceProperty
 		{
-			Type.GetType(type.QualifiedName).GetProperty(property).SetValue(null, value, null);
+			PropertyInfo property;
+
+			internal ReferenceProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
+				: base(declaringType, name, isStatic, isBoundary, propertyType, isList, attributes)
+			{
+				this.property = property;
+			}
+
+			protected internal override object GetValue(object instance)
+			{
+				return property.GetValue(instance, null);
+			}
+
+			protected internal override void SetValue(object instance, object value)
+			{
+				property.SetValue(instance, value, null);
+			}
 		}
 
 		#endregion
