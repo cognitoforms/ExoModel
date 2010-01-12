@@ -202,10 +202,6 @@ namespace ExoGraph
 		/// </param>
 		internal void AddReference(GraphReferenceProperty property, GraphInstance instance, bool isLoading)
 		{
-			// Exit immediately if the property represents a boundary between scopes graphs
-			if (property.IsBoundary)
-				return;
-
 			// Create and add this reference to the parent and child instances
 			GraphReference reference = new GraphReference(property, this, instance);
 
@@ -220,15 +216,19 @@ namespace ExoGraph
 			// Add the out reference
 			references.Add(reference);
 
-			// Create a reference set if no in references have been established for this property
-			if (!instance.inReferences.TryGetValue(property, out references))
+			// Only add in references if the property is not a boundary between scopes
+			if (!property.IsBoundary)
 			{
-				references = new ReferenceSet(ReferenceDirection.In);
-				instance.inReferences.Add(property, references);
-			}
+				// Create a reference set if no in references have been established for this property
+				if (!instance.inReferences.TryGetValue(property, out references))
+				{
+					references = new ReferenceSet(ReferenceDirection.In);
+					instance.inReferences.Add(property, references);
+				}
 
-			// Add the out reference
-			references.Add(reference);
+				// Add the in reference
+				references.Add(reference);
+			}
 
 			// Notify the reference property that this reference has been established if not currently loading
 			if (!isLoading)
