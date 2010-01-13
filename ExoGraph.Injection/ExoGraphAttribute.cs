@@ -39,7 +39,7 @@ namespace ExoGraph.Injection
 
 					// Only add aspects to setters for writable properties
 					if (property.CanWrite)
-						collection.AddAspect(property.GetSetMethod(), new InjectionGraphContext.OnPropertySetAspect(property));
+						collection.AddAspect(property.GetSetMethod(true), new InjectionGraphContext.OnPropertySetAspect(property));
 				}
 			}
 		}
