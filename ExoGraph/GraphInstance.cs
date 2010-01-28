@@ -5,6 +5,7 @@ using System.Runtime.Serialization;
 using System.Xml;
 using System.Xml.Schema;
 using System;
+using System.ComponentModel;
 
 namespace ExoGraph
 {
@@ -47,7 +48,6 @@ namespace ExoGraph
 		/// <param name="instance"></param>
 		internal GraphInstance(GraphType type, object instance)
 		{
-			this.id = type.Context.GetId(instance) ?? type.Context.GenerateId();
 			this.type = type;
 			this.instance = instance;
 			this.hasBeenAccessed = new bool[type.Properties.Count];
@@ -102,7 +102,14 @@ namespace ExoGraph
 		{
 			get
 			{
-				return instance != null ? Type.Context.GetId(instance) ?? id : id;
+				if (instance != null)
+				{
+					if (id == null)
+						return this.id = type.Context.GetId(instance) ?? type.Context.GenerateId();
+					else
+						return Type.Context.GetId(instance) ?? id;
+				}
+				return id;
 			}
 			internal set
 			{
@@ -216,7 +223,7 @@ namespace ExoGraph
 			// Add the out reference
 			references.Add(reference);
 
-			// Only add in references if the property is not a boundary between scopes
+			// Only add in references if the property is not a boundary between separately scoped instances
 			if (!property.IsBoundary)
 			{
 				// Create a reference set if no in references have been established for this property
@@ -294,7 +301,7 @@ namespace ExoGraph
 						AddReference(refProp, reference, true);
 
 					// Allow the context to subscribe to list change notifications
-					IList list = (IList)this[property.Name];
+					IList list = Type.Context.ConvertToList(refProp, this[property.Name]);
 					if (list != null)
 						Type.Context.OnStartTrackingList(this, (GraphReferenceProperty)property, list);
 				}
@@ -306,7 +313,6 @@ namespace ExoGraph
 						AddReference(refProp, reference, true);
 				}
 			}
-
 		}
 
 		/// <summary>

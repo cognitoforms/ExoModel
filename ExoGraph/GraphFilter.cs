@@ -110,19 +110,28 @@ namespace ExoGraph
 			if (step == null || step.Property is GraphValueProperty || !((GraphReferenceProperty)step.Property).DeclaringType.IsInstanceOfType(instance))
 				return;
 
-			// Force the property to load
-			object value = instance.GetValue(step.Property.Name);
+			// Cast the property to the correct type
+			var reference = (GraphReferenceProperty)step.Property;
 
-			// Recursively load steps below a business object
-			if (value is GraphInstance)
+			// Recursively load steps for a list of business objects
+			if (reference.IsList)
 			{
-				foreach (GraphStep childStep in step.NextSteps)
-					Load((GraphInstance)value, childStep);
+				GraphInstanceList children = instance.GetList(reference);
+				if (children != null)
+				{
+					foreach (GraphInstance child in instance.GetList(reference))
+					{
+						foreach (GraphStep childStep in step.NextSteps)
+							Load(child, childStep);
+					}
+				}
 			}
-			// Recursively load steps below a list of business objects
-			else if (value is IList)
+
+			// Recursively load steps for a business object
+			else
 			{
-				foreach (GraphInstance child in (IList)value)
+				GraphInstance child = instance.GetReference(reference);
+				if (child != null)
 				{
 					foreach (GraphStep childStep in step.NextSteps)
 						Load(child, childStep);

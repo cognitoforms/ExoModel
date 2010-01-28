@@ -90,8 +90,7 @@ namespace ExoGraph
 				return instance;
 
 			// Otherwise, assume it is an existing instance
-			object obj = Context.GetInstance(type, id);
-			return obj == null ? null : Context.GetGraphInstance(obj);
+			return type.Create(id);
 		}
 
 		/// <summary>

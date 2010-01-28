@@ -138,6 +138,14 @@ namespace ExoGraph
 			propertyGet.Notify();
 		}
 
+		/// <summary>
+		/// Converts the specified object into a instance that implements <see cref="IList"/>.
+		/// </summary>
+		/// <param name="property"></param>
+		/// <param name="list"></param>
+		/// <returns></returns>
+		protected internal abstract IList ConvertToList(GraphReferenceProperty property, object list);
+
 		protected internal virtual void OnStartTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
 		{
 		}
@@ -163,17 +171,20 @@ namespace ExoGraph
 				if (reference.IsList)
 				{
 					// Notify the context that the items in the old list have been removed
-					if (oldValue is IList)
-						OnListChanged(instance, reference, null, (IList)oldValue);
+					if (oldValue != null)
+					{
+						var oldList = ConvertToList(reference, oldValue);
+						OnListChanged(instance, reference, null, oldList);
+						OnStopTrackingList(instance, reference, oldList);
+					}
 
 					// Then notify the context that the items in the new list have been added
-					if (newValue is IList)
-						OnListChanged(instance, reference, (IList)newValue, null);
-
-					// Finally, notify subclasses that the list reference has changed in case they
-					// are subscribing to list events to support tracking list changes
-					OnStopTrackingList(instance, reference, (IList)oldValue);
-					OnStopTrackingList(instance, reference, (IList)newValue);
+					if (newValue != null)
+					{
+						var newList = ConvertToList(reference, oldValue);
+						OnListChanged(instance, reference, newList, null);
+						OnStopTrackingList(instance, reference, newList);
+					}
 				}
 
 				// Notify subscribers that a reference property has changed
@@ -224,7 +235,7 @@ namespace ExoGraph
 		/// <param name="graphInstance"></param>
 		protected internal abstract void Save(GraphInstance graphInstance);
 
-		protected internal abstract GraphInstance GetGraphInstance(object instance);
+		public abstract GraphInstance GetGraphInstance(object instance);
 
 		protected internal abstract GraphType GetGraphType(object instance);
 

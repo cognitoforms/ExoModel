@@ -165,7 +165,7 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="root"></param>
 		/// <returns></returns>
-		internal IDictionary<GraphInstance, GraphInstance> GetGraph(GraphInstance root)
+		public IDictionary<GraphInstance, GraphInstance> GetGraph(GraphInstance root)
 		{
 			IDictionary<GraphInstance, GraphInstance> graph = new Dictionary<GraphInstance, GraphInstance>();
 			graph.Add(root, root);

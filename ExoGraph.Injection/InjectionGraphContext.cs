@@ -42,7 +42,7 @@ namespace ExoGraph.Injection
 		/// </summary>
 		/// <param name="instance"></param>
 		/// <returns></returns>
-		protected override GraphInstance GetGraphInstance(object instance)
+		public override GraphInstance GetGraphInstance(object instance)
 		{
 			var gi = instance as IGraphInstance;
 			return gi == null ? null : gi.Instance;

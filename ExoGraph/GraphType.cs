@@ -320,7 +320,8 @@ namespace ExoGraph
 
 		public GraphInstance Create(string id)
 		{
-			return context.GetGraphInstance(context.GetInstance(this, id));
+			object instance = context.GetInstance(this, id);
+			return instance == null ? null : context.GetGraphInstance(instance);
 		}
 
 		/// <summary>

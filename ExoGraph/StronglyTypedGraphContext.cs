@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Collections;
+using System.ComponentModel;
 
 namespace ExoGraph
 {
@@ -124,6 +125,9 @@ namespace ExoGraph
 			GraphType baseGraphType = null;
 			GraphType subGraphType = null;
 
+			// Declare type variable to track list item types
+			Type listItemType;
+
 			// Initialize each instance type
 			foreach (KeyValuePair<Type, GraphType> typePair in graphTypes)
 			{
@@ -157,9 +161,7 @@ namespace ExoGraph
 						AddProperty(graphType, property, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, subGraphType, false, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 
 					// Create references based on properties that are lists of other instance types
-					else if (typeof(IList).IsAssignableFrom(property.PropertyType) &&
-						property.PropertyType.GetProperty("Item", new Type[] { typeof(int) }) != null &&
-						graphTypes.TryGetValue(property.PropertyType.GetProperty("Item", new Type[] { typeof(int) }).PropertyType, out subGraphType))
+					else if (TryGetListItemType(property.PropertyType, out listItemType) && graphTypes.TryGetValue(listItemType, out subGraphType))
 						AddProperty(graphType, property, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, subGraphType, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 
 					// Create values for all other properties
@@ -170,6 +172,62 @@ namespace ExoGraph
 
 			// Return the inferred graph types
 			return graphTypes;
+		}
+
+		/// <summary>
+		/// Converts the specified object into a instance that implements <see cref="IList"/>.
+		/// </summary>
+		/// <param name="list"></param>
+		/// <returns></returns>
+		protected internal override IList ConvertToList(GraphReferenceProperty property, object list)
+		{
+			if (list == null)
+				return null;
+			
+			if (list is IList)
+				return (IList)list;
+			
+			if (list is IListSource)
+				return ((IListSource)list).GetList();
+			
+			if (property is ReferenceProperty)
+				return null;
+
+			throw new NotSupportedException("Unable to convert the specified list instance into a valid IList implementation.");
+		}
+
+		/// <summary>
+		/// Gets the item type of a list type, or returns false if the type is not a supported list type<TItem>
+		/// </summary>
+		/// <param name="listType"></param>
+		/// <param name="itemType"></param>
+		/// <returns></returns>
+		protected virtual bool TryGetListItemType(Type listType, out Type itemType)
+		{
+			// First see if the type implements ICollection<T>
+			foreach (Type interfaceType in listType.GetInterfaces())
+			{
+				if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>))
+				{
+					itemType = interfaceType.GetGenericArguments()[0];
+					return true;
+				}
+			}
+
+			// First see if the type implements IList and has a strongly-typed Item property indexed by an integer value
+			if (typeof(IList).IsAssignableFrom(listType))
+			{
+				PropertyInfo itemProperty = listType.GetProperty("Item", new Type[] { typeof(int) });
+				if (itemProperty != null)
+				{
+					itemType = itemProperty.PropertyType;
+					return true;
+				}
+			}
+
+			// Return false to indicate that the specified type is not a supported list type
+			itemType = null;
+			return false;
 		}
 
 		/// <summary>
@@ -209,22 +267,22 @@ namespace ExoGraph
 		[Serializable]
 		protected class ValueProperty : GraphValueProperty
 		{
-			PropertyInfo property;
-
 			protected internal ValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, Attribute[] attributes)
 				: base(declaringType, name, isStatic, propertyType, attributes)
 			{
-				this.property = property;
+				this.PropertyInfo = property;
 			}
+
+			protected internal PropertyInfo PropertyInfo { get; private set; }
 
 			protected internal override object GetValue(object instance)
 			{
-				return property.GetValue(instance, null);
+				return PropertyInfo.GetValue(instance, null);
 			}
 
 			protected internal override void SetValue(object instance, object value)
 			{
-				property.SetValue(instance, value, null);
+				PropertyInfo.SetValue(instance, value, null);
 			}
 		}
 
@@ -233,24 +291,24 @@ namespace ExoGraph
 		#region ReferenceProperty
 
 		[Serializable]
-		class ReferenceProperty : GraphReferenceProperty
+		protected class ReferenceProperty : GraphReferenceProperty
 		{
-			PropertyInfo property;
-
 			internal ReferenceProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
 				: base(declaringType, name, isStatic, isBoundary, propertyType, isList, attributes)
 			{
-				this.property = property;
+				this.PropertyInfo = property;
 			}
+
+			protected internal PropertyInfo PropertyInfo { get; private set; }
 
 			protected internal override object GetValue(object instance)
 			{
-				return property.GetValue(instance, null);
+				return PropertyInfo.GetValue(instance, null);
 			}
 
 			protected internal override void SetValue(object instance, object value)
 			{
-				property.SetValue(instance, value, null);
+				PropertyInfo.SetValue(instance, value, null);
 			}
 		}
 

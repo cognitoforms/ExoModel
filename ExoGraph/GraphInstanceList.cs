@@ -30,7 +30,7 @@ namespace ExoGraph
 
 		IList GetList()
 		{
-			return property.GetValue(owner == null ? null : owner.Instance) as IList;
+			return property.DeclaringType.Context.ConvertToList(property, property.GetValue(owner == null ? null : owner.Instance));
 		}
 
 		#endregion

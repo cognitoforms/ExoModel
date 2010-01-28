@@ -43,7 +43,7 @@ namespace ExoGraph.UnitTest
 					null)
 			{ }
 
-			protected override GraphInstance GetGraphInstance(object instance)
+			public override GraphInstance GetGraphInstance(object instance)
 			{
 				if (instance is Entity)
 					return ((Entity)instance).instance;
