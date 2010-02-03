@@ -144,9 +144,10 @@ namespace ExoGraph
 				Dictionary<string, bool> isNewProperty = new Dictionary<string,bool>();
 				foreach (PropertyInfo property in type.GetProperties())
 					isNewProperty[property.Name] = isNewProperty.ContainsKey(property.Name);
-
-				// Process all properties on the instance type to create references
-				foreach (PropertyInfo property in type.GetProperties())
+				
+				// Process all properties on the instance type to create references.  Process static properties
+				// last since they would otherwise complicate calculated indexes when dealing with sub types.
+				foreach (PropertyInfo property in type.GetProperties().OrderBy(p => (p.GetGetMethod(true) ?? p.GetSetMethod(true)).IsStatic))
 				{
 					// Exit immediately if the property was not in the list of valid declaring types
 					if (!declaringTypes.ContainsKey(property.DeclaringType) || (isNewProperty[property.Name] && property.DeclaringType != type))
