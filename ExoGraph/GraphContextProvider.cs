@@ -7,7 +7,7 @@ namespace ExoGraph
 	/// <summary>
 	/// Implementation of <see cref="IGraphContextProvider"/> that initializes a thread
 	/// or web-request scoped <see cref="GraphContext"/> subclass, and allows subclasses
-	/// to perform addition initialization work when new contexts are created.
+	/// to perform additional initialization work when new contexts are created.
 	/// </summary>
 	public class GraphContextProvider : IGraphContextProvider
 	{

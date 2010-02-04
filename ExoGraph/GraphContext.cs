@@ -98,21 +98,8 @@ namespace ExoGraph
 		}
 
 		/// <summary>
-		/// Ensures that the numeric value incorporated in the specified id will not be reassigned
-		/// to new instances.
-		/// </summary>
-		/// <param name="id"></param>
-		internal void ReserveId(string id)
-		{
-			if (id != null)
-			{
-			}
-		}
-
-		/// <summary>
 		/// Called by <see cref="Context"/> subclasses to obtain a <see cref="GraphInstance"/> for a 
-		/// newly created graph object.  This also causes a graph change notification to occur notifying 
-		/// subscribers that the new instance is now associated to the current graph context.
+		/// newly created graph object.
 		/// </summary>
 		/// <param name="instance"></param>
 		/// <returns></returns>
@@ -183,7 +170,7 @@ namespace ExoGraph
 					{
 						var newList = ConvertToList(reference, oldValue);
 						OnListChanged(instance, reference, newList, null);
-						OnStopTrackingList(instance, reference, newList);
+						OnStartTrackingList(instance, reference, newList);
 					}
 				}
 
@@ -258,9 +245,7 @@ namespace ExoGraph
 		{
 			GraphType type = graphTypes[typeName];
 			if (type == null)
-			{
 				type = CreateGraphType(typeName);
-			}
 			return type;
 		}
 

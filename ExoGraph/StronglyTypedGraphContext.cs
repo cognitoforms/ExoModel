@@ -194,6 +194,8 @@ namespace ExoGraph
 			if (property is ReferenceProperty)
 				return null;
 
+			// Add ICollection<T> support
+
 			throw new NotSupportedException("Unable to convert the specified list instance into a valid IList implementation.");
 		}
 
