@@ -45,7 +45,7 @@ namespace ExoGraph.UnitTest
 		[TestMethod()]
 		public virtual void SetBaseTypeTest()
 		{
-			Assert.Inconclusive("SetBaseType() not tested.");
+
 		}
 
 		/// <summary>
