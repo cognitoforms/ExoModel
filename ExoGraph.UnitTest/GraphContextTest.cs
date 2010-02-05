@@ -228,11 +228,46 @@ namespace ExoGraph.UnitTest
 		[TestMethod()]
 		public virtual void GetInstanceTest()
 		{
+			GraphType userType = GraphContext.Current.GetGraphType<TUser>();
+			GraphType requestType = GraphContext.Current.GetGraphType<TRequest>();
+			GraphType priorityType = GraphContext.Current.GetGraphType<TPriority>();
+			GraphType categoryType = GraphContext.Current.GetGraphType<TCategory>();
+			
 			// Test creating new instance
+			GraphInstance request = requestType.Create();
+			Assert.IsNotNull(request, "Did not successfully create a new request instance.");
+			Assert.IsTrue(request.Instance is TRequest, "Newly created request instance was not the correct type.");
+
+			GraphInstance user = userType.Create();
+			Assert.IsNotNull(user, "Did not successfully create a new user instance.");
+			Assert.IsTrue(user.Instance is TUser, "Newly created user instance was not the correct type.");
 
 			// Test creating existing instance
+			GraphInstance category = categoryType.Create("1");
+			Assert.IsNotNull(category, "Did not successfully create a existing category instance.");
+			Assert.IsTrue(category.Instance is TCategory, "Existing category instance was not the correct type.");
 
+			GraphInstance priority = priorityType.Create("1");
+			Assert.IsNotNull(priority, "Did not successfully create a existing priority instance.");
+			Assert.IsTrue(priority.Instance is TPriority, "Existing priority instance was not the correct type.");
+
+			// Save a new instance in order to validate cached loading of existing instances that were just saved
+			request["User"] = user.Instance;
+			request["Category"] = category.Instance;
+			request["Priority"] = priority.Instance;
+			request["Description"] = "The is a test request";
+			user["UserName"] = "Test User";
+			request.Save();
+			Assert.IsFalse(request.IsNew, "The request was not saved.");
+			Assert.IsFalse(user.IsNew, "The user was not saved.");
+			
 			// Test getting cached reference to existing instance
+			GraphInstance categoryClone = categoryType.Create("1");
+			Assert.AreSame(category, categoryClone, "The categories have the same id but were not the same instance as expected.");
+
+			GraphInstance requestClone = requestType.Create(request.Id);
+			Assert.AreSame(request, requestClone, "The requests have the same id but were not the same instance as expected.");
+
 		}
 
 		/// <summary>
