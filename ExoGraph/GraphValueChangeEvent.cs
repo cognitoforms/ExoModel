@@ -87,11 +87,14 @@ namespace ExoGraph
 		/// <summary>
 		/// Notify subscribers that the property value has changed.
 		/// </summary>
-		protected override void OnNotify()
+		protected override bool OnNotify()
 		{
 			property.OnChange(Instance);
 
 			Instance.Type.RaiseValueChange(this);
+
+			// Indicate that the notification should be raised by the context
+			return true;
 		}
 
 		/// <summary>

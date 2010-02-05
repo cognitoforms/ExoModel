@@ -86,7 +86,7 @@ namespace ExoGraph
 			}
 		}
 
-		protected override void OnNotify()
+		protected override bool OnNotify()
 		{
 			foreach (GraphInstance ri in removed)
 				Instance.RemoveReference(Instance.GetOutReference(Property, ri));
@@ -95,6 +95,9 @@ namespace ExoGraph
 				Instance.AddReference(property, ai, false);
 
 			Instance.Type.RaiseListChange(this);
+
+			// Indicate that the notification should be raised by the context
+			return true;
 		}
 
 		#region ITransactedGraphEvent Members

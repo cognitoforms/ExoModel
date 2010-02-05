@@ -14,9 +14,12 @@ namespace ExoGraph
 			: base(instance)
 		{ }
 
-		protected override void OnNotify()
+		protected override bool OnNotify()
 		{
 			Instance.Type.RaiseSave(this);
+
+			// Indicate that the notification should be raised by the context
+			return true;
 		}
 
 		public override string ToString()

@@ -13,6 +13,7 @@ namespace ExoGraph.UnitTest
 		where TRequestList : ICollection<TRequest>
 		where TCategoryList : ICollection<TCategory>
 	{
+		string UserName { get; set; }
 		TRequestList Requests { get; }
 		TRequestList Assignments { get; }
 	}

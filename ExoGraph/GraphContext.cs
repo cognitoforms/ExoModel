@@ -47,6 +47,12 @@ namespace ExoGraph
 		/// </summary>
 		public static IGraphContextProvider Provider { get; set; }
 
+		/// <summary>
+		/// Indicates whether <see cref="GraphPropertyGetEvent"/> notifications should not be
+		/// raised when a property is accessed.
+		/// </summary>
+		internal bool ShouldSuspendGetNotifications { get; private set; }
+
 		#endregion
 
 		#region Events
@@ -232,6 +238,11 @@ namespace ExoGraph
 
 		protected internal abstract void DeleteInstance(object instance);
 
+		protected internal IDisposable SuspendGetNotifications()
+		{
+			return new SuspendGetNotification(this);
+		}
+
 		#endregion
 
 		#region Graph Type Methods
@@ -311,5 +322,21 @@ namespace ExoGraph
 		}
 
 		#endregion
+
+		class SuspendGetNotification : IDisposable
+		{
+			GraphContext context;
+
+			internal SuspendGetNotification(GraphContext context)
+			{
+				this.context = context;
+				context.ShouldSuspendGetNotifications = true;
+			}
+
+			void IDisposable.Dispose()
+			{
+				context.ShouldSuspendGetNotifications = false;
+			}
+		}
 	}
 }

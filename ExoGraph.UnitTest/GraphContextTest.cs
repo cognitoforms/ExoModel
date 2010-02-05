@@ -54,38 +54,35 @@ namespace ExoGraph.UnitTest
 		[TestMethod()]
 		public virtual void SaveTest()
 		{
+			GraphInstance userInstance;
+			GraphSaveEvent saveEvent = null;
 
-		}
+			// Start a transaction to track identity changes that occur 
+			using (var transaction = GraphContext.Current.BeginTransaction())
+			{
+				// Create a new user
+				TUser user = new TUser();
 
-		/// <summary>
-		/// Verifies that <see cref="GraphContext.OnStartTrackingList"/> is called when
-		/// a list property is first assessed or is assigned a new list value.
-		///</summary>
-		[TestMethod()]
-		public virtual void OnStartTrackingListTest()
-		{
-			// Verify list tracking on list on first access
+				// Get the graph instance for the new user
+				userInstance = GraphContext.Current.GetGraphInstance(user);
 
-			// Verify list tracking on new list assigned to property
-		}
+				// Set the username for the new user
+				user.UserName = "New User";
 
-		/// <summary>
-		/// Verifies that <see cref="GraphContext.OnStopTrackingList"/> is called when
-		/// a list property is assigned a new value and the original list was being tracked.
-		///</summary>
-		[TestMethod()]
-		public virtual void OnStopTrackingListTest()
-		{
-			// Verify list tracking has stopped on lists removed from the graph
-		}
+				// Ensure that the graph instance is new
+				Assert.IsTrue(userInstance.IsNew, "Newly instance was not marked as new.");
 
-		/// <summary>
-		/// Verifies that <see cref="GraphContext.OnSave"/> is called when the graph is saved.
-		///</summary>
-		[TestMethod()]
-		public virtual void OnSaveTest()
-		{
+				// Save the new user instance
+				saveEvent = Perform<GraphSaveEvent>(() => userInstance.Save()).FirstOrDefault();
 
+				// Commit the transaction to ensure it does not roll back changed to the model
+				transaction.Commit();
+			}
+
+			// Ensure that the graph instance has been saved correctly
+			Assert.IsFalse(userInstance.IsNew, "New instance was not saved.");
+			Assert.IsTrue(saveEvent != null && saveEvent.Instance == userInstance && saveEvent.IdChanges.Count() == 1, 
+				"The save event was not correctly raised during a save operation.");
 		}
 
 		/// <summary>
@@ -94,12 +91,54 @@ namespace ExoGraph.UnitTest
 		[TestMethod()]
 		public virtual void OnPropertyGetTest()
 		{
-			// Test a value property
+			var category = new TCategory();
 
-			// Test an instance reference property
+			// Test getting a value property
+			var propertyGet = Perform<GraphPropertyGetEvent>(() => NoOp(category.Name)).FirstOrDefault();
+			Assert.IsNotNull(propertyGet, "The property get event was not raised for a value property.");
+			Assert.AreEqual<string>("Name", propertyGet.Property.Name, "The name of the value property that was changed is incorrect.");
+			Assert.AreEqual(category, propertyGet.Instance.Instance, "The instance the value property change occured on did not match the event");
+			Assert.IsTrue(propertyGet.IsFirstAccess, "The event did not indicate that this was the first access for this value property.");
 
-			// Test a list reference property
+			// Test second access to a value property
+			propertyGet = Perform<GraphPropertyGetEvent>(() => NoOp(category.Name)).FirstOrDefault();
+			Assert.IsNotNull(propertyGet, "The property get event was not raised for a value property.");
+			Assert.AreEqual<string>("Name", propertyGet.Property.Name, "The name of the value property that was changed is incorrect.");
+			Assert.AreEqual(category, propertyGet.Instance.Instance, "The instance the value property change occured on did not match the event");
+			Assert.IsFalse(propertyGet.IsFirstAccess, "The event did not indicate that this was not the first access for this value property.");
+
+			// Test getting a reference property
+			propertyGet = Perform<GraphPropertyGetEvent>(() => NoOp(category.ParentCategory)).FirstOrDefault();
+			Assert.IsNotNull(propertyGet, "The property get event was not raised for a value property.");
+			Assert.AreEqual<string>("ParentCategory", propertyGet.Property.Name, "The name of the value property that was changed is incorrect.");
+			Assert.AreEqual(category, propertyGet.Instance.Instance, "The instance the value property change occured on did not match the event");
+			Assert.IsTrue(propertyGet.IsFirstAccess, "The event did not indicate that this was the first access for this reference property.");
+
+			// Test second access to a reference property
+			propertyGet = Perform<GraphPropertyGetEvent>(() => NoOp(category.ParentCategory)).FirstOrDefault();
+			Assert.IsNotNull(propertyGet, "The property get event was not raised for a value property.");
+			Assert.AreEqual<string>("ParentCategory", propertyGet.Property.Name, "The name of the value property that was changed is incorrect.");
+			Assert.AreEqual(category, propertyGet.Instance.Instance, "The instance the value property change occured on did not match the event");
+			Assert.IsFalse(propertyGet.IsFirstAccess, "The event did not indicate that this was not the first access for this reference property.");
+
+			// Test getting a list property
+			propertyGet = Perform<GraphPropertyGetEvent>(() => NoOp(category.ChildCategories)).FirstOrDefault();
+			Assert.IsNotNull(propertyGet, "The property get event was not raised for a value property.");
+			Assert.AreEqual<string>("ChildCategories", propertyGet.Property.Name, "The name of the value property that was changed is incorrect.");
+			Assert.AreEqual(category, propertyGet.Instance.Instance, "The instance the value property change occured on did not match the event");
+			Assert.IsTrue(propertyGet.IsFirstAccess, "The event did not indicate that this was the first access for this list property.");
+
+			// Test second access to a reference property
+			propertyGet = Perform<GraphPropertyGetEvent>(() => NoOp(category.ChildCategories)).FirstOrDefault();
+			Assert.IsNotNull(propertyGet, "The property get event was not raised for a value property.");
+			Assert.AreEqual<string>("ChildCategories", propertyGet.Property.Name, "The name of the value property that was changed is incorrect.");
+			Assert.AreEqual(category, propertyGet.Instance.Instance, "The instance the value property change occured on did not match the event");
+			Assert.IsFalse(propertyGet.IsFirstAccess, "The event did not indicate that this was not the first access for this list property.");
 		}
+
+		// Stub to allow properties to be treated as actions
+		void NoOp(object o)
+		{ }
 
 		/// <summary>
 		/// Verify that <see cref="GraphContext.OnPropertyChanged"/> is called when a property value is changed.
@@ -114,22 +153,16 @@ namespace ExoGraph.UnitTest
 			TUser user = new TUser();
 
 			// Test a value property
-			bool valueChanged = false;
-			requestType.ValueChange += (sender, args) => 
-				valueChanged = args.Property.Name == "Description" && 
-				String.IsNullOrEmpty((string)args.OldValue) && 
-				args.NewValue == "My New Description";
-			request.Description = "My New Description";
-			Assert.IsTrue(valueChanged, "Property change was not correctly raised on value property.");
+			var valueChange = Perform<GraphValueChangeEvent>(() => request.Description = "My New Description").FirstOrDefault();
+			Assert.IsTrue(valueChange != null && valueChange.Property.Name == "Description" &&
+				String.IsNullOrEmpty((string)valueChange.OldValue) &&	(string)valueChange.NewValue == "My New Description", 
+				"Property change was not correctly raised on value property.");
 
 			// Test a reference property
-			bool referenceChanged = false;
-			requestType.ReferenceChange += (sender, args) =>
-				referenceChanged = args.Property.Name == "AssignedTo" &&
-				args.OldValue == null &&
-				args.NewValue.Instance == (object)user;
-			request.AssignedTo = user;
-			Assert.IsTrue(referenceChanged, "Property change was not correctly raised on reference property.");
+			var referenceChange = Perform<GraphReferenceChangeEvent>(() => request.AssignedTo = user).FirstOrDefault();
+			Assert.IsTrue(referenceChange != null && referenceChange.Property.Name == "AssignedTo" &&
+				referenceChange.OldValue == null &&	referenceChange.NewValue.Instance == (object)user, 
+				"Property change was not correctly raised on reference property.");
 		}
 
 		/// <summary>
@@ -145,26 +178,32 @@ namespace ExoGraph.UnitTest
 			TUser user = new TUser();
 
 			// Test adding to a list
-			bool listChanged = false;
-			userType.ListChange += (sender, args) =>
-				listChanged = args.Property.Name == "Requests" &&
-				args.Added.Any() && args.Added.FirstOrDefault().Instance == (object)request &&
-				!args.Removed.Any();
-			user.Requests.Add(request);
-			Assert.IsTrue(listChanged, "Property change was not correctly raised on list property.");
+			var listChange = Perform<GraphListChangeEvent>(() => user.Requests.Add(request)).FirstOrDefault();
+			Assert.IsTrue(listChange != null && listChange.Property.Name == "Requests" &&
+				listChange.Added.Any() && listChange.Added.FirstOrDefault().Instance == (object)request &&
+				!listChange.Removed.Any(), 
+				"List change was not correctly raised when adding an item.");
 
 			// Test removing from a list
-			listChanged = false;
-			userType.ListChange += (sender, args) =>
-				listChanged = args.Property.Name == "Requests" &&
-				args.Removed.Any() && args.Removed.FirstOrDefault().Instance == (object)request &&
-				!args.Added.Any();
-			user.Requests.Remove(request);
-			Assert.IsTrue(listChanged, "Property change was not correctly raised on list property.");
+			listChange = Perform<GraphListChangeEvent>(() => user.Requests.Remove(request)).FirstOrDefault();
+			Assert.IsTrue(listChange != null && listChange.Property.Name == "Requests" &&
+				listChange.Removed.Any() && listChange.Removed.FirstOrDefault().Instance == (object)request &&
+				!listChange.Added.Any(),
+				"List change was not correctly raised when removing an item.");
 	
-			// Test bulk adds
-
 			// Test clears
+			user.Requests.Add(new TRequest());
+			user.Requests.Add(new TRequest());
+			user.Requests.Add(new TRequest());
+			var listChanges = Perform<GraphListChangeEvent>(() => user.Requests.Clear());
+			int removed = 0;
+			foreach (var change in listChanges)
+			{
+				Assert.IsTrue(change.Property.Name == "Requests" && listChange.Removed.Any() && !listChange.Added.Any(),
+				"List change was not correctly raised when clearing a list.");
+				removed += listChange.Removed.Count();
+			}
+			Assert.AreEqual<int>(3, removed, "The clear operation did not raise change events for all of the items in the list.");
 		}
 
 		/// <summary>
@@ -173,7 +212,14 @@ namespace ExoGraph.UnitTest
 		[TestMethod()]
 		public virtual void OnInitTest()
 		{
+			// Test init not raise just due to construction
+			GraphInitEvent init = Perform<GraphInitEvent>(() => new TPriority()).FirstOrDefault();
+			Assert.IsNull(init, "Init event was raised prematurely when a new object was constructed.");
 
+			// Test init raised after first access
+			init = Perform<GraphInitEvent>(() => NoOp(new TPriority().Name)).FirstOrDefault();
+			Assert.IsNotNull(init, "Init event was not raised when a new object was constructed and accessed.");
+	
 		}
 
 		/// <summary>
@@ -275,6 +321,37 @@ namespace ExoGraph.UnitTest
 					Assert.IsTrue(type.Properties["Description"] is GraphValueProperty, "Request graph type does not have expected Description value property.");
 					break;
 			}
+		}
+
+		/// <summary>
+		/// Performs the specified action and returns the last graph event raised as
+		/// a result of the action or null if not events where raised or the last event
+		/// was not of the specified event type.
+		/// </summary>
+		/// <typeparam name="TEvent"></typeparam>
+		/// <param name="action"></param>
+		/// <returns></returns>
+		IEnumerable<TEvent> Perform<TEvent>(Action action)
+			where TEvent : GraphEvent
+		{
+			events = new List<GraphEvent>();
+			try
+			{
+				GraphContext.Current.Event += UpdateLastEvent;
+				action();
+				return events.OfType<TEvent>();
+			}
+			finally
+			{
+				GraphContext.Current.Event -= UpdateLastEvent;
+			}
+		}
+
+		List<GraphEvent> events;
+
+		void UpdateLastEvent(object sender, GraphEvent e)
+		{
+			events.Add(e);
 		}
 	}
 }

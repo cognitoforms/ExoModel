@@ -66,7 +66,7 @@ namespace ExoGraph
 			}
 		}
 
-		protected override void OnNotify()
+		protected override bool OnNotify()
 		{
 			if (OldValue != null)
 				Instance.RemoveReference(Instance.GetOutReference(property, OldValue));
@@ -75,6 +75,9 @@ namespace ExoGraph
 				Instance.AddReference(property, NewValue, false);
 
 			Instance.Type.RaiseReferenceChange(this);
+
+			// Indicate that the notification should be raised by the context
+			return true;
 		}
 
 		public override string ToString()

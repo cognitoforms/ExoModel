@@ -20,7 +20,7 @@ namespace ExoGraph
 			}
 		}
 
-		protected override void OnNotify()
+		protected override bool OnNotify()
 		{
 			throw new NotSupportedException("Path change events do not broadcast globally.");
 		}

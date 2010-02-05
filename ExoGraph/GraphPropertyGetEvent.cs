@@ -7,41 +7,42 @@ namespace ExoGraph
 	[DataContract]
 	public class GraphPropertyGetEvent : GraphEvent
 	{
-		GraphProperty property;
-
 		internal GraphPropertyGetEvent(GraphInstance instance, GraphProperty property)
 			: base(instance)
 		{
-			this.property = property;
+			this.Property = property;
+			this.IsFirstAccess = !Instance.HasBeenAccessed(property);
 		}
 
-		public bool IsFirstAccess
+		public GraphProperty Property { get; private set; }
+
+		public bool IsFirstAccess { get; private set; }
+
+		protected override bool OnNotify()
 		{
-			get
-			{
-				return !Instance.HasBeenAccessed(property);
-			}
-		}
-
-		public GraphProperty Property
-		{
-			get
-			{
-				return property;
-			}
-		}
-
-		protected override void OnNotify()
-		{
-			// Notify the instance that it is being accessed
-			Instance.OnAccess();
-
-			// Raise property get notifications
-			Instance.Type.RaisePropertyGet(this);
-
-			// Perform special initialization if this is the first time the property has been accessed
+			// Perform special processing if this is the first time the property has been accessed
 			if (IsFirstAccess)
-				Instance.OnFirstAccess(property);
+			{
+				// Abort if property get notifications have been suspended
+				if (Instance.Type.Context.ShouldSuspendGetNotifications)
+					return false;
+
+				// Notify the instance that it is being accessed
+				Instance.OnAccess();
+
+				// Raise property get notifications
+				Instance.Type.RaisePropertyGet(this);
+
+				// Perform special initialization if this is the first time the property has been accessed
+				Instance.OnFirstAccess(Property);
+			}
+
+			// Otherwise, just raise property get notifications
+			else
+				Instance.Type.RaisePropertyGet(this);
+
+			// Indicate that the notification should be raised by the context
+			return true;
 		}
 
 		public override string ToString()

@@ -21,9 +21,12 @@
 			}
 		}
 
-		protected override void OnNotify()
+		protected override bool OnNotify()
 		{
 			Instance.Type.RaiseEvent(this);
+
+			// Indicate that the notification should be raised by the context
+			return true;
 		}
 
 		#region Transacted

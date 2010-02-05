@@ -17,10 +17,13 @@ namespace ExoGraph
 			: base(type, id)
 		{ }
 
-		protected override void OnNotify()
+		protected override bool OnNotify()
 		{
 			for (GraphType type = Instance.Type; type != null; type = type.BaseType)
 				type.RaiseInit(this);
+
+			// Indicate that the notification should be raised by the context
+			return true;
 		}
 
 		public override string ToString()

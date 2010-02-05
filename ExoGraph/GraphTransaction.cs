@@ -41,15 +41,15 @@ namespace ExoGraph
 				if (e is GraphInitEvent.InitNew)
 					RegisterNewInstance(e.Instance);
 
-				// Populate commit events with ids that have changed during the transaction
+				// Populate save events with ids that have changed during the transaction
 				if (e is GraphSaveEvent && newInstances != null)
 				{
-					GraphSaveEvent commitEvent = (GraphSaveEvent)e;
+					GraphSaveEvent saveEvent = (GraphSaveEvent)e;
 					foreach (KeyValuePair<string, GraphInstance> instance in newInstances)
 					{
 						string oldId = instance.Key.Substring(instance.Key.IndexOf("|") + 1);
 						if (oldId != instance.Value.Id)
-							commitEvent.AddIdChange(instance.Value.Type, oldId, instance.Value.Id);
+							saveEvent.AddIdChange(instance.Value.Type, oldId, instance.Value.Id);
 					}
 				}
 

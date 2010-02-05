@@ -287,32 +287,38 @@ namespace ExoGraph
 		/// <param name="property"></param>
 		internal void OnFirstAccess(GraphProperty property)
 		{
-			// Mark the property as having been accessed
-			hasBeenAccessed[property.Index] = true;
-
 			// If the property is a reference property, establish edges
 			if (property is GraphReferenceProperty)
 			{
-				GraphReferenceProperty refProp = (GraphReferenceProperty)property;
-				if (refProp.IsList)
+				// Prevent gets on reference properties from raising get notifications
+				using (Type.Context.SuspendGetNotifications())
 				{
-					// Add references for all of the items in the list
-					foreach (GraphInstance reference in GetList(refProp))
-						AddReference(refProp, reference, true);
+					GraphReferenceProperty refProp = (GraphReferenceProperty)property;
+					if (refProp.IsList)
+					{
+						// Add references for all of the items in the list
+						foreach (GraphInstance reference in GetList(refProp))
+							AddReference(refProp, reference, true);
 
-					// Allow the context to subscribe to list change notifications
-					IList list = Type.Context.ConvertToList(refProp, this[property.Name]);
-					if (list != null)
-						Type.Context.OnStartTrackingList(this, (GraphReferenceProperty)property, list);
-				}
-				else
-				{
-					// Add a reference if the property is not null
-					GraphInstance reference = GetReference(refProp);
-					if (reference != null)
-						AddReference(refProp, reference, true);
+						// Allow the context to subscribe to list change notifications
+						IList list = Type.Context.ConvertToList(refProp, this[property.Name]);
+						if (list != null)
+							Type.Context.OnStartTrackingList(this, (GraphReferenceProperty)property, list);
+					}
+					else
+					{
+						// Add a reference if the property is not null
+						GraphInstance reference = GetReference(refProp);
+						if (reference != null)
+							AddReference(refProp, reference, true);
+					}
 				}
 			}
+
+			// Mark the property as having been accessed
+			hasBeenAccessed[property.Index] = true;
+
+
 		}
 
 		/// <summary>
