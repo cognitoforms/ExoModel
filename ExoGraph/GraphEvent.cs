@@ -36,7 +36,6 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="instance">The instance the event is for</param>
 		internal GraphEvent(GraphInstance instance)
-			: this(instance.Type, instance.Id)
 		{
 			this.instance = instance;
 		}
