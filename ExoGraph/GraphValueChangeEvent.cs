@@ -79,6 +79,8 @@ namespace ExoGraph
 					string serializedDate = ((string)value).Replace("/Date(", "\"\\/Date(").Replace(")/", "-0500)\\/\"");
 					newValue = jsonConverter.ConvertStringToValue(serializedDate, typeof(DateTime));
 				}
+				else if (Property.PropertyType.IsAssignableFrom(typeof(double)) && value.GetType() == typeof(decimal))
+					newValue = (double)((decimal)value);
 				else
 					newValue = value;
 			}
