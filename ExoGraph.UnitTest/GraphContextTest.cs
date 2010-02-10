@@ -61,7 +61,7 @@ namespace ExoGraph.UnitTest
 			using (var transaction = GraphContext.Current.BeginTransaction())
 			{
 				// Create a new user
-				TUser user = new TUser();
+				TUser user = CreateNewUser();
 
 				// Get the graph instance for the new user
 				userInstance = GraphContext.Current.GetGraphInstance(user);
@@ -91,7 +91,7 @@ namespace ExoGraph.UnitTest
 		[TestMethod()]
 		public virtual void OnPropertyGetTest()
 		{
-			var category = new TCategory();
+			var category = CreateNewCategory();
 
 			// Test getting a value property
 			var propertyGet = Perform<GraphPropertyGetEvent>(() => NoOp(category.Name)).FirstOrDefault();
@@ -149,8 +149,8 @@ namespace ExoGraph.UnitTest
 			// Get the relevant graph types and create real instances
 			GraphType userType = GraphContext.Current.GetGraphType<TUser>();
 			GraphType requestType = GraphContext.Current.GetGraphType<TRequest>();
-			TRequest request = new TRequest();
-			TUser user = new TUser();
+			TRequest request = CreateNewRequest();
+			TUser user = CreateNewUser();
 
 			// Test a value property
 			var valueChange = Perform<GraphValueChangeEvent>(() => request.Description = "My New Description").FirstOrDefault();
@@ -174,8 +174,8 @@ namespace ExoGraph.UnitTest
 			// Get the relevant graph types and create real instances
 			GraphType userType = GraphContext.Current.GetGraphType<TUser>();
 			GraphType requestType = GraphContext.Current.GetGraphType<TRequest>();
-			TRequest request = new TRequest();
-			TUser user = new TUser();
+			TRequest request = CreateNewRequest();
+			TUser user = CreateNewUser();
 
 			// Test adding to a list
 			var listChange = Perform<GraphListChangeEvent>(() => user.Requests.Add(request)).FirstOrDefault();
@@ -192,9 +192,9 @@ namespace ExoGraph.UnitTest
 				"List change was not correctly raised when removing an item.");
 	
 			// Test clears
-			user.Requests.Add(new TRequest());
-			user.Requests.Add(new TRequest());
-			user.Requests.Add(new TRequest());
+			user.Requests.Add(CreateNewRequest());
+			user.Requests.Add(CreateNewRequest());
+			user.Requests.Add(CreateNewRequest());
 			var listChanges = Perform<GraphListChangeEvent>(() => user.Requests.Clear());
 			int removed = 0;
 			foreach (var change in listChanges)
@@ -213,11 +213,11 @@ namespace ExoGraph.UnitTest
 		public virtual void OnInitTest()
 		{
 			// Test init not raise just due to construction
-			GraphInitEvent init = Perform<GraphInitEvent>(() => new TPriority()).FirstOrDefault();
+			GraphInitEvent init = Perform<GraphInitEvent>(() => CreateNewPriority()).FirstOrDefault();
 			Assert.IsNull(init, "Init event was raised prematurely when a new object was constructed.");
 
 			// Test init raised after first access
-			init = Perform<GraphInitEvent>(() => NoOp(new TPriority().Name)).FirstOrDefault();
+			init = Perform<GraphInitEvent>(() => NoOp(CreateNewPriority().Name)).FirstOrDefault();
 			Assert.IsNotNull(init, "Init event was not raised when a new object was constructed and accessed.");
 	
 		}
@@ -339,6 +339,26 @@ namespace ExoGraph.UnitTest
 		public virtual void BeginTransactionTest()
 		{
 
+		}
+
+		public virtual TUser CreateNewUser()
+		{
+			return new TUser();
+		}
+
+		public virtual TCategory CreateNewCategory()
+		{
+			return new TCategory();
+		}
+
+		public virtual TPriority CreateNewPriority()
+		{
+			return new TPriority();
+		}
+
+		public virtual TRequest CreateNewRequest()
+		{
+			return new TRequest();
 		}
 
 		/// <summary>

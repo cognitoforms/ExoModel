@@ -1,8 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{42C5B329-DE27-458F-96E2-5DA1A494F0FC}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph.Injection.UnitTest", "ExoGraph.Injection.UnitTest\ExoGraph.Injection.UnitTest.csproj", "{5D63D4F5-4CEE-4775-AD22-D3AD73BD94F0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph", "ExoGraph\ExoGraph.csproj", "{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}"
@@ -11,9 +9,22 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph.UnitTest", "ExoGra
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph.Injection", "ExoGraph.Injection\ExoGraph.Injection.csproj", "{FECB1E15-5C85-43D4-8B4D-D14B6D21C468}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph.NHibernate", "ExoGraph.NHibernate\ExoGraph.NHibernate.csproj", "{4FC5F7D5-D0A0-46A4-8134-B35259A9F9EE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph.NHibernate.UnitTest", "ExoGraph.NHibernate.UnitTest\ExoGraph.NHibernate.UnitTest.csproj", "{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NHibernate", "..\..\NHibernate\src\NHibernate\NHibernate.csproj", "{5909BFE7-93CF-4E5F-BE22-6293368AF01D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NHibernate.ByteCode.Castle", "..\..\NHibernate\src\NHibernate.ByteCode.Castle\NHibernate.ByteCode.Castle.csproj", "{31C3F0EA-0FED-4A2F-B68D-96CE29844487}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B159A1F9-218C-4FBF-91A8-638D2F2B01F2}"
+	ProjectSection(SolutionItems) = preProject
+		ExoGraph1.vsmdi = ExoGraph1.vsmdi
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(TeamFoundationVersionControl) = preSolution
-		SccNumberOfProjects = 5
+		SccNumberOfProjects = 7
 		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
 		SccTeamFoundationServer = http://appdev-build:8080/
 		SccLocalPath0 = .
@@ -29,6 +40,15 @@ Global
 		SccProjectUniqueName4 = ExoGraph\\ExoGraph.csproj
 		SccProjectName4 = ExoGraph
 		SccLocalPath4 = ExoGraph
+		SccProjectUniqueName5 = ExoGraph.NHibernate\\ExoGraph.NHibernate.csproj
+		SccProjectName5 = ExoGraph.NHibernate
+		SccLocalPath5 = ExoGraph.NHibernate
+		SccProjectUniqueName6 = ExoGraph.NHibernate.UnitTest\\ExoGraph.NHibernate.UnitTest.csproj
+		SccProjectName6 = ExoGraph.NHibernate.UnitTest
+		SccLocalPath6 = ExoGraph.NHibernate.UnitTest
+	EndGlobalSection
+	GlobalSection(TestCaseManagementSettings) = postSolution
+		CategoryFile = ExoGraph1.vsmdi
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +71,22 @@ Global
 		{FECB1E15-5C85-43D4-8B4D-D14B6D21C468}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FECB1E15-5C85-43D4-8B4D-D14B6D21C468}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FECB1E15-5C85-43D4-8B4D-D14B6D21C468}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4FC5F7D5-D0A0-46A4-8134-B35259A9F9EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4FC5F7D5-D0A0-46A4-8134-B35259A9F9EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4FC5F7D5-D0A0-46A4-8134-B35259A9F9EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4FC5F7D5-D0A0-46A4-8134-B35259A9F9EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5909BFE7-93CF-4E5F-BE22-6293368AF01D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5909BFE7-93CF-4E5F-BE22-6293368AF01D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5909BFE7-93CF-4E5F-BE22-6293368AF01D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5909BFE7-93CF-4E5F-BE22-6293368AF01D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{31C3F0EA-0FED-4A2F-B68D-96CE29844487}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{31C3F0EA-0FED-4A2F-B68D-96CE29844487}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{31C3F0EA-0FED-4A2F-B68D-96CE29844487}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{31C3F0EA-0FED-4A2F-B68D-96CE29844487}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

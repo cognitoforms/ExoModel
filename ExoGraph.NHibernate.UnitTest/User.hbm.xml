@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<hibernate-mapping xmlns="urn:nhibernate-mapping-2.2" default-lazy="false">
+	<class name="ExoGraph.NHibernate.UnitTest.User, ExoGraph.NHibernate.UnitTest" table="`User`">
+		<id name="UserId">
+			<generator class="guid" />
+		</id>
+
+		<property name="UserName" />
+
+		<bag name="Requests" cascade="all">
+			<key column="RequestId" />
+			<one-to-many class="ExoGraph.NHibernate.UnitTest.Request, ExoGraph.NHibernate.UnitTest" />
+		</bag>
+
+		<bag name="Assignments" cascade="all">
+			<key column="AssignedToUserId" />
+			<one-to-many class="ExoGraph.NHibernate.UnitTest.Request, ExoGraph.NHibernate.UnitTest" />
+		</bag>
+	</class>
+</hibernate-mapping>

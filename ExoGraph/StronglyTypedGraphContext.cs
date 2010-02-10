@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Collections;
 using System.ComponentModel;
+using System.Collections.Specialized;
 
 namespace ExoGraph
 {
@@ -263,6 +264,22 @@ namespace ExoGraph
 			declaringType.AddProperty(new ValueProperty(declaringType, property, name, isStatic, propertyType, attributes));
 		}
 
+		protected internal override void OnStartTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
+		{
+			if (list is INotifyCollectionChanged)
+				(new ListChangeEventAdapter(instance, property, (INotifyCollectionChanged) list)).Start();
+			else
+				base.OnStartTrackingList(instance, property, list);
+		}
+
+		protected internal override void OnStopTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
+		{
+			if (list is INotifyCollectionChanged)
+				(new ListChangeEventAdapter(instance, property, (INotifyCollectionChanged) list)).Stop();
+			else
+				base.OnStartTrackingList(instance, property, list);
+		}
+
 		#endregion
 
 		#region ValueProperty
@@ -357,5 +374,52 @@ namespace ExoGraph
 		}
 
 		#endregion
+
+		[Serializable]
+		class ListChangeEventAdapter
+		{
+			GraphInstance instance;
+			GraphReferenceProperty property;
+			INotifyCollectionChanged list;
+
+			public ListChangeEventAdapter(GraphInstance instance, GraphReferenceProperty property, INotifyCollectionChanged list)
+			{
+				this.instance = instance;
+				this.property = property;
+				this.list = list;
+			}
+
+			public void Start()
+			{
+				list.CollectionChanged += this.list_CollectionChanged;
+			}
+
+			public void Stop()
+			{
+				list.CollectionChanged -= this.list_CollectionChanged;
+			}
+
+			void list_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+			{
+				((StronglyTypedGraphContext) GraphContext.Current).OnListChanged(instance, property,
+					e.Action == NotifyCollectionChangedAction.Add ? e.NewItems : new object[0],
+					e.Action == NotifyCollectionChangedAction.Remove ? e.OldItems : new object[0]);
+			}
+
+			public override bool Equals(object obj)
+			{
+				var that = obj as ListChangeEventAdapter;
+
+				if (that == null)
+					return false;
+
+				return that.instance == this.instance && that.property == this.property && that.list == this.list;
+			}
+
+			public override int GetHashCode()
+			{
+				return instance.GetHashCode();
+			}
+		}
 	}
 }

@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<hibernate-mapping xmlns="urn:nhibernate-mapping-2.2" default-lazy="false">
+	<class name="ExoGraph.NHibernate.UnitTest.Request, ExoGraph.NHibernate.UnitTest">
+		<id name="RequestId">
+			<generator class="identity" />
+		</id>
+
+		<property name="Description" />
+
+		<many-to-one name="User" class="ExoGraph.NHibernate.UnitTest.User, ExoGraph.NHibernate.UnitTest" column="UserId" cascade="all" />
+		<many-to-one name="Category" class="ExoGraph.NHibernate.UnitTest.Category, ExoGraph.NHibernate.UnitTest" column="CategoryId" cascade="all" />
+		<many-to-one name="Priority" class="ExoGraph.NHibernate.UnitTest.Priority, ExoGraph.NHibernate.UnitTest" column="PriorityId" cascade="all" />
+		<many-to-one name="AssignedTo" class="ExoGraph.NHibernate.UnitTest.User, ExoGraph.NHibernate.UnitTest" column="AssignedToUserId" cascade="all" />
+	</class>
+</hibernate-mapping>

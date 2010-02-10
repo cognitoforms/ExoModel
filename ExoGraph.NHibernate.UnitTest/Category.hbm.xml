@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<hibernate-mapping xmlns="urn:nhibernate-mapping-2.2" default-lazy="false">
+	<class name="ExoGraph.NHibernate.UnitTest.Category, ExoGraph.NHibernate.UnitTest">
+		<id name="CategoryId">
+			<generator class="identity" />
+		</id>
+
+		<property name="Name" />
+		<many-to-one name="ParentCategory" class="ExoGraph.NHibernate.UnitTest.Category, ExoGraph.NHibernate.UnitTest" cascade="all" column="ParentCategoryId" />
+
+		<bag name="childCategories" cascade="all" access="field">
+			<key column="ParentCategoryId" />
+			<one-to-many class="ExoGraph.NHibernate.UnitTest.Category, ExoGraph.NHibernate.UnitTest" />
+		</bag>
+	</class>
+</hibernate-mapping>
