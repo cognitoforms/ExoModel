@@ -176,22 +176,22 @@ namespace ExoGraph.NHibernate.UnitTest
 
 		public override User CreateNewUser()
 		{
-			return (User) GraphContext.Current.GetGraphType<User>().Create().Instance;
+			return DataBindingFactory.Create<User>();
 		}
 
 		public override Category CreateNewCategory()
 		{
-			return (Category) GraphContext.Current.GetGraphType<Category>().Create().Instance;
+			return DataBindingFactory.Create<Category>();
 		}
 
 		public override Priority CreateNewPriority()
 		{
-			return (Priority) GraphContext.Current.GetGraphType<Priority>().Create().Instance;
+			return DataBindingFactory.Create<Priority>();
 		}
 
 		public override Request CreateNewRequest()
 		{
-			return (Request) GraphContext.Current.GetGraphType<Request>().Create().Instance;
+			return DataBindingFactory.Create<Request>();
 		}
 	}
 

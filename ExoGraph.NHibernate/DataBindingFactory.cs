@@ -32,6 +32,9 @@ namespace ExoGraph.NHibernate
 
 			((IGraphInstance) result).Instance = ((NHibernateGraphContext) GraphContext.Current).InitGraphInstance(result);
 
+			((INotifyPropertyAccessed) result).PropertyAccessed += new PropertyAccessedEventHandler(((NHibernateGraphContext) GraphContext.Current).NHibernateGraphContext_PropertyAccessed);
+			((INotifyPropertyModified) result).PropertyModified += new PropertyModifiedEventHandler(((NHibernateGraphContext) GraphContext.Current).NHibernateGraphContext_PropertyModified);
+
 			return result;
 		}
 

@@ -52,18 +52,15 @@ namespace ExoGraph.NHibernate
 				result = session.Load(objectType, idObject);
 			}
 
-			((INotifyPropertyAccessed) result).PropertyAccessed += new PropertyAccessedEventHandler(NHibernateGraphContext_PropertyAccessed);
-			((INotifyPropertyModified) result).PropertyModified += new PropertyModifiedEventHandler(NHibernateGraphContext_PropertyModified);
-
 			return result;
 		}
 
-		private void NHibernateGraphContext_PropertyModified(object sender, PropertyModifiedEventArgs e)
+		internal void NHibernateGraphContext_PropertyModified(object sender, PropertyModifiedEventArgs e)
 		{
 			OnPropertyChanged(((IGraphInstance) sender).Instance, e.PropertyName, e.OldValue, e.NewValue);
 		}
 
-		private void NHibernateGraphContext_PropertyAccessed(object sender, PropertyAccessedEventArgs e)
+		internal void NHibernateGraphContext_PropertyAccessed(object sender, PropertyAccessedEventArgs e)
 		{
 			OnPropertyGet(((IGraphInstance) sender).Instance, e.PropertyName);
 		}
