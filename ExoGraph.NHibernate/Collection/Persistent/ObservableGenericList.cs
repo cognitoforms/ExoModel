@@ -3,32 +3,30 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using NHibernate.Collection.Generic;
-using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Collections.Specialized;
 using NHibernate.Engine;
-using Iesi.Collections.Generic;
 using NHibernate.Persister.Collection;
 
-namespace ExoGraph.NHibernate.Collection.PersistentImpl
+namespace ExoGraph.NHibernate.Collection.Persistent
 {
-	public class PersistentObservableGenericSet<T> : PersistentGenericSet<T>, INotifyCollectionChanged,
-													 INotifyPropertyChanged, IEditableObject
+	public class ObservableGenericList<T> : PersistentGenericList<T>, INotifyCollectionChanged, INotifyPropertyChanged, IList<T>
 	{
 		private NotifyCollectionChangedEventHandler collectionChanged;
 		private PropertyChangedEventHandler propertyChanged;
 
-		public PersistentObservableGenericSet(ISessionImplementor sessionImplementor)
+		public ObservableGenericList(ISessionImplementor sessionImplementor)
 			: base(sessionImplementor)
 		{
 		}
 
-		public PersistentObservableGenericSet(ISessionImplementor sessionImplementor, ISet<T> coll)
-			: base(sessionImplementor, coll)
+		public ObservableGenericList(ISessionImplementor sessionImplementor, IList<T> list)
+			: base(sessionImplementor, list)
 		{
-			CaptureEventHandlers(coll);
+			CaptureEventHandlers(list);
 		}
 
-		public PersistentObservableGenericSet()
+		public ObservableGenericList()
 		{
 		}
 
@@ -63,10 +61,10 @@ namespace ExoGraph.NHibernate.Collection.PersistentImpl
 		public override void BeforeInitialize(ICollectionPersister persister, int anticipatedSize)
 		{
 			base.BeforeInitialize(persister, anticipatedSize);
-			CaptureEventHandlers(set);
+			CaptureEventHandlers((ICollection<T>) list);
 		}
 
-		private void CaptureEventHandlers(object coll)
+		private void CaptureEventHandlers(ICollection<T> coll)
 		{
 			var notificableCollection = coll as INotifyCollectionChanged;
 			var propertyNotificableColl = coll as INotifyPropertyChanged;
@@ -88,30 +86,6 @@ namespace ExoGraph.NHibernate.Collection.PersistentImpl
 		{
 			NotifyCollectionChangedEventHandler changed = collectionChanged;
 			if (changed != null) changed(this, e);
-		}
-
-		/// <summary>
-		/// Begins an edit on an object.
-		/// </summary>
-		public void BeginEdit()
-		{
-			throw new NotImplementedException();
-		}
-
-		/// <summary>
-		/// Pushes changes since the last <see cref="M:System.ComponentModel.IEditableObject.BeginEdit"/> or <see cref="M:System.ComponentModel.IBindingList.AddNew"/> call into the underlying object.
-		/// </summary>
-		public void EndEdit()
-		{
-			throw new NotImplementedException();
-		}
-
-		/// <summary>
-		/// Discards changes since the last <see cref="M:System.ComponentModel.IEditableObject.BeginEdit"/> call.
-		/// </summary>
-		public void CancelEdit()
-		{
-			throw new NotImplementedException();
 		}
 	}
 }

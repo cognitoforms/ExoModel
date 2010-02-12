@@ -31,6 +31,11 @@ namespace ExoGraph.Injection.UnitTest
 			throw new NotImplementedException();
 		}
 
+		protected override void Save(GraphInstance graphInstance)
+		{
+			throw new NotImplementedException();
+		}
+
 		protected override object GetInstance(GraphType type, string id)
 		{
 			return Type.GetType(type.Name).GetConstructor(Type.EmptyTypes).Invoke(null);

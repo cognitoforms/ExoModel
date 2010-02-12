@@ -9,17 +9,8 @@ using Iesi.Collections.Generic;
 
 namespace ExoGraph.NHibernate.Collection
 {
-	/// <summary>
-	/// ISet that implements INotifyCollectionChanged
-	/// </summary>
-	/// <typeparam name="T"></typeparam>
-	public class ObservableSet<T> : HashedSet<T>, INotifyCollectionChanged, INotifyPropertyChanged
+	public class FullyObservableSet<T> : HashedSet<T>, INotifyCollectionChanged, INotifyPropertyChanged
 	{
-		private const string COUNT_PROPERTY_NAME = "Count";
-		private const string ISEMPTY_PROPERTY_NAME = "IsEmpty";
-
-		private bool _isInXAllOperation;
-
 		#region INotifyCollectionChanged Members
 
 		public event NotifyCollectionChangedEventHandler CollectionChanged;
@@ -31,8 +22,6 @@ namespace ExoGraph.NHibernate.Collection
 		public event PropertyChangedEventHandler PropertyChanged;
 
 		#endregion
-
-		#region event invocators
 
 		private void OnPropertyChanged(PropertyChangedEventArgs e)
 		{
@@ -56,8 +45,6 @@ namespace ExoGraph.NHibernate.Collection
 			OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
 		}
 
-		#endregion
-
 		/// <summary>
 		/// Adds the specified element to this set if it is not already present.
 		/// </summary>
@@ -65,16 +52,17 @@ namespace ExoGraph.NHibernate.Collection
 		/// <returns>
 		/// <see langword="true"/> is the object was added, <see langword="false"/> if it was already present.
 		/// </returns>
-		public override bool Add(T o)
+		public override bool Add(T element)
 		{
-			bool add = base.Add(o);
-			if (add && !_isInXAllOperation)
+			bool result = base.Add(element);
+			if (result)
 			{
-				OnPropertyChanged(ISEMPTY_PROPERTY_NAME);
-				OnPropertyChanged(COUNT_PROPERTY_NAME);
-				OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, o));
+				OnPropertyChanged("IsEmpty");
+				OnPropertyChanged("Count");
+				OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, element));
 			}
-			return add;
+
+			return result;
 		}
 
 		/// <summary>
@@ -82,13 +70,13 @@ namespace ExoGraph.NHibernate.Collection
 		/// </summary>
 		public override void Clear()
 		{
-			IList<object> oldItems = new List<object>(this.Count);
-			foreach (object item in this)
+			IList<T> oldItems = new List<T>(this.Count);
+			foreach (T item in this)
 				oldItems.Add(item);
 
 			base.Clear();
-			OnPropertyChanged(ISEMPTY_PROPERTY_NAME);
-			OnPropertyChanged(COUNT_PROPERTY_NAME);
+			OnPropertyChanged("IsEmpty");
+			OnPropertyChanged("Count");
 			OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, null, oldItems));
 		}
 
@@ -99,24 +87,23 @@ namespace ExoGraph.NHibernate.Collection
 		/// <returns>
 		/// <see langword="true"/> if the set contained the specified element, <see langword="false"/> otherwise.
 		/// </returns>
-		public override bool Remove(T o)
+		public override bool Remove(T element)
 		{
 			var itemIndex = 0;
 			foreach (var obj in this)
 			{
-				if (obj.Equals(o)) break;
+				if (obj.Equals(element)) break;
 				itemIndex++;
 			}
 
-
-
-			bool result = base.Remove(o);
-			if (result && !_isInXAllOperation)
+			bool result = base.Remove(element);
+			if (result)
 			{
-				OnPropertyChanged(ISEMPTY_PROPERTY_NAME);
-				OnPropertyChanged(COUNT_PROPERTY_NAME);
-				OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, o, itemIndex));
+				OnPropertyChanged("IsEmpty");
+				OnPropertyChanged("Count");
+				OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, element, itemIndex));
 			}
+
 			return result;
 		}
 
@@ -130,7 +117,7 @@ namespace ExoGraph.NHibernate.Collection
 		public override bool RemoveAll(ICollection<T> c)
 		{
 			bool flag = false;
-			_isInXAllOperation = true;
+
 			var itemsRemoved = new List<T>();
 			foreach (T item in c)
 			{
@@ -141,11 +128,10 @@ namespace ExoGraph.NHibernate.Collection
 			}
 			if (flag)
 			{
-				OnPropertyChanged(ISEMPTY_PROPERTY_NAME);
-				OnPropertyChanged(COUNT_PROPERTY_NAME);
+				OnPropertyChanged("IsEmpty");
+				OnPropertyChanged("Count");
 				OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, itemsRemoved));
 			}
-			_isInXAllOperation = false;
 
 			return flag;
 		}
@@ -160,7 +146,7 @@ namespace ExoGraph.NHibernate.Collection
 		public override bool RetainAll(ICollection<T> c)
 		{
 			bool flag = false;
-			_isInXAllOperation = true;
+
 			var itemsRemoved = new List<T>();
 			foreach (T item in (IEnumerable) Clone())
 			{
@@ -174,11 +160,10 @@ namespace ExoGraph.NHibernate.Collection
 			}
 			if (flag)
 			{
-				OnPropertyChanged(ISEMPTY_PROPERTY_NAME);
-				OnPropertyChanged(COUNT_PROPERTY_NAME);
+				OnPropertyChanged("IsEmpty");
+				OnPropertyChanged("Count");
 				OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, itemsRemoved));
 			}
-			_isInXAllOperation = false;
 
 			return flag;
 		}
@@ -193,7 +178,7 @@ namespace ExoGraph.NHibernate.Collection
 		public override bool AddAll(ICollection<T> c)
 		{
 			bool flag = false;
-			_isInXAllOperation = true;
+
 			var itemsAdded = new List<T>();
 			foreach (T item in c)
 			{
@@ -204,11 +189,11 @@ namespace ExoGraph.NHibernate.Collection
 			}
 			if (flag)
 			{
-				OnPropertyChanged(ISEMPTY_PROPERTY_NAME);
-				OnPropertyChanged(COUNT_PROPERTY_NAME);
+				OnPropertyChanged("IsEmpty");
+				OnPropertyChanged("Count");
 				OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, itemsAdded));
 			}
-			_isInXAllOperation = false;
+
 			return flag;
 		}
 	}

@@ -6,28 +6,28 @@ using NHibernate.Collection.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using NHibernate.Engine;
+using Iesi.Collections.Generic;
 using NHibernate.Persister.Collection;
 
-namespace ExoGraph.NHibernate.Collection.PersistentImpl
+namespace ExoGraph.NHibernate.Collection.Persistent
 {
-	public class PersistentObservableGenericBag<T> : PersistentGenericBag<T>, INotifyCollectionChanged,
-													 INotifyPropertyChanged, IList<T>
+	public class ObservableGenericSet<T> : PersistentGenericSet<T>, INotifyPropertyChanged, INotifyCollectionChanged, IEditableObject
 	{
 		private NotifyCollectionChangedEventHandler collectionChanged;
 		private PropertyChangedEventHandler propertyChanged;
 
-		public PersistentObservableGenericBag(ISessionImplementor sessionImplementor)
+		public ObservableGenericSet(ISessionImplementor sessionImplementor)
 			: base(sessionImplementor)
 		{
 		}
 
-		public PersistentObservableGenericBag(ISessionImplementor sessionImplementor, ICollection<T> coll)
+		public ObservableGenericSet(ISessionImplementor sessionImplementor, HashedSet<T> coll)
 			: base(sessionImplementor, coll)
 		{
 			CaptureEventHandlers(coll);
 		}
 
-		public PersistentObservableGenericBag()
+		public ObservableGenericSet()
 		{
 		}
 
@@ -62,10 +62,10 @@ namespace ExoGraph.NHibernate.Collection.PersistentImpl
 		public override void BeforeInitialize(ICollectionPersister persister, int anticipatedSize)
 		{
 			base.BeforeInitialize(persister, anticipatedSize);
-			CaptureEventHandlers(InternalBag);
+			CaptureEventHandlers(set);
 		}
 
-		private void CaptureEventHandlers(ICollection<T> coll)
+		private void CaptureEventHandlers(object coll)
 		{
 			var notificableCollection = coll as INotifyCollectionChanged;
 			var propertyNotificableColl = coll as INotifyPropertyChanged;
@@ -87,6 +87,21 @@ namespace ExoGraph.NHibernate.Collection.PersistentImpl
 		{
 			NotifyCollectionChangedEventHandler changed = collectionChanged;
 			if (changed != null) changed(this, e);
+		}
+
+		public void CancelEdit()
+		{
+			throw new NotImplementedException();
+		}
+
+		public void BeginEdit()
+		{
+			throw new NotImplementedException();
+		}
+
+		public void EndEdit()
+		{
+			throw new NotImplementedException();
 		}
 	}
 }

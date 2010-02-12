@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using NHibernate.Type;
-using ExoGraph.NHibernate.Collection.Types;
+using ExoGraph.NHibernate.Collection.Type;
 
 namespace ExoGraph.NHibernate.Collection
 {
@@ -11,17 +11,17 @@ namespace ExoGraph.NHibernate.Collection
 	{
 		public override CollectionType Bag<T>(string role, string propertyRef, bool embedded)
 		{
-			return new ObservableBagType<T>(role, propertyRef, embedded);
+			return new ObservableBag<T>(role, propertyRef, embedded);
 		}
 
 		public override CollectionType Set<T>(string role, string propertyRef, bool embedded)
 		{
-			return new ObservableSetType<T>(role, propertyRef, embedded);
+			return new ExoGraph.NHibernate.Collection.Type.ObservableSet<T>(role, propertyRef, embedded);
 		}
 
 		public override CollectionType List<T>(string role, string propertyRef, bool embedded)
 		{
-			return new ObservableListType<T>(role, propertyRef, embedded);
+			return new ObservableList<T>(role, propertyRef, embedded);
 		}
 	}
 }

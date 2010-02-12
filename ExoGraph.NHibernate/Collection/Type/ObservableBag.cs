@@ -4,40 +4,40 @@ using System.Linq;
 using System.Text;
 using NHibernate.Type;
 using NHibernate.UserTypes;
-using ExoGraph.NHibernate.Collection.PersistentImpl;
+using ExoGraph.NHibernate.Collection.Persistent;
 using System.Collections;
 using System.Collections.ObjectModel;
 using NHibernate.Collection;
 using NHibernate.Engine;
 using NHibernate.Persister.Collection;
 
-namespace ExoGraph.NHibernate.Collection.Types
+namespace ExoGraph.NHibernate.Collection.Type
 {
-	public class ObservableBagType<T> : CollectionType, IUserCollectionType
+	public class ObservableBag<T> : CollectionType, IUserCollectionType
 	{
-		public ObservableBagType(string role, string foreignKeyPropertyName, bool isEmbeddedInXML)
+		public ObservableBag(string role, string foreignKeyPropertyName, bool isEmbeddedInXML)
 			: base(role, foreignKeyPropertyName, isEmbeddedInXML)
 		{
 		}
 
-		public ObservableBagType()
+		public ObservableBag()
 			: base(string.Empty, string.Empty, false)
 		{
 
 		}
 		public IPersistentCollection Instantiate(ISessionImplementor session, ICollectionPersister persister)
 		{
-			return new PersistentObservableGenericBag<T>(session);
+			return new ObservableGenericBag<T>(session);
 		}
 
 		public override IPersistentCollection Instantiate(ISessionImplementor session, ICollectionPersister persister, object key)
 		{
-			return new PersistentObservableGenericBag<T>(session);
+			return new ObservableGenericBag<T>(session);
 		}
 
 		public override IPersistentCollection Wrap(ISessionImplementor session, object collection)
 		{
-			return new PersistentObservableGenericBag<T>(session, (ICollection<T>) collection);
+			return new ObservableGenericBag<T>(session, (ICollection<T>) collection);
 		}
 
 		public IEnumerable GetElements(object collection)
@@ -50,7 +50,6 @@ namespace ExoGraph.NHibernate.Collection.Types
 			return ((ICollection<T>) collection).Contains((T) entity);
 		}
 
-
 		public object ReplaceElements(object original, object target, ICollectionPersister persister, object owner, IDictionary copyCache, ISessionImplementor session)
 		{
 			return base.ReplaceElements(original, target, owner, copyCache, session);
@@ -61,11 +60,11 @@ namespace ExoGraph.NHibernate.Collection.Types
 			return new FullyObservableCollection<T>();
 		}
 
-		public override Type ReturnedClass
+		public override System.Type ReturnedClass
 		{
 			get
 			{
-				return typeof(PersistentObservableGenericBag<T>);
+				return typeof(ObservableGenericBag<T>);
 			}
 		}
 	}

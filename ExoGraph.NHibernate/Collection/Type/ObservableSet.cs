@@ -4,42 +4,45 @@ using System.Linq;
 using System.Text;
 using NHibernate.Type;
 using NHibernate.UserTypes;
-using ExoGraph.NHibernate.Collection.PersistentImpl;
+using ExoGraph.NHibernate.Collection.Persistent;
 using System.Collections;
 using NHibernate.Engine;
 using NHibernate.Persister.Collection;
 using Iesi.Collections.Generic;
 using NHibernate.Collection;
 
-namespace ExoGraph.NHibernate.Collection.Types
+namespace ExoGraph.NHibernate.Collection.Type
 {
-	public class ObservableSetType<T> : CollectionType, IUserCollectionType
+	public class ObservableSet<T> : CollectionType, IUserCollectionType
 	{
-		public ObservableSetType(string role, string foreignKeyPropertyName, bool isEmbeddedInXML)
+		public ObservableSet(string role, string foreignKeyPropertyName, bool isEmbeddedInXML)
 			: base(role, foreignKeyPropertyName, isEmbeddedInXML)
 		{
 		}
 
-		public ObservableSetType()
+		public ObservableSet()
 			: base(string.Empty, string.Empty, false)
 		{
 		}
 
-		public override Type ReturnedClass
+		public override System.Type ReturnedClass
 		{
-			get { return typeof(PersistentObservableGenericSet<T>); }
+			get 
+			{ 
+				return typeof(ObservableGenericSet<T>); 
+			}
 		}
 
 		#region IUserCollectionType Members
 
 		public IPersistentCollection Instantiate(ISessionImplementor session, ICollectionPersister persister)
 		{
-			return new PersistentObservableGenericSet<T>(session);
+			return new ObservableGenericSet<T>(session);
 		}
 
 		public override IPersistentCollection Wrap(ISessionImplementor session, object collection)
 		{
-			return new PersistentObservableGenericSet<T>(session, (ISet<T>) collection);
+			return new ObservableGenericSet<T>(session, (HashedSet<T>) collection);
 		}
 
 		public IEnumerable GetElements(object collection)
@@ -51,7 +54,6 @@ namespace ExoGraph.NHibernate.Collection.Types
 		{
 			return ((ICollection<T>) collection).Contains((T) entity);
 		}
-
 
 		public object ReplaceElements(object original, object target, ICollectionPersister persister, object owner,
 									  IDictionary copyCache, ISessionImplementor session)
@@ -69,7 +71,7 @@ namespace ExoGraph.NHibernate.Collection.Types
 		public override IPersistentCollection Instantiate(ISessionImplementor session, ICollectionPersister persister,
 														  object key)
 		{
-			return new PersistentObservableGenericSet<T>(session);
+			return new ObservableGenericSet<T>(session);
 		}
 	}
 }

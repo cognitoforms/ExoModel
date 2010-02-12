@@ -70,13 +70,13 @@
   <ItemGroup>
     <Compile Include="Collection\FullyObservableCollection.cs" />
     <Compile Include="Collection\ObservableCollectionTypeFactory.cs" />
-    <Compile Include="Collection\ObservableSet.cs" />
-    <Compile Include="Collection\PersistentImpl\PersistentObersvableGenericBag.cs" />
-    <Compile Include="Collection\PersistentImpl\PersistentObservableGenericSet.cs" />
-    <Compile Include="Collection\PersistentImpl\PersistentObservableGenericList.cs" />
-    <Compile Include="Collection\Types\ObservableBagType.cs" />
-    <Compile Include="Collection\Types\ObservableListType.cs" />
-    <Compile Include="Collection\Types\ObservableSetType.cs" />
+    <Compile Include="Collection\FullyObservableSet.cs" />
+    <Compile Include="Collection\Persistent\ObersvableGenericBag.cs" />
+    <Compile Include="Collection\Persistent\ObservableGenericSet.cs" />
+    <Compile Include="Collection\Persistent\ObservableGenericList.cs" />
+    <Compile Include="Collection\Type\ObservableBag.cs" />
+    <Compile Include="Collection\Type\ObservableList.cs" />
+    <Compile Include="Collection\Type\ObservableSet.cs" />
     <Compile Include="DataBindingFactory.cs" />
     <Compile Include="DataBindingInterceptor.cs" />
     <Compile Include="INotifyPropertyAccessed.cs" />
@@ -86,10 +86,6 @@
     <Compile Include="SaveNotificationEventListener.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\NHibernate\src\NHibernate.ByteCode.Castle\NHibernate.ByteCode.Castle.csproj">
-      <Project>{31C3F0EA-0FED-4A2F-B68D-96CE29844487}</Project>
-      <Name>NHibernate.ByteCode.Castle</Name>
-    </ProjectReference>
     <ProjectReference Include="..\ExoGraph.Injection\ExoGraph.Injection.csproj">
       <Project>{FECB1E15-5C85-43D4-8B4D-D14B6D21C468}</Project>
       <Name>ExoGraph.Injection</Name>

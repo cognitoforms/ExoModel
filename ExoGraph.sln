@@ -13,10 +13,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph.NHibernate", "ExoG
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph.NHibernate.UnitTest", "ExoGraph.NHibernate.UnitTest\ExoGraph.NHibernate.UnitTest.csproj", "{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NHibernate", "..\..\NHibernate\src\NHibernate\NHibernate.csproj", "{5909BFE7-93CF-4E5F-BE22-6293368AF01D}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NHibernate.ByteCode.Castle", "..\..\NHibernate\src\NHibernate.ByteCode.Castle\NHibernate.ByteCode.Castle.csproj", "{31C3F0EA-0FED-4A2F-B68D-96CE29844487}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B159A1F9-218C-4FBF-91A8-638D2F2B01F2}"
 	ProjectSection(SolutionItems) = preProject
 		ExoGraph1.vsmdi = ExoGraph1.vsmdi
@@ -79,14 +75,6 @@ Global
 		{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5909BFE7-93CF-4E5F-BE22-6293368AF01D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5909BFE7-93CF-4E5F-BE22-6293368AF01D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5909BFE7-93CF-4E5F-BE22-6293368AF01D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5909BFE7-93CF-4E5F-BE22-6293368AF01D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{31C3F0EA-0FED-4A2F-B68D-96CE29844487}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{31C3F0EA-0FED-4A2F-B68D-96CE29844487}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{31C3F0EA-0FED-4A2F-B68D-96CE29844487}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{31C3F0EA-0FED-4A2F-B68D-96CE29844487}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
