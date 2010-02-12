@@ -7,6 +7,9 @@ using ExoGraph.Injection;
 
 namespace ExoGraph.NHibernate
 {
+	/// <summary>
+	/// An NHibernate event listener which fires when an entity has been persisted
+	/// </summary>
 	public class SaveNotificationEventListener : IPostUpdateEventListener, IPostInsertEventListener
 	{
 		public static readonly SaveNotificationEventListener Instance = new SaveNotificationEventListener();

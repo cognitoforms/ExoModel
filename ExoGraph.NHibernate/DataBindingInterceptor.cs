@@ -7,6 +7,12 @@ using System.Reflection;
 
 namespace ExoGraph.NHibernate
 {
+	/// <summary>
+	/// An <see cref="NHibernate.IInterceptor"/> which watches for entity initialization
+	/// </summary>
+	/// <remarks>
+	/// Uses the <see cref="ExoGraph.NHibernate.DataBindingFactory"/> to create the new instance
+	/// </remarks>
 	public class DataBindingInterceptor : EmptyInterceptor
 	{
 		public ISessionFactory SessionFactory { get; set; }

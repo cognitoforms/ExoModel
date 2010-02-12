@@ -55,6 +55,7 @@
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.Web" />
     <Reference Include="System.Xml.Linq">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
@@ -81,6 +82,8 @@
     <Compile Include="DataBindingInterceptor.cs" />
     <Compile Include="INotifyPropertyAccessed.cs" />
     <Compile Include="INotifyPropertyModified.cs" />
+    <Compile Include="Module\NHibernateSessionModule.cs" />
+    <Compile Include="Module\SessionFactoryProvider.cs" />
     <Compile Include="NHibernateGraphContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SaveNotificationEventListener.cs" />

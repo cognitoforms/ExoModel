@@ -9,6 +9,12 @@ using Castle.Core.Interceptor;
 
 namespace ExoGraph.NHibernate
 {
+	/// <summary>
+	/// Factory class for new entity creation
+	/// </summary>
+	/// <remarks>
+	/// Proxies entities so that they may be tied-in to the ExoGraph entity lifecycle
+	/// </remarks>
 	public class DataBindingFactory
 	{
 		private static readonly ProxyGenerator ProxyGenerator = new ProxyGenerator();
@@ -18,6 +24,11 @@ namespace ExoGraph.NHibernate
 			return (T)Create(typeof(T));
 		}
 
+		/// <summary>
+		/// Creates a new instance of a proxied entity
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
 		public static object Create(Type type)
 		{
 			var options = new ProxyGenerationOptions();
@@ -40,6 +51,9 @@ namespace ExoGraph.NHibernate
 
 		#region IMarkerInterface
 
+		/// <summary>
+		/// Identifies an entity as a proxied entity
+		/// </summary>
 		public interface IMarkerInterface
 		{
 			string TypeName { get; }
@@ -49,6 +63,9 @@ namespace ExoGraph.NHibernate
 
 		#region IGraphInstance
 
+		/// <summary>
+		/// Identifies an entity as a <see cref="ExoGraph.GraphInstance"/> provider
+		/// </summary>
 		public interface IGraphInstance
 		{
 			GraphInstance Instance { get; set; }
@@ -58,6 +75,9 @@ namespace ExoGraph.NHibernate
 
 		#region InstanceTracker
 
+		/// <summary>
+		/// Binds a <see cref="ExoGraph.GraphInstance"/> to an existing entity
+		/// </summary>
 		private class InstanceTracker : IGraphInstance
 		{
 			GraphInstance instance;
@@ -88,6 +108,9 @@ namespace ExoGraph.NHibernate
 
 		#region NotifyPropertyChangedInterceptor
 
+		/// <summary>
+		/// Intercepts all method calls to the proxied entity
+		/// </summary>
 		public class NotifyPropertyChangedInterceptor : Castle.Core.Interceptor.IInterceptor
 		{
 			private readonly string typeName;
@@ -95,8 +118,6 @@ namespace ExoGraph.NHibernate
 			private PropertyAccessedEventHandler accessSubscribers = delegate { };
 			private object oldValue;
 			private object newValue;
-
-			private bool suspend = false;
 
 			public NotifyPropertyChangedInterceptor(string typeName)
 			{
