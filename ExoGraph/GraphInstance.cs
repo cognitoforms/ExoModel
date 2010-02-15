@@ -28,6 +28,7 @@ namespace ExoGraph
 		Dictionary<GraphReferenceProperty, ReferenceSet> inReferences =
 			new Dictionary<GraphReferenceProperty, ReferenceSet>();
 
+		[NonSerialized]
 		object extension;
 
 		bool[] hasBeenAccessed;
