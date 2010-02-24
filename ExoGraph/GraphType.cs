@@ -14,20 +14,9 @@ namespace ExoGraph
 	{
 		#region Fields
 
-		string name;
-		string qualifiedName;
-		GraphContext context;
-		GraphType baseType;
-		GraphTypeList subTypes = new GraphTypeList();
-		GraphPropertyList properties = new GraphPropertyList();
-		IList<GraphReferenceProperty> inReferences = new List<GraphReferenceProperty>();
-		GraphReferencePropertyList outReferences = new GraphReferencePropertyList();
-		GraphValuePropertyList values = new GraphValuePropertyList();
 		Dictionary<Type, object> customEvents = new Dictionary<Type, object>();
 		Dictionary<Type, object> transactedCustomEvents = new Dictionary<Type, object>();
-		GraphPathList paths = new GraphPathList();
 		Attribute[] attributes;
-		Func<GraphInstance, object> extensionFactory;
 		int nextPropertyIndex;
 
 		#endregion
@@ -36,96 +25,49 @@ namespace ExoGraph
 
 		internal GraphType(GraphContext context, string name, string qualifiedName, Attribute[] attributes, Func<GraphInstance, object> extensionFactory)
 		{
-			this.context = context;
-			this.name = name;
-			this.qualifiedName = qualifiedName;
+			this.Context = context;
+			this.Name = name;
+			this.QualifiedName = qualifiedName;
 			this.attributes = attributes;
-			this.extensionFactory = extensionFactory;
+			this.ExtensionFactory = extensionFactory;
+
+			// Initialize list properties
+			this.SubTypes = new GraphTypeList();
+			this.Properties = new GraphPropertyList();
+			this.InReferences = new List<GraphReferenceProperty>();
+			this.OutReferences = new GraphReferencePropertyList();
+			this.Values = new GraphValuePropertyList();
+			this.Paths = new GraphPathList();
+
+			// Register the new type with the graph context
+			context.RegisterGraphType(this);
 		}
 
 		#endregion
 
 		#region Properties
 
-		public GraphContext Context
-		{
-			get
-			{
-				return context;
-			}
-		}
+		public GraphContext Context { get; private set;  }
 
-		public string Name
-		{
-			get
-			{
-				return name;
-			}
-		}
+		public string Name { get; private set; }
 
-		public string QualifiedName
-		{
-			get
-			{
-				return qualifiedName;
-			}
-		}
+		public string QualifiedName { get; private set; }
 
-		public GraphType BaseType
-		{
-			get
-			{
-				return baseType;
-			}
-		}
+		public GraphType BaseType { get; private set; }
 
-		public GraphTypeList SubTypes
-		{
-			get
-			{
-				return subTypes;
-			}
-		}
+		public GraphTypeList SubTypes { get; private set; }
 
-		public GraphPropertyList Properties
-		{
-			get
-			{
-				return properties;
-			}
-		}
+		public GraphPropertyList Properties { get; private set; }
 
-		internal IEnumerable<GraphReferenceProperty> InReferences
-		{
-			get
-			{
-				return inReferences;
-			}
-		}
+		internal Func<GraphInstance, object> ExtensionFactory { get; private set; }
 
-		internal GraphReferencePropertyList OutReferences
-		{
-			get
-			{
-				return outReferences;
-			}
-		}
+		internal IEnumerable<GraphReferenceProperty> InReferences { get; private set; }
 
-		internal GraphValuePropertyList Values
-		{
-			get
-			{
-				return values;
-			}
-		}
+		internal GraphReferencePropertyList OutReferences { get; private set; }
 
-		internal GraphPathList Paths
-		{
-			get
-			{
-				return paths;
-			}
-		}
+		internal GraphValuePropertyList Values { get; private set; }
+
+		internal GraphPathList Paths { get; private set; }
 
 		#endregion
 
@@ -313,15 +255,23 @@ namespace ExoGraph
 			return false;
 		}
 
+		/// <summary>
+		/// Creates a new instance of the current <see cref="GraphType"/>.
+		/// </summary>
+		/// <returns></returns>
 		public GraphInstance Create()
 		{
-			return context.GetGraphInstance(context.GetInstance(this, null));
+			return Context.GetGraphInstance(Context.GetInstance(this, null));
 		}
 
+		/// <summary>
+		/// Creates an existing instance of the current <see cref="GraphType"/>.
+		/// </summary>
+		/// <returns></returns>
 		public GraphInstance Create(string id)
 		{
-			object instance = context.GetInstance(this, id);
-			return instance == null ? null : context.GetGraphInstance(instance);
+			object instance = Context.GetInstance(this, id);
+			return instance == null ? null : Context.GetGraphInstance(instance);
 		}
 
 		/// <summary>
@@ -330,7 +280,7 @@ namespace ExoGraph
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return name;
+			return Name;
 		}
 
 
@@ -374,7 +324,10 @@ namespace ExoGraph
 		/// <returns>The value of the property</returns>
 		public object GetValue(GraphValueProperty property)
 		{
-			return property.GetValue(null);
+			if (property.AutoConvert)
+				return property.Converter.ConvertTo(property.GetValue(null), typeof(object));
+			else
+				return property.GetValue(null);
 		}
 
 		/// <summary>
@@ -434,22 +387,10 @@ namespace ExoGraph
 		/// <param name="value">The value of the property</param>
 		public void SetValue(GraphValueProperty property, object value)
 		{
-			property.SetValue(null, value);
-		}
-
-		/// <summary>
-		/// Sets the base <see cref="GraphType"/> for the current instance and 
-		/// adds the current instance the list of sub types for the base type.
-		/// </summary>
-		/// <param name="baseType"></param>
-		internal void SetBaseType(GraphType baseType)
-		{
-			if (this.baseType != null)
-				throw new InvalidOperationException("The base type of a graph type cannot be changed once it has been set.");
-
-			this.baseType = baseType;
-			baseType.subTypes.Add(this);
-			nextPropertyIndex = baseType.nextPropertyIndex - 1;
+			if (property.AutoConvert)
+				property.SetValue(null, property.Converter.ConvertFrom(value));
+			else
+				property.SetValue(null, value);
 		}
 
 		/// <summary>
@@ -459,22 +400,32 @@ namespace ExoGraph
 		internal void AddProperty(GraphProperty property)
 		{
 			if (property.DeclaringType == this)
-				property.Index = GetNextPropertyIndex();
+				property.Index = nextPropertyIndex++;
 
 			if (property is GraphReferenceProperty)
 			{
-				outReferences.Add((GraphReferenceProperty)property);
-				((GraphReferenceProperty)property).PropertyType.inReferences.Add((GraphReferenceProperty)property);
+				OutReferences.Add((GraphReferenceProperty)property);
+				((List<GraphReferenceProperty>)((GraphReferenceProperty)property).PropertyType.InReferences).Add((GraphReferenceProperty)property);
 			}
 			else
-				values.Add((GraphValueProperty)property);
+				Values.Add((GraphValueProperty)property);
 
-			properties.Add(property);
+			Properties.Add(property);
 		}
 
-		internal int GetNextPropertyIndex()
+		/// <summary>
+		/// Sets the base <see cref="GraphType"/> for the current type and 
+		/// adds the current type to the list of sub types for the base type.
+		/// </summary>
+		/// <param name="baseType"></param>
+		internal void SetBaseType(GraphType baseType)
 		{
-			return nextPropertyIndex++;
+			if (this.BaseType != null)
+				throw new InvalidOperationException("The base type of a graph type cannot be changed once it has been set.");
+
+			this.BaseType = baseType;
+			baseType.SubTypes.Add(this);
+			nextPropertyIndex = baseType.nextPropertyIndex - 1;
 		}
 
 		/// <summary>
@@ -483,10 +434,10 @@ namespace ExoGraph
 		/// <returns></returns>
 		internal object CreateExtension(GraphInstance instance)
 		{
-			if (extensionFactory == null)
+			if (ExtensionFactory == null)
 				return null;
 			else
-				return extensionFactory(instance);
+				return ExtensionFactory(instance);
 		}
 
 		#endregion

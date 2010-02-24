@@ -23,6 +23,9 @@ namespace ExoGraph
 			// Perform special processing if this is the first time the property has been accessed
 			if (IsFirstAccess)
 			{
+				// Perform special initialization if this is the first time the property has been accessed
+				Instance.BeforeFirstAccess(Property);
+
 				// Abort if property get notifications have been suspended
 				if (Instance.Type.Context.ShouldSuspendGetNotifications)
 					return false;

@@ -17,7 +17,7 @@ namespace ExoGraph
 
 		#region Constructors
 
-		internal GraphReferenceProperty(GraphType declaringType, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
+		protected internal GraphReferenceProperty(GraphType declaringType, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
 			: base(declaringType, name, isStatic, attributes)
 		{
 			this.propertyType = propertyType;

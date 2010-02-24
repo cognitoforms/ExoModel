@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections;
+using System.Linq;
 
 namespace ExoGraph
 {
@@ -18,6 +19,11 @@ namespace ExoGraph
 		GraphTypeList graphTypes = new GraphTypeList();
 
 		/// <summary>
+		/// Tracks providers registered to create <see cref="GraphType"/> instances.
+		/// </summary>
+		List<IGraphTypeProvider> typeProviders = new List<IGraphTypeProvider>();
+
+		/// <summary>
 		/// Tracks the next auto-generated id assigned to new instances.
 		/// </summary>
 		int nextId;
@@ -31,14 +37,8 @@ namespace ExoGraph
 		/// </summary>
 		public static GraphContext Current
 		{
-			get
-			{
-				return Provider.Context;
-			}
-			set
-			{
-				Provider.Context = value;
-			}
+			get { return Provider.Context; }
+			set { Provider.Context = value; }
 		}
 
 		/// <summary>
@@ -140,12 +140,10 @@ namespace ExoGraph
 		protected internal abstract IList ConvertToList(GraphReferenceProperty property, object list);
 
 		protected internal virtual void OnStartTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
-		{
-		}
+		{ }
 
 		protected internal virtual void OnStopTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
-		{
-		}
+		{ }
 
 		protected void OnPropertyChanged(GraphInstance instance, string property, object oldValue, object newValue)
 		{
@@ -230,8 +228,6 @@ namespace ExoGraph
 
 		public abstract GraphInstance GetGraphInstance(object instance);
 
-		protected internal abstract GraphType GetGraphType(object instance);
-
 		protected internal abstract string GetId(object instance);
 
 		protected internal abstract object GetInstance(GraphType type, string id);
@@ -240,7 +236,7 @@ namespace ExoGraph
 
 		protected internal IDisposable SuspendGetNotifications()
 		{
-			return new SuspendGetNotification(this);
+			return new GetNotificationSuspension(this);
 		}
 
 		#endregion
@@ -254,18 +250,24 @@ namespace ExoGraph
 		/// <returns></returns>
 		public GraphType GetGraphType(string typeName)
 		{
+			// Return null if the type name is null
+			if (typeName == null)
+				return null;
+
+			// Retrieve the cached graph type
 			GraphType type = graphTypes[typeName];
 			if (type == null)
-				type = CreateGraphType(typeName);
+			{
+				// Attempt to create the graph type if it is not cached
+				type = (from provider in typeProviders
+						  let graphType = provider.CreateGraphType(typeName)
+						  where graphType != null
+						  select graphType).FirstOrDefault();
+			}
+			
+			// Return the requested graph type
 			return type;
 		}
-
-		/// <summary>
-		/// Gets the <see cref="GraphType"/> that corresponds to the specified <see cref="Type"/>.
-		/// </summary>
-		/// <param name="type"></param>
-		/// <returns></returns>
-		public abstract GraphType GetGraphType(Type type);
 
 		/// <summary>
 		/// Gets the <see cref="GraphType"/> that corresponds to TType.
@@ -275,29 +277,51 @@ namespace ExoGraph
 		public GraphType GetGraphType<TType>()
 		{
 			return GetGraphType(typeof(TType));
+		}	
+		
+		/// <summary>
+		/// Gets the <see cref="GraphType"/> that corresponds to the specified <see cref="Type"/>.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public GraphType GetGraphType(Type type)
+		{		
+			return GetGraphType
+			(
+				(from provider in typeProviders
+				 let typeName = provider.GetGraphTypeName(type)
+				 where typeName != null
+				 select typeName).FirstOrDefault()
+			 );
 		}
 
 		/// <summary>
-		/// Creates a <see cref="GraphType"/> that corresponds to the specified type name.
+		/// Gets the <see cref="GraphType"/> that corresponds to the specified instance.
 		/// </summary>
-		/// <param name="typeName"></param>
+		/// <param name="instance"></param>
 		/// <returns></returns>
-		protected abstract GraphType CreateGraphType(string typeName);
+		GraphType GetGraphType(object instance)
+		{
+			return GetGraphType
+			(
+				(from provider in typeProviders
+				 let typeName = provider.GetGraphTypeName(instance)
+				 where typeName != null
+				 select typeName).FirstOrDefault()
+			 );
+		}
 
 		/// <summary>
-		/// Creates a new <see cref="GraphType"/> instance with the specified name
-		/// and associates it with the current graph context.
+		/// Adds a new <see cref="IGraphTypeProvider"/> to the set of providers used to resolve
+		/// and create new <see cref="GraphType"/> instances.  
 		/// </summary>
-		/// <param name="name">The unique name of the type</param>
-		/// <param name="qualifiedName">The fully qualified name of the type</param>
-		/// <param name="attributes">The attributes assigned to the type</param>
-		/// <param name="extensionFactory">The factory to use to create extensions for new graph instances</param>
-		/// <returns></returns>
-		protected virtual GraphType CreateGraphType(string name, string qualifiedName, Attribute[] attributes, Func<GraphInstance, object> extensionFactory)
+		/// <param name="typeProvider">The <see cref="IGraphTypeProvider"/> to add</param>
+		/// <remarks>
+		/// Providers added last will be given precedence over previously added providers.
+		/// </remarks>
+		protected void AddGraphTypeProvider(IGraphTypeProvider typeProvider)
 		{
-			GraphType type = new GraphType(this, name, qualifiedName, attributes, extensionFactory);
-			graphTypes.Add(type);
-			return type;
+			typeProviders.Insert(0, typeProvider);
 		}
 
 		/// <summary>
@@ -305,7 +329,7 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="type">The type of the sub type</param>
 		/// <param name="baseType">The type of the base type</param>
-		protected virtual void SetBaseType(GraphType subType, GraphType baseType)
+		protected internal virtual void SetBaseType(GraphType subType, GraphType baseType)
 		{
 			subType.SetBaseType(baseType);
 		}
@@ -316,18 +340,29 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="declaringType">The <see cref="GraphType"/> the property is for</param>
 		/// <param name="property">The property to add</param>
-		protected void AddProperty(GraphType declaringType, GraphProperty property)
+		protected internal void AddProperty(GraphType declaringType, GraphProperty property)
 		{
 			declaringType.AddProperty(property);
 		}
 
+		/// <summary>
+		/// Registers the <see cref="GraphType"/> with the current context.
+		/// </summary>
+		/// <param name="type"></param>
+		internal void RegisterGraphType(GraphType type)
+		{
+			graphTypes.Add(type);
+		}
+
 		#endregion
 
-		class SuspendGetNotification : IDisposable
+		#region GetNotificationSuspension
+
+		class GetNotificationSuspension : IDisposable
 		{
 			GraphContext context;
 
-			internal SuspendGetNotification(GraphContext context)
+			internal GetNotificationSuspension(GraphContext context)
 			{
 				this.context = context;
 				context.ShouldSuspendGetNotifications = true;
@@ -338,5 +373,7 @@ namespace ExoGraph
 				context.ShouldSuspendGetNotifications = false;
 			}
 		}
+
+		#endregion
 	}
 }

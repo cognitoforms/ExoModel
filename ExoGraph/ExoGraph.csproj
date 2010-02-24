@@ -96,6 +96,7 @@
     <Compile Include="GraphCustomEvent.cs" />
     <Compile Include="GraphEventScope.cs" />
     <Compile Include="GraphEventScopeExitedEventArgs.cs" />
+    <Compile Include="IGraphTypeProvider.cs" />
     <Compile Include="ITransactedGraphEvent.cs">
     </Compile>
     <Compile Include="ReadOnlyList.cs" />

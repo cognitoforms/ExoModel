@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 
 namespace ExoGraph
 {
@@ -9,10 +10,12 @@ namespace ExoGraph
 	{
 		#region Constructors
 
-		internal GraphValueProperty(GraphType declaringType, string name, bool isStatic, Type propertyType, Attribute[] attributes)
+		protected internal GraphValueProperty(GraphType declaringType, string name, bool isStatic, Type propertyType, TypeConverter converter, Attribute[] attributes)
 			: base(declaringType, name, isStatic, attributes)
 		{
 			this.PropertyType = propertyType;
+			this.Converter = converter;
+			this.AutoConvert = converter != null && converter.CanConvertTo(typeof(object));
 		}
 
 		#endregion
@@ -20,6 +23,10 @@ namespace ExoGraph
 		#region Properties
 
 		public Type PropertyType { get; private set; }
+
+		public TypeConverter Converter { get; private set; }
+
+		internal bool AutoConvert { get; private set; }
 
 		#endregion
 	}

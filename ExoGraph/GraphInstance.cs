@@ -283,6 +283,16 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Performs special initialization of the graph before a property is first accessed.
+		/// </summary>
+		/// <param name="property"></param>
+		internal void BeforeFirstAccess(GraphProperty property)
+		{
+			// Mark the property as having been accessed
+			hasBeenAccessed[property.Index] = true;
+		}
+
+		/// <summary>
 		/// Performs special initialization of the graph when a property is first accessed.
 		/// </summary>
 		/// <param name="property"></param>
@@ -315,11 +325,6 @@ namespace ExoGraph
 					}
 				}
 			}
-
-			// Mark the property as having been accessed
-			hasBeenAccessed[property.Index] = true;
-
-
 		}
 
 		/// <summary>
@@ -372,7 +377,10 @@ namespace ExoGraph
 		/// <returns>The value of the property</returns>
 		public object GetValue(GraphValueProperty property)
 		{
-			return property.GetValue(instance);
+			if (property.AutoConvert)
+				return property.Converter.ConvertTo(property.GetValue(instance), typeof(object));
+			else
+				return property.GetValue(instance);
 		}
 
 		/// <summary>
@@ -432,7 +440,10 @@ namespace ExoGraph
 		/// <param name="value">The value of the property</param>
 		public void SetValue(GraphValueProperty property, object value)
 		{
-			property.SetValue(instance, value);
+			if (property.AutoConvert)
+				property.SetValue(instance, property.Converter.ConvertFrom(value));
+			else
+				property.SetValue(instance, value);
 		}
 
 		/// <summary>

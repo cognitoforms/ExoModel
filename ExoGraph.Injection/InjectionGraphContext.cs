@@ -140,7 +140,9 @@ namespace ExoGraph.Injection
 			public override void OnEntry(MethodExecutionEventArgs eventArgs)
 			{
 				GraphInstance instance = ((IGraphInstance)eventArgs.Instance).Instance;
-				((InjectionGraphContext)instance.Type.Context).OnPropertyGet(instance, property);
+				GraphProperty property = instance.Type.Properties[this.property];
+				if (property != null)
+					((InjectionGraphContext)instance.Type.Context).OnPropertyGet(instance, property);
 			}
 		}
 
@@ -168,8 +170,15 @@ namespace ExoGraph.Injection
 
 			public override void OnEntry(MethodExecutionEventArgs eventArgs)
 			{
+				// Get the graph instance associated with the current object
+				GraphInstance instance = ((IGraphInstance)eventArgs.Instance).Instance;
+
+				// Exit immediately if the property is not valid for the current graph type
+				if (!instance.Type.Properties.Contains(property))
+					return;
+
 				// Store the current property value as a method execution tag
-				eventArgs.MethodExecutionTag = ((IGraphInstance)eventArgs.Instance).Instance[property];
+				eventArgs.MethodExecutionTag = instance[this.property];
 
 				// Call the base class implementation
 				base.OnEntry(eventArgs);
@@ -183,15 +192,19 @@ namespace ExoGraph.Injection
 			/// current execution context.</param>
 			public override void OnSuccess(MethodExecutionEventArgs eventArgs)
 			{
+				// Get the graph instance associated with the current object
+				GraphInstance instance = ((IGraphInstance)eventArgs.Instance).Instance;
+
+				// Exit immediately if the property is not valid for the current graph type
+				if (!instance.Type.Properties.Contains(property))
+					return;
+
 				object originalValue = eventArgs.MethodExecutionTag;
-				object currentValue = ((IGraphInstance)eventArgs.Instance).Instance[property];
+				object currentValue = instance[property];
 
 				// Raise property change if the current value is different from the original value
 				if ((originalValue == null ^ currentValue == null) || (originalValue != null && !originalValue.Equals(currentValue)))
-				{
-					GraphInstance instance = ((IGraphInstance)eventArgs.Instance).Instance;
 					((InjectionGraphContext)instance.Type.Context).OnPropertyChanged(instance, property, originalValue, currentValue);
-				}
 			}
 		}
 
