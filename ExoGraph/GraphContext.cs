@@ -28,6 +28,11 @@ namespace ExoGraph
 		/// </summary>
 		int nextId;
 
+		/// <summary>
+		/// Tracks new <see cref="GraphType"/> instances pending initialization.
+		/// </summary>
+		Queue<GraphType> uninitialized = new Queue<GraphType>();
+
 		#endregion
 
 		#region Properties
@@ -258,11 +263,35 @@ namespace ExoGraph
 			GraphType type = graphTypes[typeName];
 			if (type == null)
 			{
+				// Only perform initialization on non-recursive calls to this method
+				bool initialize = uninitialized.Count == 0;
+
 				// Attempt to create the graph type if it is not cached
 				type = (from provider in typeProviders
 						  let graphType = provider.CreateGraphType(typeName)
 						  where graphType != null
 						  select graphType).FirstOrDefault();
+
+				// Return null to indicate that the graph type could not be created
+				if (type == null)
+					return null;
+
+				// Register the new graph type with the context
+				graphTypes.Add(type);
+
+				// Register the new graph type to be initialized
+				uninitialized.Enqueue(type);
+
+				// Perform initialization if not recursing
+				if (initialize)
+				{
+					// Initialize new graph types in FIFO order
+					while (uninitialized.Count > 0)
+					{
+						uninitialized.Peek().Initialize(this);
+						uninitialized.Dequeue();
+					}
+				}
 			}
 			
 			// Return the requested graph type
@@ -322,36 +351,6 @@ namespace ExoGraph
 		protected void AddGraphTypeProvider(IGraphTypeProvider typeProvider)
 		{
 			typeProviders.Insert(0, typeProvider);
-		}
-
-		/// <summary>
-		/// Sets the base <see cref="GraphType"/> for the specified type.
-		/// </summary>
-		/// <param name="type">The type of the sub type</param>
-		/// <param name="baseType">The type of the base type</param>
-		protected internal virtual void SetBaseType(GraphType subType, GraphType baseType)
-		{
-			subType.SetBaseType(baseType);
-		}
-
-		/// <summary>
-		/// Adds an existing property to the specified <see cref="GraphType"/> that is
-		/// inherited from a base type.
-		/// </summary>
-		/// <param name="declaringType">The <see cref="GraphType"/> the property is for</param>
-		/// <param name="property">The property to add</param>
-		protected internal void AddProperty(GraphType declaringType, GraphProperty property)
-		{
-			declaringType.AddProperty(property);
-		}
-
-		/// <summary>
-		/// Registers the <see cref="GraphType"/> with the current context.
-		/// </summary>
-		/// <param name="type"></param>
-		internal void RegisterGraphType(GraphType type)
-		{
-			graphTypes.Add(type);
 		}
 
 		#endregion

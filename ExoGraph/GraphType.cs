@@ -10,26 +10,30 @@ namespace ExoGraph
 	/// </summary>
 	[DataContract]
 	[Serializable]
-	public class GraphType : ISerializable
+	public abstract class GraphType : ISerializable
 	{
 		#region Fields
 
 		Dictionary<Type, object> customEvents = new Dictionary<Type, object>();
 		Dictionary<Type, object> transactedCustomEvents = new Dictionary<Type, object>();
 		Attribute[] attributes;
-		int nextPropertyIndex;
 
 		#endregion
 
 		#region Contructors
 
-		internal GraphType(GraphContext context, string name, string qualifiedName, Attribute[] attributes, Func<GraphInstance, object> extensionFactory)
+		public GraphType(string name, string qualifiedName, GraphType baseType, Attribute[] attributes, Func<GraphInstance, object> extensionFactory)
 		{
-			this.Context = context;
 			this.Name = name;
 			this.QualifiedName = qualifiedName;
 			this.attributes = attributes;
 			this.ExtensionFactory = extensionFactory;
+
+			if (baseType != null)
+			{
+				this.BaseType = baseType;
+				baseType.SubTypes.Add(this);
+			}
 
 			// Initialize list properties
 			this.SubTypes = new GraphTypeList();
@@ -38,9 +42,6 @@ namespace ExoGraph
 			this.OutReferences = new GraphReferencePropertyList();
 			this.Values = new GraphValuePropertyList();
 			this.Paths = new GraphPathList();
-
-			// Register the new type with the graph context
-			context.RegisterGraphType(this);
 		}
 
 		#endregion
@@ -69,6 +70,8 @@ namespace ExoGraph
 
 		internal GraphPathList Paths { get; private set; }
 
+		internal int PropertyCount { get; private set; }
+
 		#endregion
 
 		#region Events
@@ -83,6 +86,51 @@ namespace ExoGraph
 		#endregion
 
 		#region Methods
+
+		/// <summary>
+		/// Performs one time initialization on the <see cref="GraphType"/> when it is registered
+		/// with the <see cref="GraphContext"/>.
+		/// </summary>
+		/// <param name="context"></param>
+		internal void Initialize(GraphContext context)
+		{
+			// Set the context the graph type is registered with
+			this.Context = context;
+
+			// Set the next property index for properties added inside OnInit
+			PropertyCount = BaseType == null ? 0 : BaseType.PropertyCount;
+
+			// Allow subclasses to perform initialization, such as added properties
+			OnInit();
+		}
+
+		/// <summary>
+		/// Overriden by subclasses to perform type initialization, specifically including
+		/// setting the base type and adding properties.  This initialization must occur inside this
+		/// method and not in the constructor to ensure that base types are completely initialized before
+		/// their child types.
+		/// </summary>
+		protected internal abstract void OnInit();
+
+		/// <summary>
+		/// Adds the specified property to the current graph type.
+		/// </summary>
+		/// <param name="property"></param>
+		protected void AddProperty(GraphProperty property)
+		{
+			if (property.DeclaringType == this)
+				property.Index = PropertyCount++;
+
+			if (property is GraphReferenceProperty)
+			{
+				OutReferences.Add((GraphReferenceProperty)property);
+				((List<GraphReferenceProperty>)((GraphReferenceProperty)property).PropertyType.InReferences).Add((GraphReferenceProperty)property);
+			}
+			else
+				Values.Add((GraphValueProperty)property);
+
+			Properties.Add(property);
+		}
 
 		internal void RaiseInit(GraphInitEvent initEvent)
 		{
@@ -391,41 +439,6 @@ namespace ExoGraph
 				property.SetValue(null, property.Converter.ConvertFrom(value));
 			else
 				property.SetValue(null, value);
-		}
-
-		/// <summary>
-		/// Adds the specified property to the current graph type.
-		/// </summary>
-		/// <param name="property"></param>
-		internal void AddProperty(GraphProperty property)
-		{
-			if (property.DeclaringType == this)
-				property.Index = nextPropertyIndex++;
-
-			if (property is GraphReferenceProperty)
-			{
-				OutReferences.Add((GraphReferenceProperty)property);
-				((List<GraphReferenceProperty>)((GraphReferenceProperty)property).PropertyType.InReferences).Add((GraphReferenceProperty)property);
-			}
-			else
-				Values.Add((GraphValueProperty)property);
-
-			Properties.Add(property);
-		}
-
-		/// <summary>
-		/// Sets the base <see cref="GraphType"/> for the current type and 
-		/// adds the current type to the list of sub types for the base type.
-		/// </summary>
-		/// <param name="baseType"></param>
-		internal void SetBaseType(GraphType baseType)
-		{
-			if (this.BaseType != null)
-				throw new InvalidOperationException("The base type of a graph type cannot be changed once it has been set.");
-
-			this.BaseType = baseType;
-			baseType.SubTypes.Add(this);
-			nextPropertyIndex = baseType.nextPropertyIndex - 1;
 		}
 
 		/// <summary>

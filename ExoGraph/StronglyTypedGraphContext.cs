@@ -19,7 +19,7 @@ namespace ExoGraph
 		Dictionary<string, Type> typeNames = new Dictionary<string, Type>();
 		HashSet<Type> supportedTypes = new HashSet<Type>();
 		HashSet<Type> declaringTypes = new HashSet<Type>();
-		Dictionary<Type, GraphType> graphTypes;
+		Dictionary<Type, StrongType> graphTypes;
 		Func<GraphInstance, object> extensionFactory;
 
 		#endregion
@@ -135,36 +135,6 @@ namespace ExoGraph
 			return false;
 		}
 
-		/// <summary>
-		/// Adds a property to the specified <see cref="GraphType"/> that represents an
-		/// association with another <see cref="GraphType"/> instance.
-		/// </summary>
-		/// <param name="declaringType">The <see cref="GraphType"/> the property is for</param>
-		/// <param name="name">The name of the property</param>
-		/// <param name="isStatic">Indicates whether the property is statically defined on the type</param>
-		/// <param name="isBoundary">Indicates whether the property crosses scoping boundaries and should not be actively tracked</param>
-		/// <param name="propertyType">The <see cref="GraphType"/> of the property</param>
-		/// <param name="isList">Indicates whether the property represents a list of references or a single reference</param>
-		/// <param name="attributes">The attributes assigned to the property</param>
-		protected virtual void AddReferenceProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
-		{
-			AddProperty(declaringType, new PropertyInfoReferenceProperty(declaringType, property, name, isStatic, isBoundary, propertyType, isList, attributes));
-		}
-
-		/// <summary>
-		/// Adds a property to the specified <see cref="GraphType"/> that represents an
-		/// strongly-typed value value with the specified <see cref="Type"/>.
-		/// </summary>
-		/// <param name="declaringType">The <see cref="GraphType"/> the property is for</param>
-		/// <param name="name">The name of the property</param>
-		/// <param name="propertyType">The <see cref="Type"/> of the property</param>
-		/// <param name="converter">The optional value type converter to use</param>
-		/// <param name="attributes">The attributes assigned to the property</param>
-		protected virtual void AddValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, Attribute[] attributes)
-		{
-			AddProperty(declaringType, new PropertyInfoValueProperty(declaringType, property, name, isStatic, propertyType, converter, attributes));
-		}
-
 		protected internal override void OnStartTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
 		{
 			if (list is INotifyCollectionChanged)
@@ -179,6 +149,34 @@ namespace ExoGraph
 				(new ListChangeEventAdapter(instance, property, (INotifyCollectionChanged) list)).Stop();
 			else
 				base.OnStartTrackingList(instance, property, list);
+		}
+
+		/// <summary>
+		/// Adds a property to the specified <see cref="GraphType"/> that represents an
+		/// association with another <see cref="GraphType"/> instance.
+		/// </summary>
+		/// <param name="name">The name of the property</param>
+		/// <param name="isStatic">Indicates whether the property is statically defined on the type</param>
+		/// <param name="isBoundary">Indicates whether the property crosses scoping boundaries and should not be actively tracked</param>
+		/// <param name="propertyType">The <see cref="GraphType"/> of the property</param>
+		/// <param name="isList">Indicates whether the property represents a list of references or a single reference</param>
+		/// <param name="attributes">The attributes assigned to the property</param>
+		protected virtual GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
+		{
+			return new PropertyInfoReferenceProperty(declaringType, property, name, isStatic, isBoundary, propertyType, isList, attributes);
+		}
+
+		/// <summary>
+		/// Adds a property to the specified <see cref="GraphType"/> that represents an
+		/// strongly-typed value value with the specified <see cref="Type"/>.
+		/// </summary>
+		/// <param name="name">The name of the property</param>
+		/// <param name="propertyType">The <see cref="Type"/> of the property</param>
+		/// <param name="converter">The optional value type converter to use</param>
+		/// <param name="attributes">The attributes assigned to the property</param>
+		protected virtual GraphValueProperty CreateValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, Attribute[] attributes)
+		{
+			return new PropertyInfoValueProperty(declaringType, property, name, isStatic, propertyType, converter, attributes);
 		}
 
 		#endregion
@@ -213,56 +211,94 @@ namespace ExoGraph
 		GraphType IGraphTypeProvider.CreateGraphType(string typeName)
 		{
 			Type type;
-			Type listItemType;
 	
 			// Get the type that corresponds to the specified type name
 			if (!typeNames.TryGetValue(typeName, out type))
 				return null;
 
-			// Determine if any inherited properties on the type have been replaced using the new keyword
-			Dictionary<string, bool> isNewProperty = new Dictionary<string, bool>();
-			foreach (PropertyInfo property in type.GetProperties())
-				isNewProperty[property.Name] = isNewProperty.ContainsKey(property.Name);
-
 			// Create the new graph type
-			var graphType = new GraphType(this, type.Name, type.AssemblyQualifiedName, type.GetCustomAttributes(true).Cast<Attribute>().ToArray(), extensionFactory);
-
-			// Set the base graph type, if applicable
-			GraphType baseGraphType = null;
-			for (Type baseType = type.BaseType; baseGraphType == null && baseType != null; baseType = baseType.BaseType)
-				baseGraphType = GetGraphType(baseType);
-			if (baseGraphType != null)
-				SetBaseType(graphType, baseGraphType);
-
-			// Process all properties on the instance type to create references.  Process static properties
-			// last since they would otherwise complicate calculated indexes when dealing with sub types.
-			foreach (PropertyInfo property in type.GetProperties().OrderBy(p => (p.GetGetMethod(true) ?? p.GetSetMethod(true)).IsStatic))
-			{
-				// Exit immediately if the property was not in the list of valid declaring types
-				if (!declaringTypes.Contains(property.DeclaringType) || (isNewProperty[property.Name] && property.DeclaringType != type))
-					continue;
-
-				// Copy properties inherited from base graph types
-				if (baseGraphType != null && baseGraphType.Properties.Contains(property.Name) && !isNewProperty[property.Name])
-					AddProperty(graphType, baseGraphType.Properties[property.Name]);
-
-				// Create references based on properties that relate to other instance types
-				else if (supportedTypes.Contains(property.PropertyType))
-					AddReferenceProperty(graphType, property, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, GetGraphType(property.PropertyType), false, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
-
-				// Create references based on properties that are lists of other instance types
-				else if (TryGetListItemType(property.PropertyType, out listItemType) && supportedTypes.Contains(listItemType))
-					AddReferenceProperty(graphType, property, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, GetGraphType(listItemType), true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
-
-				// Create values for all other properties
-				else
-					AddValueProperty(graphType, property, property.Name, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
-			}
-
-			// Return the new graph type
-			return graphType;
+			return new StrongType(type, extensionFactory);
 		}
 		
+		#endregion
+
+		#region GraphType
+
+		/// <summary>
+		/// Concrete subclass of <see cref="GraphType"/> that represents a specific <see cref="Type"/>.
+		/// </summary>
+		protected class StrongType : GraphType
+		{
+			protected internal StrongType(Type type, Func<GraphInstance, object> extensionFactory)
+				: this(type, type.Name, type.AssemblyQualifiedName, GetBaseType(type), type.GetCustomAttributes(true).Cast<Attribute>().ToArray(), extensionFactory)
+			{ }
+
+			protected internal StrongType(Type type, string name, string qualifiedName, GraphType baseType, Attribute[] attributes, Func<GraphInstance, object> extensionFactory)
+				: base(type.Name, type.AssemblyQualifiedName, baseType, attributes, extensionFactory)
+			{
+				this.UnderlyingType = type;
+			}
+
+			static GraphType GetBaseType(Type type)
+			{
+				GraphContext context = GraphContext.Current;
+				GraphType baseGraphType = null;
+				for (Type baseType = type.BaseType; baseGraphType == null && baseType != null; baseType = baseType.BaseType)
+					baseGraphType = context.GetGraphType(baseType);
+				return baseGraphType;
+			}
+
+			public Type UnderlyingType { get; private set; }
+
+			protected internal override void OnInit()
+			{
+				StronglyTypedGraphContext context = (StronglyTypedGraphContext)Context;
+				Type listItemType;
+
+				// Determine if any inherited properties on the type have been replaced using the new keyword
+				Dictionary<string, bool> isNewProperty = new Dictionary<string, bool>();
+				foreach (PropertyInfo property in UnderlyingType.GetProperties())
+					isNewProperty[property.Name] = isNewProperty.ContainsKey(property.Name);
+
+				// Process all properties on the instance type to create references.  Process static properties
+				// last since they would otherwise complicate calculated indexes when dealing with sub types.
+				foreach (PropertyInfo property in UnderlyingType.GetProperties().OrderBy(p => (p.GetGetMethod(true) ?? p.GetSetMethod(true)).IsStatic))
+				{
+					// Exit immediately if the property was not in the list of valid declaring types
+					if (!context.declaringTypes.Contains(property.DeclaringType) || (isNewProperty[property.Name] && property.DeclaringType != UnderlyingType))
+						continue;
+
+					// Copy properties inherited from base graph types
+					if (BaseType != null && BaseType.Properties.Contains(property.Name) && !isNewProperty[property.Name])
+						AddProperty(BaseType.Properties[property.Name]);
+
+					// Create references based on properties that relate to other instance types
+					else if (context.supportedTypes.Contains(property.PropertyType))
+					{
+						GraphReferenceProperty reference = context.CreateReferenceProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, context.GetGraphType(property.PropertyType), false, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						if (reference != null)
+							AddProperty(reference);
+					}
+
+					// Create references based on properties that are lists of other instance types
+					else if (context.TryGetListItemType(property.PropertyType, out listItemType) && context.supportedTypes.Contains(listItemType))
+					{
+						GraphReferenceProperty reference = context.CreateReferenceProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, context.GetGraphType(listItemType), true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						if (reference != null)
+							AddProperty(reference);
+					}
+
+					// Create values for all other properties
+					else
+					{
+						GraphValueProperty value = context.CreateValueProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						if (value != null)
+							AddProperty(value);
+					}
+				}
+			}
+		}
+
 		#endregion
 
 		#region PropertyInfoValueProperty

@@ -51,7 +51,7 @@ namespace ExoGraph
 		{
 			this.type = type;
 			this.instance = instance;
-			this.hasBeenAccessed = new bool[type.Properties.Count];
+			this.hasBeenAccessed = new bool[type.PropertyCount];
 		}
 
 		/// <summary>
