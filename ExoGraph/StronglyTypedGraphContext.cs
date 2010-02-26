@@ -227,6 +227,7 @@ namespace ExoGraph
 		/// <summary>
 		/// Concrete subclass of <see cref="GraphType"/> that represents a specific <see cref="Type"/>.
 		/// </summary>
+		[Serializable]
 		protected class StrongType : GraphType
 		{
 			protected internal StrongType(Type type, Func<GraphInstance, object> extensionFactory)
