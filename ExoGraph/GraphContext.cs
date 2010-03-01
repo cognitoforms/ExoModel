@@ -177,7 +177,7 @@ namespace ExoGraph
 					// Then notify the context that the items in the new list have been added
 					if (newValue != null)
 					{
-						var newList = ConvertToList(reference, oldValue);
+						var newList = ConvertToList(reference, newValue);
 						OnListChanged(instance, reference, newList, null);
 						OnStartTrackingList(instance, reference, newList);
 					}
