@@ -283,21 +283,13 @@ namespace ExoGraph
 		}
 
 		/// <summary>
-		/// Performs special initialization of the graph before a property is first accessed.
-		/// </summary>
-		/// <param name="property"></param>
-		internal void BeforeFirstAccess(GraphProperty property)
-		{
-			// Mark the property as having been accessed
-			hasBeenAccessed[property.Index] = true;
-		}
-
-		/// <summary>
 		/// Performs special initialization of the graph when a property is first accessed.
 		/// </summary>
 		/// <param name="property"></param>
 		internal void OnFirstAccess(GraphProperty property)
 		{
+			if (HasBeenAccessed(property)) return;
+
 			// If the property is a reference property, establish edges
 			if (property is GraphReferenceProperty)
 			{
@@ -325,6 +317,9 @@ namespace ExoGraph
 					}
 				}
 			}
+
+			// Mark the property as having been accessed
+			hasBeenAccessed[property.Index] = true;
 		}
 
 		/// <summary>
