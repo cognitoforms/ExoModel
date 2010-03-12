@@ -20,8 +20,17 @@ namespace ExoGraph
 			: base(instance)
 		{
 			this.property = property;
-			this.oldValue = oldValue;
-			this.newValue = newValue;
+
+			if (property.AutoConvert)
+			{
+				this.oldValue = property.Converter.ConvertTo(oldValue, typeof(object));
+				this.newValue = property.Converter.ConvertTo(newValue, typeof(object));
+			}
+			else
+			{
+				this.oldValue = oldValue;
+				this.newValue = newValue;
+			}
 		}
 
 		public GraphValueProperty Property
