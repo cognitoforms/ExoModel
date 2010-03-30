@@ -29,9 +29,14 @@ namespace ExoGraph
 		int nextId;
 
 		/// <summary>
-		/// Tracks new <see cref="GraphType"/> instances pending initialization.
+		/// Queue to store a FIFO list of types to be initialized
 		/// </summary>
 		Queue<GraphType> uninitialized = new Queue<GraphType>();
+
+        /// <summary>
+        /// Flag to indicate whether or not an initialization scope is in effect
+        /// </summary>
+        bool initializing = false;
 
 		#endregion
 
@@ -264,7 +269,7 @@ namespace ExoGraph
 			if (type == null)
 			{
 				// Only perform initialization on non-recursive calls to this method
-				bool initialize = uninitialized.Count == 0;
+                bool initialize = initializing == false ? initializing = true : false;
 
 				// Attempt to create the graph type if it is not cached
 				type = (from provider in typeProviders
@@ -291,6 +296,7 @@ namespace ExoGraph
 						uninitialized.Peek().Initialize(this);
 						uninitialized.Dequeue();
 					}
+                    initializing = false;
 				}
 			}
 			
