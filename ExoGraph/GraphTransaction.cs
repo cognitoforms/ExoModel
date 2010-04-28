@@ -217,5 +217,44 @@ namespace ExoGraph
 		}
 
 		#endregion
+
+		public static GraphTransaction operator +(GraphTransaction first, GraphTransaction second)
+		{
+			if (first.Context != second.Context)
+				throw new InvalidOperationException("Cannot combine GraphTransactions that are associated with different GraphContexts");
+
+			if (first.isActive || second.isActive)
+				throw new InvalidOperationException("Cannot combine GraphTransactions that are still active");
+
+			GraphTransaction newTransaction;
+
+			using (newTransaction = first.Context.BeginTransaction())
+			{
+				if (first.newInstances != null)
+				{
+					if (newTransaction.newInstances == null)
+						newTransaction.newInstances = new Dictionary<string, GraphInstance>();
+
+					foreach (var entry in first.newInstances)
+						newTransaction.newInstances.Add(entry.Key, entry.Value);
+				}
+
+				if (second.newInstances != null)
+				{
+					if (newTransaction.newInstances == null)
+						newTransaction.newInstances = new Dictionary<string, GraphInstance>();
+
+					foreach (var entry in second.newInstances)
+						newTransaction.newInstances.Add(entry.Key, entry.Value);
+				}
+
+				newTransaction.events.AddRange(first.events);
+				newTransaction.events.AddRange(second.events);
+
+				newTransaction.Commit();
+			}
+
+			return newTransaction;
+		}
 	}
 }

@@ -9,7 +9,7 @@ namespace ExoGraph
 	/// Base class for context classes tracking the type information and events
 	/// for a set of objects in graph.
 	/// </summary>
-	public abstract class GraphContext
+	public sealed class GraphContext
 	{
 		#region Fields
 
@@ -37,6 +37,20 @@ namespace ExoGraph
         /// Flag to indicate whether or not an initialization scope is in effect
         /// </summary>
         bool initializing = false;
+
+		#endregion
+
+		#region Constructors
+
+		public GraphContext()
+		{
+		}
+
+		public GraphContext(params IGraphTypeProvider[] providers)
+		{
+			foreach (IGraphTypeProvider provider in providers)
+				AddGraphTypeProvider(provider);
+		}
 
 		#endregion
 
@@ -113,137 +127,6 @@ namespace ExoGraph
 			return "?" + ++nextId;
 		}
 
-		/// <summary>
-		/// Called by <see cref="Context"/> subclasses to obtain a <see cref="GraphInstance"/> for a 
-		/// newly created graph object.
-		/// </summary>
-		/// <param name="instance"></param>
-		/// <returns></returns>
-		protected GraphInstance OnInit(object instance)
-		{
-			// Create the new graph instance
-			return new GraphInstance(GetGraphType(instance), instance);
-		}
-
-		protected void OnPropertyGet(GraphInstance instance, string property)
-		{
-			OnPropertyGet(instance, instance.Type.Properties[property]);
-		}
-
-		protected void OnPropertyGet(GraphInstance instance, GraphProperty property)
-		{
-			// Static notifications are not supported
-			if (property.IsStatic)
-				return;
-
-			GraphEvent propertyGet = new GraphPropertyGetEvent(instance, property);
-
-			propertyGet.Notify();
-		}
-
-		/// <summary>
-		/// Converts the specified object into a instance that implements <see cref="IList"/>.
-		/// </summary>
-		/// <param name="property"></param>
-		/// <param name="list"></param>
-		/// <returns></returns>
-		protected internal abstract IList ConvertToList(GraphReferenceProperty property, object list);
-
-		protected internal virtual void OnStartTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
-		{ }
-
-		protected internal virtual void OnStopTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
-		{ }
-
-		protected void OnPropertyChanged(GraphInstance instance, string property, object oldValue, object newValue)
-		{
-			OnPropertyChanged(instance, instance.Type.Properties[property], oldValue, newValue);
-		}
-
-		protected void OnPropertyChanged(GraphInstance instance, GraphProperty property, object oldValue, object newValue)
-		{
-			// Check to see what type of property was changed
-			if (property is GraphReferenceProperty)
-			{
-				GraphReferenceProperty reference = (GraphReferenceProperty)property;
-
-				// Changes to list properties should call OnListChanged. However, some implementations
-				// may allow setting lists, so this case must be handled appropriately.
-				if (reference.IsList)
-				{
-					// Notify the context that the items in the old list have been removed
-					if (oldValue != null)
-					{
-						var oldList = ConvertToList(reference, oldValue);
-						OnListChanged(instance, reference, null, oldList);
-						OnStopTrackingList(instance, reference, oldList);
-					}
-
-					// Then notify the context that the items in the new list have been added
-					if (newValue != null)
-					{
-						var newList = ConvertToList(reference, newValue);
-						OnListChanged(instance, reference, newList, null);
-						OnStartTrackingList(instance, reference, newList);
-					}
-				}
-
-				// Notify subscribers that a reference property has changed
-				else
-					new GraphReferenceChangeEvent(
-						instance, (GraphReferenceProperty)property,
-						oldValue == null ? null : GetGraphInstance(oldValue), 
-						newValue == null ? null : GetGraphInstance(newValue)
-					).Notify();
-			}
-
-			// Otherwise, notify subscribers that a value property has changed
-			else
-				new GraphValueChangeEvent(instance, (GraphValueProperty)property, oldValue, newValue).Notify();
-		}
-
-		protected void OnListChanged(GraphInstance instance, string property, IEnumerable added, IEnumerable removed)
-		{
-			OnListChanged(instance, (GraphReferenceProperty)instance.Type.Properties[property], added, removed);
-		}
-
-		protected void OnListChanged(GraphInstance instance, GraphReferenceProperty property, IEnumerable added, IEnumerable removed)
-		{
-			// Create a new graph list change event and notify subscribers
-			new GraphListChangeEvent(instance, property, EnumerateInstances(added), EnumerateInstances(removed)).Notify();
-		}
-
-		IEnumerable<GraphInstance> EnumerateInstances(IEnumerable items)
-		{
-			if (items != null)
-				foreach (object instance in items)
-					yield return GetGraphInstance(instance);
-		}
-
-		/// <summary>
-		/// Called by subclasses to notify the context that a commit has occurred.
-		/// </summary>
-		/// <param name="instance"></param>
-		protected void OnSave(GraphInstance instance)
-		{
-			new GraphSaveEvent(instance).Notify();
-		}
-
-
-		/// <summary>
-		/// Saves changes to the specified instance and related instances in the graph.
-		/// </summary>
-		/// <param name="graphInstance"></param>
-		protected internal abstract void Save(GraphInstance graphInstance);
-
-		public abstract GraphInstance GetGraphInstance(object instance);
-
-		protected internal abstract string GetId(object instance);
-
-		protected internal abstract object GetInstance(GraphType type, string id);
-
-		protected internal abstract void DeleteInstance(object instance);
-
 		protected internal IDisposable SuspendGetNotifications()
 		{
 			return new GetNotificationSuspension(this);
@@ -272,10 +155,15 @@ namespace ExoGraph
                 bool initialize = initializing == false ? initializing = true : false;
 
 				// Attempt to create the graph type if it is not cached
-				type = (from provider in typeProviders
-						  let graphType = provider.CreateGraphType(typeName)
-						  where graphType != null
-						  select graphType).FirstOrDefault();
+				foreach (var provider in typeProviders)
+				{
+					type = provider.CreateGraphType(typeName);
+					if (type != null)
+					{
+						type.Provider = provider;
+						break;
+					}
+				}
 
 				// Return null to indicate that the graph type could not be created
 				if (type == null)
@@ -335,7 +223,7 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="instance"></param>
 		/// <returns></returns>
-		GraphType GetGraphType(object instance)
+		public GraphType GetGraphType(object instance)
 		{
 			return GetGraphType
 			(
@@ -354,7 +242,7 @@ namespace ExoGraph
 		/// <remarks>
 		/// Providers added last will be given precedence over previously added providers.
 		/// </remarks>
-		protected void AddGraphTypeProvider(IGraphTypeProvider typeProvider)
+		public void AddGraphTypeProvider(IGraphTypeProvider typeProvider)
 		{
 			typeProviders.Insert(0, typeProvider);
 		}

@@ -27,7 +27,7 @@ namespace ExoGraph.Injection
 			Type type = (Type)targetElement;
 
 			// Add an aspect to track the graph instance for each real instance
-			collection.AddAspect(type, new InjectionGraphContext.InstanceAspect());
+			collection.AddAspect(type, InjectionGraphTypeProvider.GetInstanceAspect());
 
 			// Add aspects to track interactions with all public properties
 			foreach (PropertyInfo property in type.UnderlyingSystemType.GetProperties())
@@ -35,11 +35,11 @@ namespace ExoGraph.Injection
 				// Only consider properties declared on this type that can be read, are not static, and either can be set or are mutable lists
 				if (property.DeclaringType == type && property.CanRead && !property.GetGetMethod().IsStatic && (property.CanWrite || typeof(IList).IsAssignableFrom(property.PropertyType)))
 				{
-					collection.AddAspect(property.GetGetMethod(), new InjectionGraphContext.OnPropertyGetAspect(property));
+					collection.AddAspect(property.GetGetMethod(), InjectionGraphTypeProvider.GetOnPropertyGetAspect(property));
 
 					// Only add aspects to setters for writable properties
 					if (property.CanWrite)
-						collection.AddAspect(property.GetSetMethod(true), new InjectionGraphContext.OnPropertySetAspect(property));
+						collection.AddAspect(property.GetSetMethod(true), InjectionGraphTypeProvider.GetOnPropertySetAspect(property));
 				}
 			}
 		}

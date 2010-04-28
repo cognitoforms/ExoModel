@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using System.Collections;
 
 namespace ExoGraph
 {
@@ -71,6 +72,8 @@ namespace ExoGraph
 		internal GraphPathList Paths { get; private set; }
 
 		internal int PropertyCount { get; private set; }
+
+		protected internal IGraphTypeProvider Provider { get; internal set; }
 
 		#endregion
 
@@ -309,7 +312,7 @@ namespace ExoGraph
 		/// <returns></returns>
 		public GraphInstance Create()
 		{
-			return Context.GetGraphInstance(Context.GetInstance(this, null));
+			return GetGraphInstance(GetInstance(null));
 		}
 
 		/// <summary>
@@ -318,8 +321,8 @@ namespace ExoGraph
 		/// <returns></returns>
 		public GraphInstance Create(string id)
 		{
-			object instance = Context.GetInstance(this, id);
-			return instance == null ? null : Context.GetGraphInstance(instance);
+			object instance = GetInstance(id);
+			return instance == null ? null : GetGraphInstance(instance);
 		}
 
 		/// <summary>
@@ -351,7 +354,7 @@ namespace ExoGraph
 		{
 			object reference = property.GetValue(null);
 			if (reference != null)
-				return Context.GetGraphInstance(reference);
+				return GetGraphInstance(reference);
 			return null;
 		}
 
@@ -452,6 +455,142 @@ namespace ExoGraph
 			else
 				return ExtensionFactory(instance);
 		}
+
+		#endregion
+
+		#region NewStuff
+
+		/// <summary>
+		/// Called by <see cref="Context"/> subclasses to obtain a <see cref="GraphInstance"/> for a 
+		/// newly created graph object.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns></returns>
+		protected GraphInstance OnInit(object instance)
+		{
+			// Create the new graph instance
+			return new GraphInstance(this, instance);
+		}
+
+		protected void OnPropertyGet(GraphInstance instance, string property)
+		{
+			OnPropertyGet(instance, instance.Type.Properties[property]);
+		}
+
+		protected void OnPropertyGet(GraphInstance instance, GraphProperty property)
+		{
+			// Static notifications are not supported
+			if (property.IsStatic)
+				return;
+
+			GraphEvent propertyGet = new GraphPropertyGetEvent(instance, property);
+
+			propertyGet.Notify();
+		}
+
+		/// <summary>
+		/// Converts the specified object into a instance that implements <see cref="IList"/>.
+		/// </summary>
+		/// <param name="property"></param>
+		/// <param name="list"></param>
+		/// <returns></returns>
+		protected internal abstract IList ConvertToList(GraphReferenceProperty property, object list);
+	
+		protected internal virtual void OnStartTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
+		{
+		}
+
+		protected internal virtual void OnStopTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
+		{
+		}
+
+		protected internal void OnPropertyChanged(GraphInstance instance, string property, object oldValue, object newValue)
+		{
+			OnPropertyChanged(instance, instance.Type.Properties[property], oldValue, newValue);
+		}
+
+		protected internal void OnPropertyChanged(GraphInstance instance, GraphProperty property, object oldValue, object newValue)
+		{
+			// Check to see what type of property was changed
+			if (property is GraphReferenceProperty)
+			{
+				GraphReferenceProperty reference = (GraphReferenceProperty) property;
+
+				// Changes to list properties should call OnListChanged. However, some implementations
+				// may allow setting lists, so this case must be handled appropriately.
+				if (reference.IsList)
+				{
+					// Notify the context that the items in the old list have been removed
+					if (oldValue != null)
+					{
+						var oldList = ConvertToList(reference, oldValue);
+						OnListChanged(instance, reference, null, oldList);
+						OnStopTrackingList(instance, reference, oldList);
+					}
+
+					// Then notify the context that the items in the new list have been added
+					if (newValue != null)
+					{
+						var newList = ConvertToList(reference, newValue);
+						OnListChanged(instance, reference, newList, null);
+						OnStartTrackingList(instance, reference, newList);
+					}
+				}
+
+				// Notify subscribers that a reference property has changed
+				else
+					new GraphReferenceChangeEvent(
+						instance, (GraphReferenceProperty) property,
+						oldValue == null ? null : GetGraphInstance(oldValue),
+						newValue == null ? null : GetGraphInstance(newValue)
+					).Notify();
+			}
+
+			// Otherwise, notify subscribers that a value property has changed
+			else
+				new GraphValueChangeEvent(instance, (GraphValueProperty) property, oldValue, newValue).Notify();
+		}
+
+		protected void OnListChanged(GraphInstance instance, string property, IEnumerable added, IEnumerable removed)
+		{
+			OnListChanged(instance, (GraphReferenceProperty) instance.Type.Properties[property], added, removed);
+		}
+
+		protected void OnListChanged(GraphInstance instance, GraphReferenceProperty property, IEnumerable added, IEnumerable removed)
+		{
+			// Create a new graph list change event and notify subscribers
+			new GraphListChangeEvent(instance, property, EnumerateInstances(added), EnumerateInstances(removed)).Notify();
+		}
+
+		IEnumerable<GraphInstance> EnumerateInstances(IEnumerable items)
+		{
+			if (items != null)
+				foreach (object instance in items)
+					yield return GetGraphInstance(instance);
+		}
+
+		/// <summary>
+		/// Called by subclasses to notify the context that a commit has occurred.
+		/// </summary>
+		/// <param name="instance"></param>
+		protected void OnSave(GraphInstance instance)
+		{
+			new GraphSaveEvent(instance).Notify();
+		}
+
+		/// <summary>
+		/// Saves changes to the specified instance and related instances in the graph.
+		/// </summary>
+		/// <param name="graphInstance"></param>
+		protected internal abstract void SaveInstance(GraphInstance graphInstance);
+	
+		public abstract GraphInstance GetGraphInstance(object instance);
+		
+		protected internal abstract string GetId(object instance);
+		
+		protected internal abstract object GetInstance(string id);
+
+		protected internal abstract void DeleteInstance(GraphInstance graphInstance);
 
 		#endregion
 

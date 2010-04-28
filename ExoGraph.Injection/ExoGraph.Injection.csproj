@@ -66,7 +66,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="InjectionGraphContext.cs" />
+    <Compile Include="InjectionGraphTypeProvider.cs" />
     <Compile Include="ExoGraphAttribute.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

@@ -106,9 +106,9 @@ namespace ExoGraph
 				if (instance != null)
 				{
 					if (id == null)
-						return this.id = type.Context.GetId(instance) ?? type.Context.GenerateId();
+						return this.id = type.GetId(instance) ?? type.Context.GenerateId();
 					else
-						return Type.Context.GetId(instance) ?? id;
+						return Type.GetId(instance) ?? id;
 				}
 				return id;
 			}
@@ -125,7 +125,7 @@ namespace ExoGraph
 		{
 			get
 			{
-				return Type.Context.GetId(instance) == null;
+				return Type.GetId(instance) == null;
 			}
 		}
 
@@ -304,9 +304,9 @@ namespace ExoGraph
 							AddReference(refProp, reference, true);
 
 						// Allow the context to subscribe to list change notifications
-						IList list = Type.Context.ConvertToList(refProp, this[property.Name]);
+						IList list = Type.ConvertToList(refProp, this[property.Name]);
 						if (list != null)
-							Type.Context.OnStartTrackingList(this, (GraphReferenceProperty)property, list);
+							Type.OnStartTrackingList(this, (GraphReferenceProperty)property, list);
 					}
 					else
 					{
@@ -351,7 +351,7 @@ namespace ExoGraph
 		{
 			object reference = property.GetValue(instance);
 			if (reference != null)
-				return Type.Context.GetGraphInstance(reference);
+				return Type.GetGraphInstance(reference);
 			return null;
 		}
 
@@ -447,7 +447,7 @@ namespace ExoGraph
 		/// </summary>
 		public void Save()
 		{
-			Type.Context.Save(this);
+			Type.SaveInstance(this);
 		}
 
 		/// <summary>
@@ -455,7 +455,7 @@ namespace ExoGraph
 		/// </summary>
 		public void Delete()
 		{
-			Type.Context.DeleteInstance(this.Instance);
+			Type.DeleteInstance(this);
 		}
 
 		/// <summary>

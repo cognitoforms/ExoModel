@@ -12,15 +12,15 @@ namespace ExoGraph
 	/// Base class for graph contexts that work with strongly-typed object graphs based on compiled types
 	/// using inheritence and declared properties for associations and intrinsic types.
 	/// </summary>
-	public abstract class StronglyTypedGraphContext : GraphContext, IGraphTypeProvider
+	public abstract class StronglyTypedGraphTypeProvider : IGraphTypeProvider
 	{
 		#region Fields
 
 		Dictionary<string, Type> typeNames = new Dictionary<string, Type>();
 		HashSet<Type> supportedTypes = new HashSet<Type>();
 		HashSet<Type> declaringTypes = new HashSet<Type>();
-		Dictionary<Type, StrongType> graphTypes;
 		Func<GraphInstance, object> extensionFactory;
+		string @namespace;
 
 		#endregion
 
@@ -30,8 +30,8 @@ namespace ExoGraph
 		/// Creates a new <see cref="StronglyTypesGraphContext"/> based on the specified types.
 		/// </summary>
 		/// <param name="types">The types to create graph types from</param>
-		public StronglyTypedGraphContext(IEnumerable<Type> types)
-			: this(types, null, null)
+		public StronglyTypedGraphTypeProvider(string @namespace, IEnumerable<Type> types)
+			: this(@namespace, types, null, null)
 		{ }
 
 		/// <summary>
@@ -41,11 +41,13 @@ namespace ExoGraph
 		/// <param name="types">The types to create graph types from</param>
 		/// <param name="baseTypes">The base types that contain properties to include on graph types</param>
 		/// <param name="extensionFactory">The factory to use to create extensions for new graph instances</param>
-		public StronglyTypedGraphContext(IEnumerable<Type> types, IEnumerable<Type> baseTypes, Func<GraphInstance, object> extensionFactory)
+		public StronglyTypedGraphTypeProvider(string @namespace, IEnumerable<Type> types, IEnumerable<Type> baseTypes, Func<GraphInstance, object> extensionFactory)
 		{
 			// The list of types cannot be null
 			if (types == null)
 				throw new ArgumentNullException("types");
+
+			this.@namespace = string.IsNullOrEmpty(@namespace) ? string.Empty : @namespace + ".";
 
 			// The list of base types is not required, so convert null to empty set
 			if (baseTypes == null)
@@ -54,7 +56,7 @@ namespace ExoGraph
 			// Create dictionaries of type names and valid supported and declaring types to introspect
 			foreach (Type type in types)
 			{
-				typeNames.Add(type.Name, type);
+				typeNames.Add(this.@namespace + type.Name, type);
 				if (!supportedTypes.Contains(type))
 					supportedTypes.Add(type);
 				if (!declaringTypes.Contains(type))
@@ -68,88 +70,15 @@ namespace ExoGraph
 
 			// Track the extension factory to use when creating new instances
 			this.extensionFactory = extensionFactory;
-
-			// Add the current instance as the default type provider for the context
-			AddGraphTypeProvider(this);
 		}
 		
 		#endregion
 
+		#region Properties
+		
+		#endregion
+
 		#region Methods
-
-		/// <summary>
-		/// Converts the specified object into a instance that implements <see cref="IList"/>.
-		/// </summary>
-		/// <param name="list"></param>
-		/// <returns></returns>
-		protected internal override IList ConvertToList(GraphReferenceProperty property, object list)
-		{
-			if (list == null)
-				return null;
-			
-			if (list is IList)
-				return (IList)list;
-			
-			if (list is IListSource)
-				return ((IListSource)list).GetList();
-			
-			if (property is PropertyInfoReferenceProperty)
-				return null;
-
-			// Add ICollection<T> support
-
-			throw new NotSupportedException("Unable to convert the specified list instance into a valid IList implementation.");
-		}
-
-		/// <summary>
-		/// Gets the item type of a list type, or returns false if the type is not a supported list type<TItem>
-		/// </summary>
-		/// <param name="listType"></param>
-		/// <param name="itemType"></param>
-		/// <returns></returns>
-		protected virtual bool TryGetListItemType(Type listType, out Type itemType)
-		{
-			// First see if the type implements ICollection<T>
-			foreach (Type interfaceType in listType.GetInterfaces())
-			{
-				if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>))
-				{
-					itemType = interfaceType.GetGenericArguments()[0];
-					return true;
-				}
-			}
-
-			// First see if the type implements IList and has a strongly-typed Item property indexed by an integer value
-			if (typeof(IList).IsAssignableFrom(listType))
-			{
-				PropertyInfo itemProperty = listType.GetProperty("Item", new Type[] { typeof(int) });
-				if (itemProperty != null)
-				{
-					itemType = itemProperty.PropertyType;
-					return true;
-				}
-			}
-
-			// Return false to indicate that the specified type is not a supported list type
-			itemType = null;
-			return false;
-		}
-
-		protected internal override void OnStartTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
-		{
-			if (list is INotifyCollectionChanged)
-				(new ListChangeEventAdapter(instance, property, (INotifyCollectionChanged) list)).Start();
-			else
-				base.OnStartTrackingList(instance, property, list);
-		}
-
-		protected internal override void OnStopTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
-		{
-			if (list is INotifyCollectionChanged)
-				(new ListChangeEventAdapter(instance, property, (INotifyCollectionChanged) list)).Stop();
-			else
-				base.OnStartTrackingList(instance, property, list);
-		}
 
 		/// <summary>
 		/// Adds a property to the specified <see cref="GraphType"/> that represents an
@@ -190,7 +119,7 @@ namespace ExoGraph
 		/// <returns>The unique name of the graph type for the instance if it is a valid graph type, otherwise null</returns>
 		string IGraphTypeProvider.GetGraphTypeName(object instance)
 		{
-			return instance.GetType().Name;
+			return supportedTypes.Contains(instance.GetType()) ? @namespace + instance.GetType().Name : null;
 		}
 	
 		/// <summary>
@@ -200,7 +129,7 @@ namespace ExoGraph
 		/// <returns></returns>
 		string IGraphTypeProvider.GetGraphTypeName(Type type)
 		{
-			return type.Name;
+			return supportedTypes.Contains(type) ? @namespace + type.Name : null;
 		}
 
 		/// <summary>
@@ -211,31 +140,35 @@ namespace ExoGraph
 		GraphType IGraphTypeProvider.CreateGraphType(string typeName)
 		{
 			Type type;
-	
+
 			// Get the type that corresponds to the specified type name
 			if (!typeNames.TryGetValue(typeName, out type))
 				return null;
 
 			// Create the new graph type
-			return new StrongType(type, extensionFactory);
+			return CreateGraphType(@namespace, type, extensionFactory);
 		}
+
+		/// <summary>
+		/// Allows subclasses to create specific subclasses of <see cref="StrongGraphType"/>.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <param name="extensionFactory"></param>
+		/// <returns></returns>
+		protected abstract StrongGraphType CreateGraphType(string @namespace, Type type, Func<GraphInstance, object> extensionFactory);
 		
 		#endregion
 
-		#region GraphType
+		#region StrongGraphType
 
 		/// <summary>
 		/// Concrete subclass of <see cref="GraphType"/> that represents a specific <see cref="Type"/>.
 		/// </summary>
 		[Serializable]
-		protected class StrongType : GraphType
+		protected abstract class StrongGraphType : GraphType
 		{
-			protected internal StrongType(Type type, Func<GraphInstance, object> extensionFactory)
-				: this(type, type.Name, type.AssemblyQualifiedName, GetBaseType(type), type.GetCustomAttributes(true).Cast<Attribute>().ToArray(), extensionFactory)
-			{ }
-
-			protected internal StrongType(Type type, string name, string qualifiedName, GraphType baseType, Attribute[] attributes, Func<GraphInstance, object> extensionFactory)
-				: base(type.Name, type.AssemblyQualifiedName, baseType, attributes, extensionFactory)
+			protected internal StrongGraphType(string @namespace, Type type, Func<GraphInstance, object> extensionFactory)
+				: base(@namespace + type.Name, type.AssemblyQualifiedName, GetBaseType(type), type.GetCustomAttributes(true).Cast<Attribute>().ToArray(), extensionFactory)
 			{
 				this.UnderlyingType = type;
 			}
@@ -253,7 +186,8 @@ namespace ExoGraph
 
 			protected internal override void OnInit()
 			{
-				StronglyTypedGraphContext context = (StronglyTypedGraphContext)Context;
+				StronglyTypedGraphTypeProvider provider = (StronglyTypedGraphTypeProvider)Provider;
+
 				Type listItemType;
 
 				// Determine if any inherited properties on the type have been replaced using the new keyword
@@ -266,7 +200,8 @@ namespace ExoGraph
 				foreach (PropertyInfo property in UnderlyingType.GetProperties().OrderBy(p => (p.GetGetMethod(true) ?? p.GetSetMethod(true)).IsStatic))
 				{
 					// Exit immediately if the property was not in the list of valid declaring types
-					if (!context.declaringTypes.Contains(property.DeclaringType) || (isNewProperty[property.Name] && property.DeclaringType != UnderlyingType))
+					//TODO: this fails if the type is managed in a separate provider.
+					if (GraphContext.Current.GetGraphType(property.DeclaringType) == null || (isNewProperty[property.Name] && property.DeclaringType != UnderlyingType))
 						continue;
 
 					// Copy properties inherited from base graph types
@@ -274,17 +209,17 @@ namespace ExoGraph
 						AddProperty(BaseType.Properties[property.Name]);
 
 					// Create references based on properties that relate to other instance types
-					else if (context.supportedTypes.Contains(property.PropertyType))
+					else if (provider.supportedTypes.Contains(property.PropertyType))
 					{
-						GraphReferenceProperty reference = context.CreateReferenceProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, context.GetGraphType(property.PropertyType), false, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						GraphReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, Context.GetGraphType(property.PropertyType), false, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (reference != null)
 							AddProperty(reference);
 					}
 
 					// Create references based on properties that are lists of other instance types
-					else if (context.TryGetListItemType(property.PropertyType, out listItemType) && context.supportedTypes.Contains(listItemType))
+					else if (TryGetListItemType(property.PropertyType, out listItemType) && provider.supportedTypes.Contains(listItemType))
 					{
-						GraphReferenceProperty reference = context.CreateReferenceProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, context.GetGraphType(listItemType), true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						GraphReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.GetGetMethod().IsStatic, Context.GetGraphType(listItemType), true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (reference != null)
 							AddProperty(reference);
 					}
@@ -292,12 +227,137 @@ namespace ExoGraph
 					// Create values for all other properties
 					else
 					{
-						GraphValueProperty value = context.CreateValueProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						GraphValueProperty value = provider.CreateValueProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (value != null)
 							AddProperty(value);
 					}
 				}
 			}
+
+			/// <summary>
+			/// Converts the specified object into a instance that implements <see cref="IList"/>.
+			/// </summary>
+			/// <param name="list"></param>
+			/// <returns></returns>
+			protected internal override IList ConvertToList(GraphReferenceProperty property, object list)
+			{
+				if (list == null)
+					return null;
+
+				if (list is IList)
+					return (IList) list;
+
+				if (list is IListSource)
+					return ((IListSource) list).GetList();
+
+				if (property is PropertyInfoReferenceProperty)
+					return null;
+
+				// Add ICollection<T> support
+
+				throw new NotSupportedException("Unable to convert the specified list instance into a valid IList implementation.");
+			}
+
+			/// <summary>
+			/// Gets the item type of a list type, or returns false if the type is not a supported list type<TItem>
+			/// </summary>
+			/// <param name="listType"></param>
+			/// <param name="itemType"></param>
+			/// <returns></returns>
+			protected virtual bool TryGetListItemType(Type listType, out Type itemType)
+			{
+				// First see if the type implements ICollection<T>
+				foreach (Type interfaceType in listType.GetInterfaces())
+				{
+					if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>))
+					{
+						itemType = interfaceType.GetGenericArguments()[0];
+						return true;
+					}
+				}
+
+				// First see if the type implements IList and has a strongly-typed Item property indexed by an integer value
+				if (typeof(IList).IsAssignableFrom(listType))
+				{
+					PropertyInfo itemProperty = listType.GetProperty("Item", new Type[] { typeof(int) });
+					if (itemProperty != null)
+					{
+						itemType = itemProperty.PropertyType;
+						return true;
+					}
+				}
+
+				// Return false to indicate that the specified type is not a supported list type
+				itemType = null;
+				return false;
+			}
+
+			protected internal override void OnStartTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
+			{
+				if (list is INotifyCollectionChanged)
+					(new ListChangeEventAdapter(instance, property, (INotifyCollectionChanged) list)).Start();
+				else
+					base.OnStartTrackingList(instance, property, list);
+			}
+
+			protected internal override void OnStopTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
+			{
+				if (list is INotifyCollectionChanged)
+					(new ListChangeEventAdapter(instance, property, (INotifyCollectionChanged) list)).Stop();
+				else
+					base.OnStartTrackingList(instance, property, list);
+			}
+
+			#region ListChangeEventAdapter
+
+			[Serializable]
+			class ListChangeEventAdapter
+			{
+				GraphInstance instance;
+				GraphReferenceProperty property;
+				INotifyCollectionChanged list;
+
+				public ListChangeEventAdapter(GraphInstance instance, GraphReferenceProperty property, INotifyCollectionChanged list)
+				{
+					this.instance = instance;
+					this.property = property;
+					this.list = list;
+				}
+
+				public void Start()
+				{
+					list.CollectionChanged += this.list_CollectionChanged;
+				}
+
+				public void Stop()
+				{
+					list.CollectionChanged -= this.list_CollectionChanged;
+				}
+
+				void list_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+				{
+					((StrongGraphType)instance.Type).OnListChanged(instance, property,
+						e.Action == NotifyCollectionChangedAction.Add ? e.NewItems : new object[0],
+						e.Action == NotifyCollectionChangedAction.Remove ? e.OldItems : new object[0]);
+				}
+
+				public override bool Equals(object obj)
+				{
+					var that = obj as ListChangeEventAdapter;
+
+					if (that == null)
+						return false;
+
+					return that.instance == this.instance && that.property == this.property && that.list == this.list;
+				}
+
+				public override int GetHashCode()
+				{
+					return instance.GetHashCode();
+				}
+			}
+
+			#endregion
 		}
 
 		#endregion
@@ -390,57 +450,6 @@ namespace ExoGraph
 					type = type.BaseType;
 				}
 				return typeName;
-			}
-		}
-
-		#endregion
-
-		#region ListChangeEventAdapter
-
-		[Serializable]
-		class ListChangeEventAdapter
-		{
-			GraphInstance instance;
-			GraphReferenceProperty property;
-			INotifyCollectionChanged list;
-
-			public ListChangeEventAdapter(GraphInstance instance, GraphReferenceProperty property, INotifyCollectionChanged list)
-			{
-				this.instance = instance;
-				this.property = property;
-				this.list = list;
-			}
-
-			public void Start()
-			{
-				list.CollectionChanged += this.list_CollectionChanged;
-			}
-
-			public void Stop()
-			{
-				list.CollectionChanged -= this.list_CollectionChanged;
-			}
-
-			void list_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-			{
-				((StronglyTypedGraphContext) GraphContext.Current).OnListChanged(instance, property,
-					e.Action == NotifyCollectionChangedAction.Add ? e.NewItems : new object[0],
-					e.Action == NotifyCollectionChangedAction.Remove ? e.OldItems : new object[0]);
-			}
-
-			public override bool Equals(object obj)
-			{
-				var that = obj as ListChangeEventAdapter;
-
-				if (that == null)
-					return false;
-
-				return that.instance == this.instance && that.property == this.property && that.list == this.list;
-			}
-
-			public override int GetHashCode()
-			{
-				return instance.GetHashCode();
 			}
 		}
 
