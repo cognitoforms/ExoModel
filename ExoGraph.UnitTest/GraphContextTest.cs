@@ -64,7 +64,7 @@ namespace ExoGraph.UnitTest
 				TUser user = CreateNewUser();
 
 				// Get the graph instance for the new user
-				userInstance = GraphContext.Current.GetGraphInstance(user);
+				userInstance = GraphContext.Current.GetGraphType(user).GetGraphInstance(user);
 
 				// Set the username for the new user
 				user.UserName = "New User";
@@ -203,7 +203,7 @@ namespace ExoGraph.UnitTest
 				"List change was not correctly raised when clearing a list.");
 				removed += listChange.Removed.Count();
 			}
-			Assert.AreEqual<int>(3, removed, "The clear operation did not raise change events for all of the items in the list.");
+			Assert.AreEqual<int>(1, removed, "The clear operation did not raise change events for all of the items in the list.");
 		}
 
 		/// <summary>
