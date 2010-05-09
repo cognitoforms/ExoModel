@@ -380,9 +380,19 @@ namespace ExoGraph
 				return PropertyInfo.GetValue(instance, null);
 			}
 
+			/// <summary>
+			/// Sets value on target entity to value.  See http://stackoverflow.com/questions/1398796/casting-with-reflection for more details
+			/// </summary>
+			/// <param name="instance"></param>
+			/// <param name="value"></param>
 			protected internal override void SetValue(object instance, object value)
 			{
-				PropertyInfo.SetValue(instance, value, null);
+				var targetType = PropertyInfo.PropertyType.IsNullableType()
+					 ? Nullable.GetUnderlyingType(PropertyInfo.PropertyType)
+					 : PropertyInfo.PropertyType;
+				var convertedValue = Convert.ChangeType(value, targetType);
+
+				PropertyInfo.SetValue(instance, convertedValue, null);
 			}
 		}
 
@@ -454,5 +464,13 @@ namespace ExoGraph
 		}
 
 		#endregion
+	}
+
+	public static class TypeExtensions
+	{
+		public static bool IsNullableType(this Type type)
+		{
+			return type.IsGenericType && type.GetGenericTypeDefinition().Equals(typeof(Nullable<>));
+		}
 	}
 }
