@@ -8,6 +8,7 @@ namespace ExoGraph
 	/// Represents a property on a type in a graph hierarchy.
 	/// </summary>
 	[Serializable]
+	[DataContract]
 	public abstract class GraphProperty : ISerializable
 	{
 		#region Fields
@@ -35,6 +36,7 @@ namespace ExoGraph
 
 		#region Properties
 
+		[DataMember(Name = "name")]
 		public string Name
 		{
 			get
