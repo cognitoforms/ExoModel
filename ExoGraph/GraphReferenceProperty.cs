@@ -18,10 +18,9 @@ namespace ExoGraph
 		#region Constructors
 
 		protected internal GraphReferenceProperty(GraphType declaringType, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
-			: base(declaringType, name, isStatic, attributes)
+			: base(declaringType, name, isStatic, isList, attributes)
 		{
 			this.propertyType = propertyType;
-			this.isList = isList;
 			this.isBoundary = isBoundary;
 		}
 
@@ -34,14 +33,6 @@ namespace ExoGraph
 			get
 			{
 				return propertyType;
-			}
-		}
-
-		public bool IsList
-		{
-			get
-			{
-				return isList;
 			}
 		}
 

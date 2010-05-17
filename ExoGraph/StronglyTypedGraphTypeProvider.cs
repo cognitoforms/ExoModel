@@ -103,9 +103,9 @@ namespace ExoGraph
 		/// <param name="propertyType">The <see cref="Type"/> of the property</param>
 		/// <param name="converter">The optional value type converter to use</param>
 		/// <param name="attributes">The attributes assigned to the property</param>
-		protected virtual GraphValueProperty CreateValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, Attribute[] attributes)
+		protected virtual GraphValueProperty CreateValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, Attribute[] attributes)
 		{
-			return new PropertyInfoValueProperty(declaringType, property, name, isStatic, propertyType, converter, attributes);
+			return new PropertyInfoValueProperty(declaringType, property, name, isStatic, propertyType, converter, isList, attributes);
 		}
 
 		#endregion
@@ -227,7 +227,12 @@ namespace ExoGraph
 					// Create values for all other properties
 					else
 					{
-						GraphValueProperty value = provider.CreateValueProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						GraphValueProperty value = null;
+						if (TryGetListItemType(property.PropertyType, out listItemType))
+							value = provider.CreateValueProperty(this, property, property.Name, property.GetGetMethod().IsStatic, listItemType, TypeDescriptor.GetConverter(listItemType), true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						else
+							value = provider.CreateValueProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), false, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						
 						if (value != null)
 							AddProperty(value);
 					}
@@ -367,8 +372,8 @@ namespace ExoGraph
 		[Serializable]
 		protected class PropertyInfoValueProperty : GraphValueProperty
 		{
-			protected internal PropertyInfoValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, Attribute[] attributes)
-				: base(declaringType, name, isStatic, propertyType, converter, attributes)
+			protected internal PropertyInfoValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, Attribute[] attributes)
+				: base(declaringType, name, isStatic, propertyType, converter, isList, attributes)
 			{
 				this.PropertyInfo = property;
 			}

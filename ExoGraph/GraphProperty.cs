@@ -19,16 +19,18 @@ namespace ExoGraph
 		GraphType declaringType;
 		List<GraphStep> observers = new List<GraphStep>();
 		Attribute[] attributes;
+		bool isList;
 		
 		#endregion
 
 		#region Constructors
 
-		internal GraphProperty(GraphType declaringType, string name, bool isStatic, Attribute[] attributes)
+		internal GraphProperty(GraphType declaringType, string name, bool isStatic, bool isList, Attribute[] attributes)
 		{
 			this.declaringType = declaringType;
 			this.name = name;
 			this.isStatic = isStatic;
+			this.isList = isList;
 			this.attributes = attributes;
 		}
 
@@ -62,6 +64,14 @@ namespace ExoGraph
 			get
 			{
 				return isStatic;
+			}
+		}
+
+		public bool IsList
+		{
+			get
+			{
+				return isList;
 			}
 		}
 
