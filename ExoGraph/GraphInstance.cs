@@ -533,7 +533,10 @@ namespace ExoGraph
 			internal void Add(GraphReference reference)
 			{
 				if (referenceList != null)
-					referenceList.Add(direction == ReferenceDirection.In ? reference.In : reference.Out, reference);
+				{
+					// be sure not to double add references
+					referenceList[direction == ReferenceDirection.In ? reference.In : reference.Out] = reference;
+				}
 				else if (this.reference == null)
 					this.reference = reference;
 				else
