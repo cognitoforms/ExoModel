@@ -542,8 +542,10 @@ namespace ExoGraph
 				else
 				{
 					referenceList = new Dictionary<GraphInstance, GraphReference>();
-					referenceList.Add(direction == ReferenceDirection.In ? reference.In : reference.Out, reference);
-					referenceList.Add(direction == ReferenceDirection.In ? this.reference.In : this.reference.Out, this.reference);
+					referenceList[direction == ReferenceDirection.In ? reference.In : reference.Out] = reference;
+
+					// be sure not to double add references
+					referenceList[direction == ReferenceDirection.In ? this.reference.In : this.reference.Out] = this.reference;
 				}
 			}
 
