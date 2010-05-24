@@ -395,7 +395,13 @@ namespace ExoGraph
 				var targetType = PropertyInfo.PropertyType.IsNullableType()
 					 ? Nullable.GetUnderlyingType(PropertyInfo.PropertyType)
 					 : PropertyInfo.PropertyType;
-				var convertedValue = value == null ? null : Convert.ChangeType(value, targetType);
+
+				object convertedValue = null;
+				
+				if(value != null && PropertyInfo.PropertyType == typeof(Guid) && value.GetType() == typeof(string))
+					convertedValue = new Guid(value.ToString());
+				else
+					convertedValue = value == null ? null : Convert.ChangeType(value, targetType);
 
 				PropertyInfo.SetValue(instance, convertedValue, null);
 			}
