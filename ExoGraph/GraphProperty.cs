@@ -94,7 +94,6 @@ namespace ExoGraph
 		#endregion
 
 		#region Methods
-
 		internal void OnChange(GraphInstance instance)
 		{
 			// Attempt to walk up the path to the root for each observer
@@ -170,13 +169,13 @@ namespace ExoGraph
 		[Serializable]
 		class Serialized : ISerializable, IObjectReference
 		{
-			GraphType declaringType;
+			string declaringType;
 			string name;
 
 			#region ISerializable Members
 			public Serialized(SerializationInfo info, StreamingContext context)
 			{
-				declaringType = (GraphType) info.GetValue("dt", typeof(GraphType));
+				declaringType = (string)info.GetValue("dt",typeof(string));
 				name = info.GetString("p");
 			}
 
@@ -189,7 +188,7 @@ namespace ExoGraph
 			#region IObjectReference Members
 			public object GetRealObject(StreamingContext context)
 			{
-				return declaringType.Properties[name];
+				return GraphContext.Current.GetGraphType(declaringType).Properties[name];
 			}
 			#endregion
 		}

@@ -22,9 +22,11 @@ namespace ExoGraph
 		object instance;
 		GraphType type;
 
+		[NonSerialized]
 		Dictionary<GraphReferenceProperty, ReferenceSet> outReferences =
 			new Dictionary<GraphReferenceProperty, ReferenceSet>();
 
+		[NonSerialized]
 		Dictionary<GraphReferenceProperty, ReferenceSet> inReferences =
 			new Dictionary<GraphReferenceProperty, ReferenceSet>();
 
