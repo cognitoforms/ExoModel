@@ -94,6 +94,21 @@ namespace ExoGraph
 		#endregion
 
 		#region Methods
+		public override bool Equals(object obj)
+		{
+			GraphProperty prop = obj as GraphProperty;
+
+			if (obj == null)
+				return false;
+
+			return prop.DeclaringType.QualifiedName == this.DeclaringType.QualifiedName && prop.Name == this.Name;
+		}
+
+		public override int GetHashCode()
+		{
+			return DeclaringType.Name.GetHashCode() ^ Name.GetHashCode();
+		}
+
 		internal void OnChange(GraphInstance instance)
 		{
 			// Attempt to walk up the path to the root for each observer
@@ -169,13 +184,13 @@ namespace ExoGraph
 		[Serializable]
 		class Serialized : ISerializable, IObjectReference
 		{
-			string declaringType;
+			GraphType declaringType;
 			string name;
 
 			#region ISerializable Members
 			public Serialized(SerializationInfo info, StreamingContext context)
 			{
-				declaringType = (string)info.GetValue("dt",typeof(string));
+				declaringType = (GraphType) info.GetValue("dt", typeof(GraphType));
 				name = info.GetString("p");
 			}
 
@@ -188,7 +203,7 @@ namespace ExoGraph
 			#region IObjectReference Members
 			public object GetRealObject(StreamingContext context)
 			{
-				return GraphContext.Current.GetGraphType(declaringType).Properties[name];
+				return declaringType.Properties[name];
 			}
 			#endregion
 		}
