@@ -14,7 +14,7 @@ namespace ExoGraph
 	/// </summary>
 	[DataContract]
 	[Serializable]
-	public class GraphInstance
+	public class GraphInstance : ISerializable
 	{
 		#region Fields
 
@@ -40,6 +40,10 @@ namespace ExoGraph
 		#endregion
 
 		#region Constructors
+
+		public GraphInstance()
+		{
+		}
 
 		/// <summary>
 		/// Creates a new <see cref="GraphInstance"/> for the specified <see cref="GraphType"/>
@@ -478,7 +482,58 @@ namespace ExoGraph
 			return "" + instance;
 		}
 
+		public void GetObjectData(SerializationInfo info, StreamingContext context)
+		{
+			info.SetType(typeof(Serialized));
+			info.AddValue("id", id);
+			info.AddValue("i", instance);
+			info.AddValue("t", type);
+			info.AddValue("hba", hasBeenAccessed);
+			info.AddValue("ii",isInitialized);
+		}
+
 		#endregion
+
+		[Serializable]
+		class Serialized : ISerializable, IObjectReference
+		{
+			string id;
+			object instance;
+			GraphType type;
+			bool[] hasBeenAccessed;
+			bool isInitialized;
+
+			#region ISerializable Members
+			public Serialized(SerializationInfo info, StreamingContext context)
+			{
+				id = (string)info.GetValue("id", typeof(string));
+				instance = info.GetValue("i", typeof(object));
+				type = (GraphType)info.GetValue("t", typeof(GraphType));
+				hasBeenAccessed = (bool[])info.GetValue("hba", typeof(bool[]));
+				isInitialized = (bool)info.GetValue("ii", typeof(bool));
+			}
+
+			void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+			{
+				throw new NotImplementedException("this code should never run");
+			}
+			#endregion
+
+			#region IObjectReference Members
+			public object GetRealObject(StreamingContext context)
+			{
+				return new GraphInstance()
+				       	{
+				       		id = this.id,
+				       		instance = this.instance,
+				       		type = this.type,
+				       		hasBeenAccessed = this.hasBeenAccessed,
+				       		isInitialized = this.isInitialized
+				       	};
+			}
+			#endregion
+		}
+
 
 		#region ReferenceSet
 
