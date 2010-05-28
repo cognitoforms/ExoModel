@@ -14,7 +14,7 @@ namespace ExoGraph
 	/// </summary>
 	[DataContract]
 	[Serializable]
-	public class GraphInstance : ISerializable
+	public class GraphInstance
 	{
 		#region Fields
 
@@ -22,9 +22,11 @@ namespace ExoGraph
 		object instance;
 		GraphType type;
 
+		[NonSerialized]
 		Dictionary<GraphReferenceProperty, ReferenceSet> outReferences =
 			new Dictionary<GraphReferenceProperty, ReferenceSet>();
 
+		[NonSerialized]
 		Dictionary<GraphReferenceProperty, ReferenceSet> inReferences =
 			new Dictionary<GraphReferenceProperty, ReferenceSet>();
 
@@ -40,10 +42,6 @@ namespace ExoGraph
 		#endregion
 
 		#region Constructors
-
-		public GraphInstance()
-		{
-		}
 
 		/// <summary>
 		/// Creates a new <see cref="GraphInstance"/> for the specified <see cref="GraphType"/>
@@ -74,7 +72,6 @@ namespace ExoGraph
 		#endregion
 
 		#region Properties
-
 		/// <summary>
 		/// The <see cref="GraphType"/> of the instance in the graph.
 		/// </summary>
@@ -144,6 +141,28 @@ namespace ExoGraph
 			}
 		}
 
+		private Dictionary<GraphReferenceProperty, ReferenceSet> OutReferences
+		{
+			get
+			{
+				if(outReferences == null)
+					outReferences = new Dictionary<GraphReferenceProperty, ReferenceSet>();
+
+				return outReferences;
+			}
+		}
+
+		private Dictionary<GraphReferenceProperty, ReferenceSet> InReferences
+		{
+			get
+			{
+				if(inReferences == null)
+					inReferences = new Dictionary<GraphReferenceProperty, ReferenceSet>();
+
+				return inReferences;
+			}
+		}
+
 		/// <summary>
 		/// Gets or sets the value of the specified property.
 		/// </summary>
@@ -176,13 +195,13 @@ namespace ExoGraph
 		internal IEnumerable<GraphReference> GetInReferences(GraphReferenceProperty property)
 		{
 			ReferenceSet references;
-			return inReferences.TryGetValue(property, out references) ? (IEnumerable<GraphReference>)references : (IEnumerable<GraphReference>)noReferences;
+			return InReferences.TryGetValue(property, out references) ? (IEnumerable<GraphReference>)references : (IEnumerable<GraphReference>)noReferences;
 		}
 
 		internal IEnumerable<GraphReference> GetOutReferences(GraphReferenceProperty property)
 		{
 			ReferenceSet references;
-			return outReferences.TryGetValue(property, out references) ? (IEnumerable<GraphReference>)references : (IEnumerable<GraphReference>)noReferences;
+			return OutReferences.TryGetValue(property, out references) ? (IEnumerable<GraphReference>)references : (IEnumerable<GraphReference>)noReferences;
 		}
 
 		/// <summary>
@@ -196,7 +215,7 @@ namespace ExoGraph
 		{
 			// Return null if there are no references established for the property
 			ReferenceSet references;
-			if (!outReferences.TryGetValue(property, out references))
+			if (!OutReferences.TryGetValue(property, out references))
 				return null;
 
 			// Otherwise, look up the reference in the set based on the specified instance
@@ -219,10 +238,10 @@ namespace ExoGraph
 
 			// Create a reference set if no out references have been established for this property
 			ReferenceSet references;
-			if (!outReferences.TryGetValue(property, out references))
+			if (!OutReferences.TryGetValue(property, out references))
 			{
 				references = new ReferenceSet(ReferenceDirection.Out);
-				outReferences.Add(property, references);
+				OutReferences.Add(property, references);
 			}
 
 			// Add the out reference
@@ -232,10 +251,10 @@ namespace ExoGraph
 			if (!property.IsBoundary)
 			{
 				// Create a reference set if no in references have been established for this property
-				if (!instance.inReferences.TryGetValue(property, out references))
+				if (!instance.InReferences.TryGetValue(property, out references))
 				{
 					references = new ReferenceSet(ReferenceDirection.In);
-					instance.inReferences.Add(property, references);
+					instance.InReferences.Add(property, references);
 				}
 
 				// Add the in reference
@@ -260,11 +279,11 @@ namespace ExoGraph
 			ReferenceSet references;
 
 			// Remove the out reference
-			if (outReferences.TryGetValue(reference.Property, out references))
+			if (OutReferences.TryGetValue(reference.Property, out references))
 				references.Remove(reference);
 
 			// Remove the in reference
-			if (reference.Out.inReferences.TryGetValue(reference.Property, out references))
+			if (reference.Out.InReferences.TryGetValue(reference.Property, out references))
 				references.Remove(reference);
 
 			// Notify the reference property that this reference has been removed
@@ -482,58 +501,7 @@ namespace ExoGraph
 			return "" + instance;
 		}
 
-		public void GetObjectData(SerializationInfo info, StreamingContext context)
-		{
-			info.SetType(typeof(Serialized));
-			info.AddValue("id", id);
-			info.AddValue("i", instance);
-			info.AddValue("t", type);
-			info.AddValue("hba", hasBeenAccessed);
-			info.AddValue("ii",isInitialized);
-		}
-
 		#endregion
-
-		[Serializable]
-		class Serialized : ISerializable, IObjectReference
-		{
-			string id;
-			object instance;
-			GraphType type;
-			bool[] hasBeenAccessed;
-			bool isInitialized;
-
-			#region ISerializable Members
-			public Serialized(SerializationInfo info, StreamingContext context)
-			{
-				id = (string)info.GetValue("id", typeof(string));
-				instance = info.GetValue("i", typeof(object));
-				type = (GraphType)info.GetValue("t", typeof(GraphType));
-				hasBeenAccessed = (bool[])info.GetValue("hba", typeof(bool[]));
-				isInitialized = (bool)info.GetValue("ii", typeof(bool));
-			}
-
-			void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-			{
-				throw new NotImplementedException("this code should never run");
-			}
-			#endregion
-
-			#region IObjectReference Members
-			public object GetRealObject(StreamingContext context)
-			{
-				return new GraphInstance()
-				       	{
-				       		id = this.id,
-				       		instance = this.instance,
-				       		type = this.type,
-				       		hasBeenAccessed = this.hasBeenAccessed,
-				       		isInitialized = this.isInitialized
-				       	};
-			}
-			#endregion
-		}
-
 
 		#region ReferenceSet
 
