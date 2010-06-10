@@ -65,7 +65,8 @@ namespace ExoGraph
 			{
 				if (Property.PropertyType.IsAssignableFrom(typeof(DateTime)) && value is string)
 				{
-					string serializedDate = ((string)value).Replace("/Date(", "\"\\/Date(").Replace(")/", "-0500)\\/\"");
+					// Must perform custom date deserialization here since this property is not strongly typed.
+					string serializedDate = ((string)value).Replace("/Date(", "\"\\/Date(").Replace(")/", ")\\/\"");
 					oldValue = jsonConverter.ConvertStringToValue(serializedDate, typeof(DateTime));
 				}
 				else
@@ -85,7 +86,8 @@ namespace ExoGraph
 			{
 				if (Property.PropertyType.IsAssignableFrom(typeof(DateTime)) && value is string)
 				{
-					string serializedDate = ((string)value).Replace("/Date(", "\"\\/Date(").Replace(")/", "-0500)\\/\"");
+					// Must perform custom date deserialization here since this property is not strongly typed.
+					string serializedDate = ((string)value).Replace("/Date(", "\"\\/Date(").Replace(")/", ")\\/\"");
 					newValue = jsonConverter.ConvertStringToValue(serializedDate, typeof(DateTime));
 				}
 				else if (Property.PropertyType.IsAssignableFrom(typeof(double)) && value is decimal)
