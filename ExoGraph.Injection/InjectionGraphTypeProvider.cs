@@ -232,9 +232,8 @@ namespace ExoGraph.Injection
 			#endregion
 		}
 
-	}
-
 		#endregion
+	}
 
 	#region IGraphInstance
 
