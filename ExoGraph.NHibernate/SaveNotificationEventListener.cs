@@ -5,6 +5,8 @@ using System.Text;
 using NHibernate.Event;
 using ExoGraph.Injection;
 
+using IGraphInstance = ExoGraph.NHibernate.DataBindingFactory.IGraphInstance;
+
 namespace ExoGraph.NHibernate
 {
 	/// <summary>
@@ -20,8 +22,8 @@ namespace ExoGraph.NHibernate
 
 		private void RaiseOnSave(object entity)
 		{
-			if (entity is ExoGraph.NHibernate.DataBindingFactory.IGraphInstance)
-				((NHibernateGraphContext) GraphContext.Current).OnSave(((ExoGraph.NHibernate.DataBindingFactory.IGraphInstance) entity).Instance);
+			if (entity is IGraphInstance)
+				((NHibernateGraphTypeProvider.NHibernateGraphType) GraphContext.Current.GetGraphType(entity)).RaiseOnSave(((IGraphInstance) entity).Instance);
 		}
 
 		#region IPostUpdateEventListener Members

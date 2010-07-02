@@ -9,10 +9,10 @@ namespace ExoGraph.NHibernate.Collection
 {
 	public class FullyObservableCollection<T> : ObservableCollection<T>
 	{
-		protected override void ClearItems()
-		{
-			for (int i = this.Count - 1; i >= 0; i--)
-				this.RemoveAt(i);
-		}
+		//protected override void ClearItems()
+		//{
+		//    for (int i = this.Count - 1; i >= 0; i--)
+		//        this.RemoveAt(i);
+		//}
 	}
 }

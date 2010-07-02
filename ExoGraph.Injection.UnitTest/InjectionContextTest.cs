@@ -17,28 +17,42 @@ namespace ExoGraph.Injection.UnitTest
 
 	#region ConcreteInjectionGraphContext
 
-	public class ConcreteInjectionGraphContext : InjectionGraphContext
+	public class ConcreteInjectionGraphTypeProvider : InjectionGraphTypeProvider
 	{
-		public ConcreteInjectionGraphContext()
-			: base(new Type[] { typeof(CustomerBase), typeof(Customer), typeof(Contact) })
+		public ConcreteInjectionGraphTypeProvider()
+			: base(string.Empty, new Type[] { typeof(CustomerBase), typeof(Customer), typeof(Contact) })
 		{ }
 
-		protected override void DeleteInstance(object instance)
-		{ }
-
-		protected override string GetId(object instance)
+		protected override StrongGraphType CreateGraphType(string @namespace, Type type, Func<GraphInstance, object> extensionFactory)
 		{
-			throw new NotImplementedException();
+			return new ConcreteInjectionGraphType(@namespace, type, extensionFactory);
 		}
 
-		protected override void Save(GraphInstance graphInstance)
+		protected class ConcreteInjectionGraphType : InjectionGraphType
 		{
-			throw new NotImplementedException();
-		}
+			public ConcreteInjectionGraphType(string @namespace, Type type, Func<GraphInstance, object> extensionFactory)
+				: base(@namespace, type, extensionFactory)
+			{ }
 
-		protected override object GetInstance(GraphType type, string id)
-		{
-			return Type.GetType(type.Name).GetConstructor(Type.EmptyTypes).Invoke(null);
+			protected override void SaveInstance(GraphInstance graphInstance)
+			{
+				throw new NotImplementedException();
+			}
+
+			protected override string GetId(object instance)
+			{
+				throw new NotImplementedException();
+			}
+
+			protected override object GetInstance(string id)
+			{
+				return Type.GetType(this.Name).GetConstructor(Type.EmptyTypes).Invoke(null);
+			}
+
+			protected override void DeleteInstance(GraphInstance graphInstance)
+			{
+				throw new NotImplementedException();
+			}
 		}
 	}
 

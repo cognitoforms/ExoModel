@@ -21,7 +21,7 @@ namespace ExoGraph.NHibernate.UnitTest
 		{
 			new GraphContextProvider().CreateContext += (sender, e) =>
 				{
-					e.Context = new NHibernateGraphContext(new Type[] { typeof(Request), typeof(Priority), typeof(User), typeof(Category) });
+					e.Context = new GraphContext(provider);
 				};
 		}
 

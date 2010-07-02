@@ -108,6 +108,11 @@ namespace ExoGraph
 			return new PropertyInfoValueProperty(declaringType, property, name, isStatic, propertyType, converter, isList, attributes);
 		}
 
+		protected virtual Type GetUnderlyingType(object instance)
+		{
+			return instance.GetType();
+		}
+
 		#endregion
 
 		#region IGraphTypeProvider
@@ -119,7 +124,7 @@ namespace ExoGraph
 		/// <returns>The unique name of the graph type for the instance if it is a valid graph type, otherwise null</returns>
 		string IGraphTypeProvider.GetGraphTypeName(object instance)
 		{
-			return supportedTypes.Contains(instance.GetType()) ? @namespace + instance.GetType().Name : null;
+			return supportedTypes.Contains(GetUnderlyingType(instance)) ? @namespace + GetUnderlyingType(instance).Name : null;
 		}
 	
 		/// <summary>
@@ -165,7 +170,7 @@ namespace ExoGraph
 		/// Concrete subclass of <see cref="GraphType"/> that represents a specific <see cref="Type"/>.
 		/// </summary>
 		[Serializable]
-		protected abstract class StrongGraphType : GraphType
+		public abstract class StrongGraphType : GraphType
 		{
 			protected internal StrongGraphType(string @namespace, Type type, Func<GraphInstance, object> extensionFactory)
 				: base(@namespace + type.Name, type.AssemblyQualifiedName, GetBaseType(type), type.GetCustomAttributes(true).Cast<Attribute>().ToArray(), extensionFactory)

@@ -41,10 +41,14 @@ namespace ExoGraph.NHibernate
 			    typeof(IMarkerInterface)
 			}, options, new NotifyPropertyChangedInterceptor(type.Name));
 
-			((IGraphInstance) result).Instance = ((NHibernateGraphContext) GraphContext.Current).InitGraphInstance(result);
+			NHibernateGraphTypeProvider.NHibernateGraphType graphType = (NHibernateGraphTypeProvider.NHibernateGraphType) GraphContext.Current.GetGraphType(result);
 
-			((INotifyPropertyAccessed) result).PropertyAccessed += new PropertyAccessedEventHandler(((NHibernateGraphContext) GraphContext.Current).NHibernateGraphContext_PropertyAccessed);
-			((INotifyPropertyModified) result).PropertyModified += new PropertyModifiedEventHandler(((NHibernateGraphContext) GraphContext.Current).NHibernateGraphContext_PropertyModified);
+			// Need to build the instance here
+			((IGraphInstance) result).Instance = graphType.RaiseOnInit(result);
+
+			((INotifyPropertyAccessed) result).PropertyAccessed += new PropertyAccessedEventHandler(graphType.NHibernateGraphType_PropertyAccessed);
+			((INotifyPropertyModified) result).PropertyModified += new PropertyModifiedEventHandler(graphType.NHibernateGraphType_PropertyModified);
+
 
 			return result;
 		}
@@ -69,6 +73,7 @@ namespace ExoGraph.NHibernate
 		public interface IGraphInstance
 		{
 			GraphInstance Instance { get; set; }
+			bool SuspendNotifications { get; set; }
 		}
 
 		#endregion
@@ -81,14 +86,10 @@ namespace ExoGraph.NHibernate
 		private class InstanceTracker : IGraphInstance
 		{
 			GraphInstance instance;
+			bool suspendNotifications = false;
 
 			public InstanceTracker()
 			{
-			}
-
-			public void SetInstance(object instance)
-			{
-				this.instance = ((NHibernateGraphContext)GraphContext.Current).InitGraphInstance(instance);
 			}
 
 			public GraphInstance Instance
@@ -100,6 +101,18 @@ namespace ExoGraph.NHibernate
 				set
 				{
 					instance = value;
+				}
+			}
+
+			public bool SuspendNotifications
+			{
+				get
+				{
+					return suspendNotifications;
+				}
+				set
+				{
+					suspendNotifications = value;
 				}
 			}
 		}
@@ -157,14 +170,14 @@ namespace ExoGraph.NHibernate
 				}
 
 				// Invoke accessed event handler before value is fetched
-				if (invocation.Method.DeclaringType != typeof(IGraphInstance) && invocation.Method.Name.StartsWith("get_"))
+				if (invocation.Method.DeclaringType != typeof(IGraphInstance) && invocation.Method.Name.StartsWith("get_") && !((IGraphInstance) invocation.InvocationTarget).SuspendNotifications)
 				{
 					var propertyName = invocation.Method.Name.Substring(4);
 					accessSubscribers(invocation.InvocationTarget, new PropertyAccessedEventArgs(propertyName));
 				}
 
 				// Save before and [possible] after values if this is a 'set' operation
-				if (invocation.Method.DeclaringType != typeof(IGraphInstance) && invocation.Method.Name.StartsWith("set_"))
+				if (invocation.Method.DeclaringType != typeof(IGraphInstance) && invocation.Method.Name.StartsWith("set_") && !((IGraphInstance) invocation.InvocationTarget).SuspendNotifications)
 				{
 					// This will only work on an IGraphInstance, and this may be occuring during construction
 					//TODO: ensure this works when setting a value to null
@@ -179,7 +192,7 @@ namespace ExoGraph.NHibernate
 				invocation.Proceed();
 
 				// Invoke event handler after value has been set
-				if (invocation.Method.DeclaringType != typeof(IGraphInstance) && invocation.Method.Name.StartsWith("set_"))
+				if (invocation.Method.DeclaringType != typeof(IGraphInstance) && invocation.Method.Name.StartsWith("set_") && !((IGraphInstance) invocation.InvocationTarget).SuspendNotifications)
 				{
 					if (oldValue != newValue)
 					{

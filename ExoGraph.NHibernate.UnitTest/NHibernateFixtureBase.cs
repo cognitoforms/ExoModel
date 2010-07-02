@@ -19,6 +19,7 @@ namespace ExoGraph.NHibernate.UnitTest
 	{
 		protected Configuration config;
 		protected ISessionFactoryImplementor sessions;
+		protected NHibernateGraphTypeProvider provider;
 
 		[TestInitialize]
 		public void TestFixtureSetup()
@@ -38,7 +39,9 @@ namespace ExoGraph.NHibernate.UnitTest
 
 			interceptor.SessionFactory = sessions;
 
-			((NHibernateGraphContext) GraphContext.Current).SessionFactory = sessions;
+			provider = new NHibernateGraphTypeProvider(string.Empty, new Type[] { typeof(Request), typeof(Priority), typeof(User), typeof(Category) });
+
+			provider.SessionFactory = sessions;
 			CurrentSessionContext.Bind(sessions.OpenSession());
 		}
 

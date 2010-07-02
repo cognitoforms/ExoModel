@@ -70,7 +70,7 @@ namespace ExoGraph.UnitTest
 				user.UserName = "New User";
 
 				// Ensure that the graph instance is new
-				Assert.IsTrue(userInstance.IsNew, "Newly instance was not marked as new.");
+				Assert.IsTrue(userInstance.IsNew, "Newly created instance was not marked as new.");
 
 				// Save the new user instance
 				saveEvent = Perform<GraphSaveEvent>(() => userInstance.Save()).FirstOrDefault();
