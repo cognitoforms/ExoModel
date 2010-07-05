@@ -233,7 +233,9 @@ namespace ExoGraph
 		{
 			object currentHandler;
 			if (customEvents.TryGetValue(typeof(TEvent), out currentHandler))
-				((CustomEvent<TEvent>)currentHandler)(customEvent.Instance, customEvent.CustomEvent);
+				((CustomEvent<TEvent>) currentHandler)(customEvent.Instance, customEvent.CustomEvent);
+			else if (this.BaseType != null)
+				this.BaseType.RaiseEvent<TEvent>(customEvent);
 		}
 
 		/// <summary>
