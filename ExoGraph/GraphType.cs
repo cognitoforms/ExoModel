@@ -182,7 +182,7 @@ namespace ExoGraph
 		/// <summary>
 		/// Adds a custom event handler for a specific custom event raised by the current graph type.
 		/// </summary>
-		/// <typeparam name="TDomainEvent">
+		/// <typeparam name="TEvent">
 		/// The type of the custom event parameter that will be passed
 		/// as an argument when the custom event is raised
 		/// </typeparam>
