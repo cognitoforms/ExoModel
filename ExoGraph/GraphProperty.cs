@@ -20,7 +20,7 @@ namespace ExoGraph
 		List<GraphStep> observers = new List<GraphStep>();
 		Attribute[] attributes;
 		bool isList;
-		
+
 		#endregion
 
 		#region Constructors
@@ -44,6 +44,11 @@ namespace ExoGraph
 			get
 			{
 				return name;
+			}
+			set
+			{
+				// Client is not allowed to dictate a property's name, but
+				// the empty setter must exist or serialization will fail.
 			}
 		}
 
@@ -175,7 +180,7 @@ namespace ExoGraph
 			#region ISerializable Members
 			public Serialized(SerializationInfo info, StreamingContext context)
 			{
-				declaringType = (GraphType) info.GetValue("dt", typeof(GraphType));
+				declaringType = (GraphType)info.GetValue("dt", typeof(GraphType));
 				name = info.GetString("p");
 			}
 

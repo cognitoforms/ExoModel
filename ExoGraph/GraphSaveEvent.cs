@@ -41,6 +41,11 @@ namespace ExoGraph
 			{
 				return idChanges;
 			}
+			set
+			{
+				// Client is not allowed to dictate id changes, but
+				// the empty setter must exist or serialization will fail.
+			}
 		}
 
 		#region ITransactedGraphEvent Members
