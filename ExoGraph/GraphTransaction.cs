@@ -137,7 +137,7 @@ namespace ExoGraph
 					}
 
 					// Allow graph subscribers to be notified of the previous changes
-					((IDisposable)eventScope).Dispose();
+					((IDisposable) eventScope).Dispose();
 
 					// Clear the reference to the event scope to ensure it is not disposed twice
 					eventScope = null;
@@ -152,6 +152,9 @@ namespace ExoGraph
 					// Return the new changes that occurred while applying the previous changes
 					return newChanges;
 				}
+			} catch (Exception e)
+			{
+				throw e;
 			}
 			finally
 			{
