@@ -174,6 +174,16 @@ namespace ExoGraph.NHibernate.UnitTest
 			base.BeginTransactionTest();
 		}
 
+		[DeploymentItem("hibernate.cfg.xml"), TestMethod()]
+		public void CustomGraphInstanceTest()
+		{
+			GraphType categoryType = GraphContext.Current.GetGraphType<Category>();
+
+			GraphInstance instance = categoryType.Create("1");
+
+			Assert.IsNotNull(instance);
+		}
+
 		public override User CreateNewUser()
 		{
 			return DataBindingFactory.Create<User>();

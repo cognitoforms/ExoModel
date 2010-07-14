@@ -6,7 +6,7 @@
 		<property name="connection.connection_string">Data Source=(local);Initial Catalog=RequestData;Integrated Security=True</property>
 		<property name="dialect">NHibernate.Dialect.MsSql2008Dialect</property>
 		<property name="show_sql">true</property>
-		<property name="proxyfactory.factory_class">NHibernate.ByteCode.Castle.ProxyFactoryFactory, NHibernate.ByteCode.Castle</property>
+		<property name="proxyfactory.factory_class">ExoGraph.NHibernate.ProxyFactoryFactory, ExoGraph.NHibernate</property>
 		<mapping assembly="ExoGraph.NHibernate.UnitTest" />
 	</session-factory>
 </hibernate-configuration>

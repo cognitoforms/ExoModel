@@ -29,8 +29,8 @@ namespace ExoGraph.NHibernate.UnitTest
 			var interceptor = new DataBindingInterceptor();
 
 			config = new Configuration();
-			config.Properties[Environment.CollectionTypeFactoryClass] = typeof(ObservableCollectionTypeFactory).AssemblyQualifiedName;
 			config.SetInterceptor(interceptor);
+			config.Properties[Environment.CollectionTypeFactoryClass] = typeof(ObservableCollectionTypeFactory).AssemblyQualifiedName;
 			config.Properties[Environment.CurrentSessionContextClass] = "thread_static";
 			config.SetListener(global::NHibernate.Event.ListenerType.PostInsert, SaveNotificationEventListener.Instance);
 			config.SetListener(global::NHibernate.Event.ListenerType.PostUpdate, SaveNotificationEventListener.Instance);

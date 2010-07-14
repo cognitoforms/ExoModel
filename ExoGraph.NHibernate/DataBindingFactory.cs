@@ -31,15 +31,20 @@ namespace ExoGraph.NHibernate
 		/// <returns></returns>
 		public static object Create(Type type)
 		{
+			return Create(type, new Type[] { }, null);
+		}
+
+		public static object Create(Type type, Type[] interfaces, object initializer)
+		{
 			var options = new ProxyGenerationOptions();
 			options.AddMixinInstance(new InstanceTracker());
 
-			var result = ProxyGenerator.CreateClassProxy(type, new[]
-			{
-			    typeof(INotifyPropertyModified),
-				typeof(INotifyPropertyAccessed),
-			    typeof(IMarkerInterface)
-			}, options, new NotifyPropertyChangedInterceptor(type.Name));
+			IList<Type> interfacesToImplement = new List<Type>(interfaces);
+			interfacesToImplement.Add(typeof(INotifyPropertyModified));
+			interfacesToImplement.Add(typeof(INotifyPropertyAccessed));
+			interfacesToImplement.Add(typeof(IMarkerInterface));
+
+			var result = ProxyGenerator.CreateClassProxy(type, interfacesToImplement.ToArray<Type>(), options, new NotifyPropertyChangedInterceptor(type.Name));
 
 			NHibernateGraphTypeProvider.NHibernateGraphType graphType = (NHibernateGraphTypeProvider.NHibernateGraphType) GraphContext.Current.GetGraphType(result);
 
