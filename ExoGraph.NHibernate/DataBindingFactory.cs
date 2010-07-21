@@ -6,6 +6,7 @@ using System.ComponentModel;
 using NHibernate;
 using Castle.DynamicProxy;
 using Castle.Core.Interceptor;
+using NHibernate.Proxy;
 
 namespace ExoGraph.NHibernate
 {
@@ -21,7 +22,7 @@ namespace ExoGraph.NHibernate
 
 		public static T Create<T>()
 		{
-			return (T)Create(typeof(T));
+			return (T) Create(typeof(T));
 		}
 
 		/// <summary>
@@ -36,15 +37,22 @@ namespace ExoGraph.NHibernate
 
 		public static object Create(Type type, Type[] interfaces, object initializer)
 		{
+			IGraphInstance instanceMixin = new InstanceTracker();
+
 			var options = new ProxyGenerationOptions();
-			options.AddMixinInstance(new InstanceTracker());
+			options.AddMixinInstance(instanceMixin);
 
 			IList<Type> interfacesToImplement = new List<Type>(interfaces);
 			interfacesToImplement.Add(typeof(INotifyPropertyModified));
 			interfacesToImplement.Add(typeof(INotifyPropertyAccessed));
 			interfacesToImplement.Add(typeof(IMarkerInterface));
 
-			var result = ProxyGenerator.CreateClassProxy(type, interfacesToImplement.ToArray<Type>(), options, new NotifyPropertyChangedInterceptor(type.Name));
+			IList<Castle.Core.Interceptor.IInterceptor> interceptors = new List<Castle.Core.Interceptor.IInterceptor>();
+			interceptors.Add(new NotifyPropertyChangedInterceptor(type.Name));
+			if (initializer != null)
+				interceptors.Add((Castle.Core.Interceptor.IInterceptor) initializer);
+
+			var result = ProxyGenerator.CreateClassProxy(type, interfacesToImplement.ToArray<Type>(), options, interceptors.ToArray<Castle.Core.Interceptor.IInterceptor>());
 
 			NHibernateGraphTypeProvider.NHibernateGraphType graphType = (NHibernateGraphTypeProvider.NHibernateGraphType) GraphContext.Current.GetGraphType(result);
 
@@ -175,18 +183,24 @@ namespace ExoGraph.NHibernate
 				}
 
 				// Invoke accessed event handler before value is fetched
-				if (invocation.Method.DeclaringType != typeof(IGraphInstance) && invocation.Method.Name.StartsWith("get_") && !((IGraphInstance) invocation.InvocationTarget).SuspendNotifications)
+				if (invocation.Method.DeclaringType != typeof(IGraphInstance) &&
+					invocation.Method.DeclaringType != typeof(INHibernateProxy) &&
+					invocation.Method.Name.StartsWith("get_") &&
+					!((IGraphInstance) invocation.InvocationTarget).SuspendNotifications)
 				{
 					var propertyName = invocation.Method.Name.Substring(4);
 					accessSubscribers(invocation.InvocationTarget, new PropertyAccessedEventArgs(propertyName));
 				}
 
 				// Save before and [possible] after values if this is a 'set' operation
-				if (invocation.Method.DeclaringType != typeof(IGraphInstance) && invocation.Method.Name.StartsWith("set_") && !((IGraphInstance) invocation.InvocationTarget).SuspendNotifications)
+				if (invocation.Method.DeclaringType != typeof(IGraphInstance) &&
+					invocation.Method.DeclaringType != typeof(INHibernateProxy) &&
+					invocation.Method.Name.StartsWith("set_") &&
+					!((IGraphInstance) invocation.InvocationTarget).SuspendNotifications)
 				{
 					// This will only work on an IGraphInstance, and this may be occuring during construction
 					//TODO: ensure this works when setting a value to null
-					if (((IGraphInstance)invocation.InvocationTarget).Instance != null)
+					if (((IGraphInstance) invocation.InvocationTarget).Instance != null)
 					{
 						string propertyName = invocation.Method.Name.Substring(4);
 						newValue = invocation.Arguments[0];
@@ -197,7 +211,10 @@ namespace ExoGraph.NHibernate
 				invocation.Proceed();
 
 				// Invoke event handler after value has been set
-				if (invocation.Method.DeclaringType != typeof(IGraphInstance) && invocation.Method.Name.StartsWith("set_") && !((IGraphInstance) invocation.InvocationTarget).SuspendNotifications)
+				if (invocation.Method.DeclaringType != typeof(IGraphInstance) &&
+					invocation.Method.DeclaringType != typeof(INHibernateProxy) &&
+					invocation.Method.Name.StartsWith("set_") &&
+					!((IGraphInstance) invocation.InvocationTarget).SuspendNotifications)
 				{
 					if (oldValue != newValue)
 					{
