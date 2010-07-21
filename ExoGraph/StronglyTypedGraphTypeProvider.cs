@@ -210,7 +210,7 @@ namespace ExoGraph
 						continue;
 
 					// Copy properties inherited from base graph types
-					if (BaseType != null && BaseType.Properties.Contains(property.Name) && !isNewProperty[property.Name])
+					if (BaseType != null && BaseType.Properties.Contains(property.Name) && !(isNewProperty[property.Name] || property.GetGetMethod().IsStatic))
 						AddProperty(BaseType.Properties[property.Name]);
 
 					// Create references based on properties that relate to other instance types
