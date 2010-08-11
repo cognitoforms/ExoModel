@@ -39,8 +39,11 @@ namespace ExoGraph
 					{
 						lock (pool)
 						{
-							Context = pool[0];
-							pool.RemoveAt(0);
+							if (pool.Count > 0)
+							{
+								Context = pool[0];
+								pool.RemoveAt(0);
+							}
 						}
 					}
 					else
