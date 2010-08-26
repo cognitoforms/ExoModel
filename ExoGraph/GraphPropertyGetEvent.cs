@@ -31,7 +31,7 @@ namespace ExoGraph
 				Instance.OnAccess();
 
 				// Raise property get notifications
-				Instance.Type.RaisePropertyGet(this);
+				RaisePropertyGet();
 
 				// Perform special initialization if this is the first time the property has been accessed
 				Instance.OnFirstAccess(Property);
@@ -39,10 +39,27 @@ namespace ExoGraph
 
 			// Otherwise, just raise property get notifications
 			else
-				Instance.Type.RaisePropertyGet(this);
+				RaisePropertyGet();
 
 			// Indicate that the notification should be raised by the context
 			return true;
+		}
+
+		/// <summary>
+		/// Raises the <see cref="GraphPropertyGetEvent"/> on all types in the type hierarchy
+		/// of the current instance that have the property that is being accessed.
+		/// </summary>
+		void RaisePropertyGet()
+		{
+			// Raise property get on all types in the inheritance hierarchy
+			for (GraphType type = Instance.Type; type != null; type = type.BaseType)
+			{
+				type.RaisePropertyGet(this);
+
+				// Stop walking the type hierarchy if this is the type that declares the property that was accessed
+				if (type == Property.DeclaringType)
+					break;
+			}
 		}
 
 		public override string ToString()
