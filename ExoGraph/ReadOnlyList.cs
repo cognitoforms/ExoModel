@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Collections;
+using System;
+using System.Linq;
 
 namespace ExoGraph
 {
@@ -9,6 +11,18 @@ namespace ExoGraph
 	public abstract class ReadOnlyList<TItem> : IEnumerable<TItem>
 	{
 		Dictionary<string, TItem> list = new Dictionary<string, TItem>();
+		SortedList sorted;
+		Converter<TItem, object> sortKey;
+
+		protected ReadOnlyList()
+		{
+		}
+
+		protected ReadOnlyList(Converter<TItem, object> sortKey)
+		{
+			this.sorted = new SortedList();
+			this.sortKey = sortKey;
+		}
 
 		/// <summary>
 		/// Gets the number of items in the list.
@@ -63,6 +77,9 @@ namespace ExoGraph
 		/// <returns></returns>
 		IEnumerator<TItem> IEnumerable<TItem>.GetEnumerator()
 		{
+			if (sorted != null)
+				return sorted.Values.Cast<TItem>().GetEnumerator();
+
 			return list.Values.GetEnumerator();
 		}
 
@@ -72,6 +89,9 @@ namespace ExoGraph
 		/// <returns></returns>
 		IEnumerator IEnumerable.GetEnumerator()
 		{
+			if (sorted != null)
+				return sorted.Values.GetEnumerator();
+
 			return list.Values.GetEnumerator();
 		}
 
@@ -88,6 +108,9 @@ namespace ExoGraph
 		internal void Add(TItem item)
 		{
 			list.Add(GetName(item), item);
+
+			if(sorted != null)
+				sorted.Add(sortKey(item), item);
 		}
 	}
 }

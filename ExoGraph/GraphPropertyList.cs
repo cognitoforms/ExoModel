@@ -5,6 +5,11 @@
 	/// </summary>
 	public class GraphPropertyList : ReadOnlyList<GraphProperty>
 	{
+		public GraphPropertyList()
+			: base(i => i.Index)
+		{
+		}
+
 		protected override string GetName(GraphProperty item)
 		{
 			return item.Name;
