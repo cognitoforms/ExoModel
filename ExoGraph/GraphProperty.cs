@@ -11,27 +11,16 @@ namespace ExoGraph
 	[DataContract]
 	public abstract class GraphProperty : ISerializable
 	{
-		#region Fields
-
-		string name;
-		int index;
-		bool isStatic;
-		GraphType declaringType;
-		List<GraphStep> observers = new List<GraphStep>();
-		Attribute[] attributes;
-		bool isList;
-
-		#endregion
-
 		#region Constructors
 
 		internal GraphProperty(GraphType declaringType, string name, bool isStatic, bool isList, Attribute[] attributes)
 		{
-			this.declaringType = declaringType;
-			this.name = name;
-			this.isStatic = isStatic;
-			this.isList = isList;
-			this.attributes = attributes;
+			this.DeclaringType = declaringType;
+			this.Name = name;
+			this.IsStatic = isStatic;
+			this.IsList = isList;
+			this.Attributes = attributes;
+			this.Observers = new List<GraphStep>();
 		}
 
 		#endregion
@@ -39,70 +28,28 @@ namespace ExoGraph
 		#region Properties
 
 		[DataMember(Name = "name")]
-		public string Name
-		{
-			get
-			{
-				return name;
-			}
-			set
-			{
-				// Client is not allowed to dictate a property's name, but
-				// the empty setter must exist or serialization will fail.
-			}
-		}
+		public string Name { get; private set; }
 
-		public int Index
-		{
-			get
-			{
-				return index;
-			}
-			internal set
-			{
-				index = value;
-			}
-		}
+		public int Index { get; internal set; }
 
-		public bool IsStatic
-		{
-			get
-			{
-				return isStatic;
-			}
-		}
+		public bool IsStatic { get; private set; }
 
-		public bool IsList
-		{
-			get
-			{
-				return isList;
-			}
-		}
+		public bool IsList { get; private set; }
 
-		public GraphType DeclaringType
-		{
-			get
-			{
-				return declaringType;
-			}
-		}
+		public Attribute[] Attributes { get; private set; }
 
-		internal List<GraphStep> Observers
-		{
-			get
-			{
-				return observers;
-			}
-		}
+		public GraphType DeclaringType { get; private set; }
+
+		internal List<GraphStep> Observers { get; private set; }
 
 		#endregion
 
 		#region Methods
+
 		internal void OnChange(GraphInstance instance)
 		{
 			// Attempt to walk up the path to the root for each observer
-			foreach (GraphStep observer in observers)
+			foreach (GraphStep observer in Observers)
 				observer.Notify(instance);
 		}
 
@@ -128,7 +75,7 @@ namespace ExoGraph
 			List<TAttribute> matches = new List<TAttribute>();
 
 			// Find matching attributes on the current type
-			foreach (Attribute attribute in attributes)
+			foreach (Attribute attribute in Attributes)
 			{
 				if (attribute is TAttribute)
 					matches.Add((TAttribute)attribute);
@@ -143,7 +90,7 @@ namespace ExoGraph
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return name;
+			return Name;
 		}
 
 		/// <summary>
