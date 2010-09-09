@@ -14,7 +14,7 @@ namespace ExoGraph
 		GraphInstance[] added;
 		GraphInstance[] removed;
 
-		internal GraphListChangeEvent(GraphInstance instance, GraphReferenceProperty property, IEnumerable<GraphInstance> added, IEnumerable<GraphInstance> removed)
+		public GraphListChangeEvent(GraphInstance instance, GraphReferenceProperty property, IEnumerable<GraphInstance> added, IEnumerable<GraphInstance> removed)
 			: base(instance)
 		{
 			this.property = property;

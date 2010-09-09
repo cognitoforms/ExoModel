@@ -10,7 +10,7 @@ namespace ExoGraph
 	{
 		List<IdChange> idChanges;
 
-		internal GraphSaveEvent(GraphInstance instance)
+		public GraphSaveEvent(GraphInstance instance)
 			: base(instance)
 		{ }
 

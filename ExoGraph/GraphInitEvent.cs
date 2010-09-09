@@ -39,11 +39,11 @@ namespace ExoGraph
 		[DataContract(Name = "InitNew")]
 		public class InitNew : GraphInitEvent, ITransactedGraphEvent
 		{
-			internal InitNew(GraphInstance instance)
+			public InitNew(GraphInstance instance)
 				: base(instance)
 			{ }
 
-			internal InitNew(GraphType type, string id)
+			public InitNew(GraphType type, string id)
 				: base(type, id)
 			{ }
 
@@ -60,7 +60,7 @@ namespace ExoGraph
 					// Get the id of the instance surrogate
 					string id = Instance.Id;
 
-					// Create a new instance and assign this a the instance the event is for
+					// Create a new instance and assign this to the instance the event is for
 					Instance = Instance.Type.Create();
 
 					// Set the id of the new instance to the id of the original surrogate
@@ -107,9 +107,9 @@ namespace ExoGraph
 		/// Represents the creation of an existing <see cref="GraphInstance"/>.
 		/// </summary>
 		[DataContract(Name = "InitExisting")]
-		internal class InitExisting : GraphInitEvent
+		public class InitExisting : GraphInitEvent
 		{
-			internal InitExisting(GraphInstance instance)
+			public InitExisting(GraphInstance instance)
 				: base(instance)
 			{ }
 		}

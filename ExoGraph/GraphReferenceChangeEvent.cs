@@ -11,7 +11,7 @@ namespace ExoGraph
 		GraphInstance oldValue;
 		GraphInstance newValue;
 
-		internal GraphReferenceChangeEvent(GraphInstance instance, GraphReferenceProperty property, GraphInstance oldValue, GraphInstance newValue)
+		public GraphReferenceChangeEvent(GraphInstance instance, GraphReferenceProperty property, GraphInstance oldValue, GraphInstance newValue)
 			: base(instance)
 		{
 			this.property = property;

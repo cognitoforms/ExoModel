@@ -7,7 +7,7 @@ namespace ExoGraph
 	[DataContract(Name = "Delete")]
 	public class GraphDeleteEvent : GraphEvent
 	{
-		internal GraphDeleteEvent(GraphInstance instance)
+		public GraphDeleteEvent(GraphInstance instance)
 			: base(instance)
 		{ }
 

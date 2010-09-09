@@ -7,7 +7,7 @@
 	{
 		TEvent customEvent;
 
-		internal GraphCustomEvent(GraphInstance instance, TEvent customEvent)
+		public GraphCustomEvent(GraphInstance instance, TEvent customEvent)
 			: base(instance)
 		{
 			this.customEvent = customEvent;
