@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
 
 namespace ExoGraph
@@ -13,22 +12,61 @@ namespace ExoGraph
 	/// </remarks>
 	public class GraphPath : IDisposable
 	{
-		#region Properties
+		#region Fields
+
+		string path;
+		GraphType rootType;
+		GraphStep firstStep;
+
+		#endregion
+
+		#region Constructors
 
 		/// <summary>
-		/// The string path the current instance represents.
+		/// Creates a new <see cref="GraphPath"/> instance for the specified root <see cref="GraphType"/>
+		/// and path string.
 		/// </summary>
-		public string Path { get; private set; }
+		/// <param name="rootType"></param>
+		/// <param name="path"></param>
+		internal GraphPath(GraphType rootType, string path)
+		{
+			this.path = path;
+			this.rootType = rootType;
+
+			// Get a list of all of the properties along the path
+			List<string> properties = new List<string>();
+			foreach (string property in path.Split('.'))
+				properties.Add(property);
+
+			// Recursively build the step hierarchy for the path
+			this.firstStep = GetSteps(rootType, properties, 0)[0];
+		}
+
+		#endregion
+
+		#region Properties
 
 		/// <summary>
 		/// The root <see cref="GraphType"/> the path starts from.
 		/// </summary>
-		public GraphType RootType { get; private set; }
+		public GraphType RootType
+		{
+			get
+			{
+				return rootType;
+			}
+		}
 
 		/// <summary>
 		/// The first <see cref="Step"/> along the path.
 		/// </summary>
-		public GraphStep FirstStep { get; private set; }
+		public GraphStep FirstStep
+		{
+			get
+			{
+				return firstStep;
+			}
+		}
 
 		/// <summary>
 		/// Event that is raised when any property along the path is changed.
@@ -40,39 +78,13 @@ namespace ExoGraph
 		#region Methods
 
 		/// <summary>
-		/// Creates a new <see cref="GraphPath"/> instance for the specified root <see cref="GraphType"/>
-		/// and path string.
-		/// </summary>
-		/// <param name="rootType"></param>
-		/// <param name="path"></param>
-		internal static GraphPath CreatePath(GraphType rootType, string path)
-		{
-			// Create the new path
-			GraphPath newPath = new GraphPath();
-
-			// Recursively build the step hierarchy for the path
-			List<GraphStep> steps = GetSteps(newPath, rootType, new List<string>(path.Split('.')), 0);
-
-			// Return null if the path was not valid
-			if (steps == null)
-				return null;
-
-			// Initialize and return the new path
-			newPath.Path = path;
-			newPath.RootType = rootType;
-			newPath.FirstStep = steps[0];
-			return newPath;
-		}
-
-		/// <summary>
 		/// Recursively builds the steps along a property path.
 		/// </summary>
-		/// <param name="path"></param>
 		/// <param name="graphType"></param>
 		/// <param name="properties"></param>
 		/// <param name="depth"></param>
 		/// <returns></returns>
-		static List<GraphStep> GetSteps(GraphPath path, GraphType graphType, List<string> properties, int depth)
+		List<GraphStep> GetSteps(GraphType graphType, List<string> properties, int depth)
 		{
 			// Create a list of steps to return
 			List<GraphStep> steps = new List<GraphStep>();
@@ -80,10 +92,10 @@ namespace ExoGraph
 			// Get the first property in the path
 			GraphProperty property = graphType.Properties[properties[0]];
 
-			// Determine if the property is a reference on the instance type
+			// Determine if the property is an reference on the instance type
 			if (property is GraphReferenceProperty)
 			{
-				GraphStep step = new GraphStep(path);
+				GraphStep step = new GraphStep(this);
 				step.Property = property;
 
 				// Find child steps if this is not the end of the path
@@ -93,7 +105,7 @@ namespace ExoGraph
 					properties.RemoveAt(0);
 
 					// Recursively get the next steps for the current step
-					step.NextSteps = GetSteps(path, ((GraphReferenceProperty)property).PropertyType, properties, depth);
+					step.NextSteps = GetSteps(((GraphReferenceProperty)property).PropertyType, properties, depth);
 					if (step.NextSteps.Count > 0)
 					{
 						foreach (GraphStep childStep in step.NextSteps)
@@ -116,7 +128,7 @@ namespace ExoGraph
 			// Determine if the property is a value on the instance type
 			else if (property is GraphValueProperty)
 			{
-				GraphStep step = new GraphStep(path);
+				GraphStep step = new GraphStep(this);
 				step.Property = property;
 				step.NextSteps = new List<GraphStep>();
 				steps.Add(step);
@@ -127,11 +139,11 @@ namespace ExoGraph
 			{
 				// Recursively process child instance types
 				foreach (GraphType childGraphType in graphType.SubTypes)
-					steps.AddRange(GetSteps(path, childGraphType, properties, depth + 1));
+					steps.AddRange(GetSteps(childGraphType, properties, depth + 1));
 
 				// If steps were not found during recursion, raise an exception
 				if (steps.Count == 0 && depth == 0)
-					return null;
+					throw new ArgumentException("The predicate path could not be evaluated: " + this.path);
 			}
 
 			// Return the steps
@@ -153,10 +165,10 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="root"></param>
 		/// <returns></returns>
-		public ICollection<GraphInstance> GetGraph(GraphInstance root)
+		public IDictionary<GraphInstance, GraphInstance> GetGraph(GraphInstance root)
 		{
-			HashSet<GraphInstance> graph = new HashSet<GraphInstance>();
-			graph.Add(root);
+			IDictionary<GraphInstance, GraphInstance> graph = new Dictionary<GraphInstance, GraphInstance>();
+			graph.Add(root, root);
 			AddToGraph(root, FirstStep, graph);
 			return graph;
 		}
@@ -167,7 +179,7 @@ namespace ExoGraph
 		/// <param name="instance"></param>
 		/// <param name="step"></param>
 		/// <param name="graph"></param>
-		static void AddToGraph(GraphInstance instance, GraphStep step, HashSet<GraphInstance> graph)
+		static void AddToGraph(GraphInstance instance, GraphStep step, IDictionary<GraphInstance, GraphInstance> graph)
 		{
 			// Exit immediately if the current step is a value
 			if (step.Property is GraphValueProperty)
@@ -177,8 +189,8 @@ namespace ExoGraph
 			foreach (GraphReference reference in instance.GetOutReferences((GraphReferenceProperty)step.Property))
 			{
 				// Add the instance to the graph if it has not already been added
-				if (!graph.Contains(reference.Out))
-					graph.Add(reference.Out);
+				if (!graph.ContainsKey(reference.Out))
+					graph.Add(reference.Out, reference.Out);
 
 				// Process next steps down the path
 				foreach (GraphStep nextStep in step.NextSteps)
@@ -286,7 +298,7 @@ namespace ExoGraph
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return Path;
+			return path;
 		}
 
 		#endregion
@@ -295,7 +307,7 @@ namespace ExoGraph
 
 		public void Dispose()
 		{
-			FirstStep.Dispose();
+			firstStep.Dispose();
 		}
 
 		void DisposeStep(GraphStep step)
