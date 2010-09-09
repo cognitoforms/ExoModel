@@ -7,42 +7,22 @@ namespace ExoGraph
 	[Serializable]
 	public abstract class GraphReferenceProperty : GraphProperty
 	{
-		#region Fields
-
-		GraphType propertyType;
-		bool isList;
-		bool isBoundary;
-
-		#endregion
-
 		#region Constructors
 
 		protected internal GraphReferenceProperty(GraphType declaringType, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
 			: base(declaringType, name, isStatic, isList, attributes)
 		{
-			this.propertyType = propertyType;
-			this.isBoundary = isBoundary;
+			this.PropertyType = propertyType;
+			this.IsBoundary = isBoundary;
 		}
 
 		#endregion
 
 		#region Properties
 
-		public GraphType PropertyType
-		{
-			get
-			{
-				return propertyType;
-			}
-		}
+		public GraphType PropertyType { get; private set; }
 
-		public bool IsBoundary
-		{
-			get
-			{
-				return isBoundary;
-			}
-		}
+		public bool IsBoundary { get; private set; }
 
 		#endregion
 	}
