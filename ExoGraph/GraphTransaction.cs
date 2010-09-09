@@ -221,6 +221,33 @@ namespace ExoGraph
 
 		#endregion
 
+		/// <summary>
+		/// Implicitly converts a array of <see cref="GraphEvent"/> instances into a <see cref="GraphTransaction"/>.
+		/// </summary>
+		/// <param name="events"></param>
+		/// <returns></returns>
+		public static implicit operator GraphTransaction(List<GraphEvent> events)
+		{
+			// Return null if there are no events
+			if (events == null)
+				return null;
+
+			// Create a new transaction
+			var transaction = new GraphTransaction(GraphContext.Current);
+
+			// Initialize the events
+			transaction.events = (List<GraphEvent>)events;
+
+			// Return the new transaction
+			return transaction;
+		}
+
+		/// <summary>
+		/// Combines two <see cref="GraphTransaction"/> instances into a single sequential <see cref="GraphTransaction"/>.
+		/// </summary>
+		/// <param name="first"></param>
+		/// <param name="second"></param>
+		/// <returns></returns>
 		public static GraphTransaction operator +(GraphTransaction first, GraphTransaction second)
 		{
 			if (first.Context != second.Context)
