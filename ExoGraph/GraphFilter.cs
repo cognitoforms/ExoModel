@@ -14,8 +14,8 @@ namespace ExoGraph
 		#region Fields
 
 		GraphInstance root;
-		Dictionary<GraphPath, IDictionary<GraphInstance, GraphInstance>> pathGraphs = new Dictionary<GraphPath, IDictionary<GraphInstance, GraphInstance>>();
-		Dictionary<GraphInstance, GraphInstance> graph = new Dictionary<GraphInstance, GraphInstance>();
+		Dictionary<GraphPath, ICollection<GraphInstance>> pathGraphs = new Dictionary<GraphPath, ICollection<GraphInstance>>();
+		ICollection<GraphInstance> graph = new HashSet<GraphInstance>();
 		List<GraphPath> pendingChanges = new List<GraphPath>();
 
 		#endregion
@@ -96,7 +96,7 @@ namespace ExoGraph
 		/// <returns></returns>
 		public bool Contains(GraphInstance instance)
 		{
-			return graph.ContainsKey(instance);
+			return graph.Contains(instance);
 		}
 
 		/// <summary>
@@ -193,12 +193,12 @@ namespace ExoGraph
 		/// </summary>
 		void CombinePathGraphs()
 		{
-			Dictionary<GraphInstance, GraphInstance> graph = new Dictionary<GraphInstance, GraphInstance>();
-			foreach (Dictionary<GraphInstance, GraphInstance> pathGraph in pathGraphs.Values)
+			ICollection<GraphInstance> graph = new HashSet<GraphInstance>();
+			foreach (ICollection<GraphInstance> pathGraph in pathGraphs.Values)
 			{
-				foreach (GraphInstance instance in pathGraph.Values)
-					if (!graph.ContainsKey(instance))
-						graph.Add(instance, instance);
+				foreach (GraphInstance instance in pathGraph)
+					if (!graph.Contains(instance))
+						graph.Add(instance);
 			}
 			this.graph = graph;
 		}
@@ -219,7 +219,7 @@ namespace ExoGraph
 
 		IEnumerator<GraphInstance> IEnumerable<GraphInstance>.GetEnumerator()
 		{
-			return graph.Values.GetEnumerator();
+			return graph.GetEnumerator();
 		}
 
 		#endregion
@@ -228,7 +228,7 @@ namespace ExoGraph
 
 		IEnumerator IEnumerable.GetEnumerator()
 		{
-			return graph.Values.GetEnumerator();
+			return graph.GetEnumerator();
 		}
 
 		#endregion
