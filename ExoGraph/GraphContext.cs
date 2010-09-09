@@ -127,10 +127,20 @@ namespace ExoGraph
 			return "?" + ++nextId;
 		}
 
-		protected internal IDisposable SuspendGetNotifications()
+		internal IDisposable SuspendGetNotifications()
 		{
 			return new GetNotificationSuspension(this);
 		}
+
+        /// <summary>
+        /// Gets the <see cref="GraphInstance"/> associated with the specified real instance.
+        /// </summary>
+        /// <param name="instance"></param>
+        /// <returns></returns>
+        public GraphInstance GetGraphInstance(object instance)
+        {
+            return GetGraphType(instance).GetGraphInstance(instance);
+        }
 
 		#endregion
 
