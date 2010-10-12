@@ -12,14 +12,13 @@ namespace ExoGraph
 	/// Base class for graph contexts that work with strongly-typed object graphs based on compiled types
 	/// using inheritence and declared properties for associations and intrinsic types.
 	/// </summary>
-	public abstract class StronglyTypedGraphTypeProvider : IGraphTypeProvider
+	public abstract class ReflectionGraphTypeProvider : IGraphTypeProvider
 	{
 		#region Fields
 
 		Dictionary<string, Type> typeNames = new Dictionary<string, Type>();
 		HashSet<Type> supportedTypes = new HashSet<Type>();
 		HashSet<Type> declaringTypes = new HashSet<Type>();
-		Func<GraphInstance, object> extensionFactory;
 		string @namespace;
 
 		#endregion
@@ -27,21 +26,28 @@ namespace ExoGraph
 		#region Constructors
 
 		/// <summary>
-		/// Creates a new <see cref="StronglyTypesGraphContext"/> based on the specified types.
+		/// Creates a new <see cref="ReflectionGraphTypeProvider"/> based on the specified types.
 		/// </summary>
 		/// <param name="types">The types to create graph types from</param>
-		public StronglyTypedGraphTypeProvider(string @namespace, IEnumerable<Type> types)
-			: this(@namespace, types, null, null)
+		public ReflectionGraphTypeProvider(IEnumerable<Type> types)
+			: this("", types, null)
 		{ }
 
 		/// <summary>
-		/// Creates a new <see cref="StronglyTypesGraphContext"/> based on the specified types
+		/// Creates a new <see cref="ReflectionGraphTypeProvider"/> based on the specified types.
+		/// </summary>
+		/// <param name="types">The types to create graph types from</param>
+		public ReflectionGraphTypeProvider(string @namespace, IEnumerable<Type> types)
+			: this(@namespace, types, null)
+		{ }
+
+		/// <summary>
+		/// Creates a new <see cref="ReflectionGraphTypeProvider"/> based on the specified types
 		/// and also including properties declared on the specified base types.
 		/// </summary>
 		/// <param name="types">The types to create graph types from</param>
 		/// <param name="baseTypes">The base types that contain properties to include on graph types</param>
-		/// <param name="extensionFactory">The factory to use to create extensions for new graph instances</param>
-		public StronglyTypedGraphTypeProvider(string @namespace, IEnumerable<Type> types, IEnumerable<Type> baseTypes, Func<GraphInstance, object> extensionFactory)
+		public ReflectionGraphTypeProvider(string @namespace, IEnumerable<Type> types, IEnumerable<Type> baseTypes)
 		{
 			// The list of types cannot be null
 			if (types == null)
@@ -67,15 +73,12 @@ namespace ExoGraph
 				if (!declaringTypes.Contains(baseType))
 					declaringTypes.Add(baseType);
 			}
-
-			// Track the extension factory to use when creating new instances
-			this.extensionFactory = extensionFactory;
 		}
-		
+
 		#endregion
 
 		#region Properties
-		
+
 		#endregion
 
 		#region Methods
@@ -92,7 +95,7 @@ namespace ExoGraph
 		/// <param name="attributes">The attributes assigned to the property</param>
 		protected virtual GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
 		{
-			return new PropertyInfoReferenceProperty(declaringType, property, name, isStatic, isBoundary, propertyType, isList, attributes);
+			return new ReflectionReferenceProperty(declaringType, property, name, isStatic, isBoundary, propertyType, isList, attributes);
 		}
 
 		/// <summary>
@@ -105,12 +108,22 @@ namespace ExoGraph
 		/// <param name="attributes">The attributes assigned to the property</param>
 		protected virtual GraphValueProperty CreateValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, Attribute[] attributes)
 		{
-			return new PropertyInfoValueProperty(declaringType, property, name, isStatic, propertyType, converter, isList, attributes);
+			return new ReflectionValueProperty(declaringType, property, name, isStatic, propertyType, converter, isList, attributes);
+		}
+
+		protected virtual GraphMethod CreateMethod(GraphType declaringType, MethodInfo method, string name, bool isStatic, Attribute[] attributes)
+		{
+			return new ReflectionGraphMethod(declaringType, method, name, isStatic, attributes);
 		}
 
 		protected virtual Type GetUnderlyingType(object instance)
 		{
 			return instance.GetType();
+		}
+
+		protected static GraphInstance CreateGraphInstance(object instance)
+		{
+			return new GraphInstance(instance);
 		}
 
 		#endregion
@@ -126,7 +139,7 @@ namespace ExoGraph
 		{
 			return supportedTypes.Contains(GetUnderlyingType(instance)) ? @namespace + GetUnderlyingType(instance).Name : null;
 		}
-	
+
 		/// <summary>
 		/// Gets the <see cref="GraphType"/> that corresponds to the specified <see cref="Type"/>.
 		/// </summary>
@@ -151,29 +164,29 @@ namespace ExoGraph
 				return null;
 
 			// Create the new graph type
-			return CreateGraphType(@namespace, type, extensionFactory);
+			return CreateGraphType(@namespace, type);
 		}
 
 		/// <summary>
-		/// Allows subclasses to create specific subclasses of <see cref="StrongGraphType"/>.
+		/// Allows subclasses to create specific subclasses of <see cref="ReflectionGraphType"/>.
 		/// </summary>
+		/// <param name="namespace"></param>
 		/// <param name="type"></param>
-		/// <param name="extensionFactory"></param>
 		/// <returns></returns>
-		protected abstract StrongGraphType CreateGraphType(string @namespace, Type type, Func<GraphInstance, object> extensionFactory);
-		
+		protected abstract ReflectionGraphType CreateGraphType(string @namespace, Type type);
+
 		#endregion
 
-		#region StrongGraphType
+		#region ReflectionGraphType
 
 		/// <summary>
 		/// Concrete subclass of <see cref="GraphType"/> that represents a specific <see cref="Type"/>.
 		/// </summary>
 		[Serializable]
-		public abstract class StrongGraphType : GraphType
+		public abstract class ReflectionGraphType : GraphType
 		{
-			protected internal StrongGraphType(string @namespace, Type type, Func<GraphInstance, object> extensionFactory)
-				: base(@namespace + type.Name, type.AssemblyQualifiedName, GetBaseType(type), type.GetCustomAttributes(true).Cast<Attribute>().ToArray(), extensionFactory)
+			protected internal ReflectionGraphType(string @namespace, Type type)
+				: base(@namespace + type.Name, type.AssemblyQualifiedName, GetBaseType(type), type.GetCustomAttributes(false).Cast<Attribute>().ToArray())
 			{
 				this.UnderlyingType = type;
 			}
@@ -191,7 +204,7 @@ namespace ExoGraph
 
 			protected internal override void OnInit()
 			{
-				StronglyTypedGraphTypeProvider provider = (StronglyTypedGraphTypeProvider)Provider;
+				ReflectionGraphTypeProvider provider = (ReflectionGraphTypeProvider)Provider;
 
 				Type listItemType;
 
@@ -205,7 +218,6 @@ namespace ExoGraph
 				foreach (PropertyInfo property in UnderlyingType.GetProperties().OrderBy(p => (p.GetGetMethod(true) ?? p.GetSetMethod(true)).IsStatic))
 				{
 					// Exit immediately if the property was not in the list of valid declaring types
-					//TODO: this fails if the type is managed in a separate provider.
 					if (GraphContext.Current.GetGraphType(property.DeclaringType) == null || (isNewProperty[property.Name] && property.DeclaringType != UnderlyingType))
 						continue;
 
@@ -232,15 +244,20 @@ namespace ExoGraph
 					// Create values for all other properties
 					else
 					{
-						GraphValueProperty value = null;
-						if (TryGetListItemType(property.PropertyType, out listItemType))
-							value = provider.CreateValueProperty(this, property, property.Name, property.GetGetMethod().IsStatic, listItemType, TypeDescriptor.GetConverter(listItemType), true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
-						else
-							value = provider.CreateValueProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), false, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						var value = provider.CreateValueProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), TryGetListItemType(property.PropertyType, out listItemType), property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						
 						if (value != null)
 							AddProperty(value);
 					}
+				}
+
+				// Process all public methods on the underlying type
+				foreach (MethodInfo method in UnderlyingType.GetMethods()
+					.Where(method => !method.IsSpecialName && method.Name != "ToString" && (method.DeclaringType == UnderlyingType || (BaseType != null && BaseType.Methods.Contains(method.Name)))))
+				{
+					GraphMethod gm = provider.CreateMethod(this, method, method.Name, method.IsStatic, method.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+					if (gm != null)
+						AddMethod(gm);
 				}
 			}
 
@@ -255,12 +272,12 @@ namespace ExoGraph
 					return null;
 
 				if (list is IList)
-					return (IList) list;
+					return (IList)list;
 
 				if (list is IListSource)
-					return ((IListSource) list).GetList();
+					return ((IListSource)list).GetList();
 
-				if (property is PropertyInfoReferenceProperty)
+				if (property is ReflectionReferenceProperty)
 					return null;
 
 				// Add ICollection<T> support
@@ -268,44 +285,10 @@ namespace ExoGraph
 				throw new NotSupportedException("Unable to convert the specified list instance into a valid IList implementation.");
 			}
 
-			/// <summary>
-			/// Gets the item type of a list type, or returns false if the type is not a supported list type<TItem>
-			/// </summary>
-			/// <param name="listType"></param>
-			/// <param name="itemType"></param>
-			/// <returns></returns>
-			protected virtual bool TryGetListItemType(Type listType, out Type itemType)
-			{
-				// First see if the type implements ICollection<T>
-				foreach (Type interfaceType in listType.GetInterfaces())
-				{
-					if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>))
-					{
-						itemType = interfaceType.GetGenericArguments()[0];
-						return true;
-					}
-				}
-
-				// First see if the type implements IList and has a strongly-typed Item property indexed by an integer value
-				if (typeof(IList).IsAssignableFrom(listType))
-				{
-					PropertyInfo itemProperty = listType.GetProperty("Item", new Type[] { typeof(int) });
-					if (itemProperty != null)
-					{
-						itemType = itemProperty.PropertyType;
-						return true;
-					}
-				}
-
-				// Return false to indicate that the specified type is not a supported list type
-				itemType = null;
-				return false;
-			}
-
 			protected internal override void OnStartTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
 			{
 				if (list is INotifyCollectionChanged)
-					(new ListChangeEventAdapter(instance, property, (INotifyCollectionChanged) list)).Start();
+					(new ListChangeEventAdapter(instance, property, (INotifyCollectionChanged)list)).Start();
 				else
 					base.OnStartTrackingList(instance, property, list);
 			}
@@ -313,7 +296,7 @@ namespace ExoGraph
 			protected internal override void OnStopTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
 			{
 				if (list is INotifyCollectionChanged)
-					(new ListChangeEventAdapter(instance, property, (INotifyCollectionChanged) list)).Stop();
+					(new ListChangeEventAdapter(instance, property, (INotifyCollectionChanged)list)).Stop();
 				else
 					base.OnStartTrackingList(instance, property, list);
 			}
@@ -346,7 +329,7 @@ namespace ExoGraph
 
 				void list_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
 				{
-					((StrongGraphType)instance.Type).OnListChanged(instance, property,
+					((ReflectionGraphType)instance.Type).OnListChanged(instance, property,
 						e.Action == NotifyCollectionChangedAction.Add ? e.NewItems : new object[0],
 						e.Action == NotifyCollectionChangedAction.Remove ? e.OldItems : new object[0]);
 				}
@@ -372,12 +355,12 @@ namespace ExoGraph
 
 		#endregion
 
-		#region PropertyInfoValueProperty
+		#region ReflectionValueProperty
 
 		[Serializable]
-		protected class PropertyInfoValueProperty : GraphValueProperty
+		protected class ReflectionValueProperty : GraphValueProperty
 		{
-			protected internal PropertyInfoValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, Attribute[] attributes)
+			protected internal ReflectionValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, Attribute[] attributes)
 				: base(declaringType, name, isStatic, propertyType, converter, isList, attributes)
 			{
 				this.PropertyInfo = property;
@@ -390,36 +373,20 @@ namespace ExoGraph
 				return PropertyInfo.GetValue(instance, null);
 			}
 
-			/// <summary>
-			/// Sets value on target entity to value.  See http://stackoverflow.com/questions/1398796/casting-with-reflection for more details
-			/// </summary>
-			/// <param name="instance"></param>
-			/// <param name="value"></param>
 			protected internal override void SetValue(object instance, object value)
 			{
-				var targetType = PropertyInfo.PropertyType.IsNullableType()
-					 ? Nullable.GetUnderlyingType(PropertyInfo.PropertyType)
-					 : PropertyInfo.PropertyType;
-
-				object convertedValue = null;
-				
-				if(value != null && PropertyInfo.PropertyType == typeof(Guid) && value.GetType() == typeof(string))
-					convertedValue = new Guid(value.ToString());
-				else
-					convertedValue = value == null ? null : Convert.ChangeType(value, targetType);
-
-				PropertyInfo.SetValue(instance, convertedValue, null);
+				PropertyInfo.SetValue(instance, value, null);
 			}
 		}
 
 		#endregion
 
-		#region PropertyInfoReferenceProperty
+		#region ReflectionReferenceProperty
 
 		[Serializable]
-		protected class PropertyInfoReferenceProperty : GraphReferenceProperty
+		protected class ReflectionReferenceProperty : GraphReferenceProperty
 		{
-			protected internal PropertyInfoReferenceProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
+			protected internal ReflectionReferenceProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
 				: base(declaringType, name, isStatic, isBoundary, propertyType, isList, attributes)
 			{
 				this.PropertyInfo = property;
@@ -436,6 +403,69 @@ namespace ExoGraph
 			{
 				PropertyInfo.SetValue(instance, value, null);
 			}
+		}
+
+		#endregion
+
+		#region ReflectionGraphMethod
+
+		protected class ReflectionGraphMethod : GraphMethod
+		{
+			MethodInfo method;
+
+			protected internal ReflectionGraphMethod(GraphType declaringType, MethodInfo method, string name, bool isStatic, Attribute[] attributes)
+				: base(declaringType, name, isStatic, attributes)
+			{
+				this.method = method;
+
+				foreach (var parameter in method.GetParameters())
+				{
+					GraphType referenceType = GraphContext.Current.GetGraphType(parameter.ParameterType);
+					Type listType;
+
+					if (referenceType == null)
+					{
+						if (((ReflectionGraphType)declaringType).TryGetListItemType(parameter.ParameterType, out listType))
+							referenceType = GraphContext.Current.GetGraphType(listType);
+
+						// List Type
+						if (referenceType == null)
+							AddParameter(new ReflectionGraphMethodParameter(this, parameter.Name, parameter.ParameterType));
+						
+						// Reference Type
+						else
+							AddParameter(new ReflectionGraphMethodParameter(this, parameter.Name, referenceType, true));
+					}
+
+					// Value Type
+					else
+						AddParameter(new ReflectionGraphMethodParameter(this, parameter.Name, referenceType, false));
+				}
+			}
+
+			public override object Invoke(GraphInstance instance, params object[] args)
+			{
+				return method.Invoke(method.IsStatic ? null : instance.Instance, args);
+			}
+		}
+
+		#endregion
+
+		#region ReflectionGraphMethodParameter
+
+		protected class ReflectionGraphMethodParameter : GraphMethodParameter
+		{
+			#region Constructors
+
+			protected internal ReflectionGraphMethodParameter(GraphMethod method, string name, Type valueType)
+				: base(method, name, valueType)
+			{ }
+
+			protected internal ReflectionGraphMethodParameter(GraphMethod method, string name, GraphType referenceType, bool isList)
+				: base(method, name, referenceType, isList)
+			{ }
+
+			#endregion
 		}
 
 		#endregion
@@ -480,13 +510,5 @@ namespace ExoGraph
 		}
 
 		#endregion
-	}
-
-	public static class TypeExtensions
-	{
-		public static bool IsNullableType(this Type type)
-		{
-			return type.IsGenericType && type.GetGenericTypeDefinition().Equals(typeof(Nullable<>));
-		}
 	}
 }

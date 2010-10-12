@@ -6,6 +6,7 @@ using System.Xml;
 using System.Xml.Schema;
 using System;
 using System.ComponentModel;
+using System.Collections.Specialized;
 
 namespace ExoGraph
 {
@@ -14,7 +15,7 @@ namespace ExoGraph
 	/// </summary>
 	[DataContract]
 	[Serializable]
-	public class GraphInstance
+	public class GraphInstance : IGraphPropertySource
 	{
 		#region Fields
 
@@ -49,11 +50,10 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="graphType"></param>
 		/// <param name="instance"></param>
-		internal GraphInstance(GraphType type, object instance)
+		internal GraphInstance(object instance)
 		{
-			this.type = type;
+			this.type = GraphType.Unknown;
 			this.instance = instance;
-			this.hasBeenAccessed = new bool[type.PropertyCount];
 		}
 
 		/// <summary>
@@ -72,6 +72,7 @@ namespace ExoGraph
 		#endregion
 
 		#region Properties
+		
 		/// <summary>
 		/// The <see cref="GraphType"/> of the instance in the graph.
 		/// </summary>
@@ -79,6 +80,8 @@ namespace ExoGraph
 		{
 			get
 			{
+				if (!isInitialized && type == GraphType.Unknown)
+					OnAccess();
 				return type;
 			}
 		}
@@ -107,7 +110,7 @@ namespace ExoGraph
 				if (instance != null)
 				{
 					if (id == null)
-						return this.id = type.GetId(instance) ?? type.Context.GenerateId();
+						return this.id = Type.GetId(instance) ?? Type.Context.GenerateId();
 					else
 						return Type.GetId(instance) ?? id;
 				}
@@ -116,6 +119,18 @@ namespace ExoGraph
 			internal set
 			{
 				id = value;
+			}
+		}
+
+		/// <summary>
+		/// Gets the original id of the instance, which may be different from the
+		/// current id if the instance has transitioned from new to existing.
+		/// </summary>
+		public string OriginalId
+		{
+			get
+			{
+				return id ?? Id;
 			}
 		}
 
@@ -141,7 +156,7 @@ namespace ExoGraph
 			}
 		}
 
-		private Dictionary<GraphReferenceProperty, ReferenceSet> OutReferences
+		Dictionary<GraphReferenceProperty, ReferenceSet> OutReferences
 		{
 			get
 			{
@@ -152,7 +167,7 @@ namespace ExoGraph
 			}
 		}
 
-		private Dictionary<GraphReferenceProperty, ReferenceSet> InReferences
+		Dictionary<GraphReferenceProperty, ReferenceSet> InReferences
 		{
 			get
 			{
@@ -172,11 +187,42 @@ namespace ExoGraph
 		{
 			get
 			{
-				return Type.Properties[property].GetValue(instance);
+				return this[Type.Properties[property]];
 			}
 			set
 			{
-				Type.Properties[property].SetValue(instance, value);
+				this[Type.Properties[property]] = value;
+			}
+		}
+
+		/// <summary>
+		/// Gets or sets the value of the specified property.
+		/// </summary>
+		/// <param name="property">The <see cref="GraphProperty"/> to get or set</param>
+		/// <returns>The underlying value of the property in the physical graph</returns>
+		public object this[GraphProperty property]
+		{
+			get
+			{
+				return property is GraphValueProperty ? GetValue((GraphValueProperty)property) : property.GetValue(instance);
+			}
+			set
+			{
+				if (property is GraphValueProperty)
+					SetValue((GraphValueProperty)property, value);
+				else
+					property.SetValue(instance, value);
+			}
+		}
+
+		/// <summary>
+		/// Explicity implementation of <see cref="IGraphPropertySource"/> exposing the set of properties for the current instance.
+		/// </summary>
+		GraphPropertyList IGraphPropertySource.Properties
+		{
+			get
+			{
+				return Type.Properties;
 			}
 		}
 
@@ -184,12 +230,47 @@ namespace ExoGraph
 
 		#region Methods
 
+		/// <summary>
+		/// Gets or creates an extension of the specified type that will be associated with the
+		/// current <see cref="GraphInstance"/>.  Once created, the extension will continue to be
+		/// associated with the instance and cannot be replaced.
+		/// </summary>
+		/// <typeparam name="TExtension"></typeparam>
+		/// <returns></returns>
 		public TExtension GetExtension<TExtension>()
-			where TExtension : class
+			where TExtension : class, new()
 		{
+			// First check if the extension associated with the instance is ready to return
+			if (extension is TExtension)
+				return (TExtension)extension;
+
+			// Then see if it needs to be initialized
 			if (extension == null)
-				this.extension = Type.CreateExtension(this);
-			return extension as TExtension;
+				return (TExtension)(extension = new TExtension());
+
+			// Next, see if the extension is list of extensions
+			ListDictionary extensions = extension as ListDictionary;
+			
+			// If not, create a list and store the current extension in it
+			if (extensions == null)
+			{
+				extensions = new ListDictionary();
+				extensions.Add(extension.GetType(), extension);
+				extension = extensions;
+			}
+
+			// Otherwise, Check to see if the extension is already in the list
+			else
+			{
+				TExtension exl = (TExtension)extensions[typeof(TExtension)];
+				if (exl != null)
+					return exl;
+			}
+
+			// Finally, create the requested extension and add it to the extension list
+			TExtension exn = new TExtension();
+			extensions.Add(typeof(TExtension), exn);
+			return exn;
 		}
 
 		internal IEnumerable<GraphReference> GetInReferences(GraphReferenceProperty property)
@@ -291,13 +372,24 @@ namespace ExoGraph
 		}
 
 		/// <summary>
-		/// Raises that the initialization event is raised for the instance when it is first used.
+		/// Performs initialization and raises the init event for an instance when it is first used.
 		/// </summary>
 		internal void OnAccess()
 		{
+			// Perform initialization if this is the first time the instance has been accessed
 			if (!isInitialized)
 			{
+				// Mark the instance as initialized to avoid recursive initialization
 				isInitialized = true;
+
+				// Initialize the graph type if necessary
+				if (type == GraphType.Unknown)
+				{
+					type = GraphContext.Current.GetGraphType(instance);
+					hasBeenAccessed = new bool[type.PropertyCount];
+				}
+
+				// Raise the appropriate init event
 				if (IsNew)
 					new GraphInitEvent.InitNew(this).Notify();
 				else

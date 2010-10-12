@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Collections;
+using System.Reflection;
 
 namespace ExoGraph
 {
@@ -11,24 +12,26 @@ namespace ExoGraph
 	/// </summary>
 	[DataContract]
 	[Serializable]
-	public abstract class GraphType : ISerializable
+	public abstract class GraphType : ISerializable, IGraphPropertySource
 	{
 		#region Fields
+
+		internal static GraphType Unknown = new UnknownGraphType();
 
 		Dictionary<Type, object> customEvents = new Dictionary<Type, object>();
 		Dictionary<Type, object> transactedCustomEvents = new Dictionary<Type, object>();
 		Attribute[] attributes;
+		Dictionary<Type, object> extensions;
 
 		#endregion
 
 		#region Contructors
 
-		public GraphType(string name, string qualifiedName, GraphType baseType, Attribute[] attributes, Func<GraphInstance, object> extensionFactory)
+		public GraphType(string name, string qualifiedName, GraphType baseType, Attribute[] attributes)
 		{
 			this.Name = name;
 			this.QualifiedName = qualifiedName;
 			this.attributes = attributes;
-			this.ExtensionFactory = extensionFactory;
 
 			if (baseType != null)
 			{
@@ -39,6 +42,7 @@ namespace ExoGraph
 			// Initialize list properties
 			this.SubTypes = new GraphTypeList();
 			this.Properties = new GraphPropertyList();
+			this.Methods = new GraphMethodList();
 			this.InReferences = new List<GraphReferenceProperty>();
 			this.OutReferences = new GraphReferencePropertyList();
 			this.Values = new GraphValuePropertyList();
@@ -61,7 +65,7 @@ namespace ExoGraph
 
 		public GraphPropertyList Properties { get; private set; }
 
-		internal Func<GraphInstance, object> ExtensionFactory { get; private set; }
+		public GraphMethodList Methods { get; private set; }
 
 		internal IEnumerable<GraphReferenceProperty> InReferences { get; private set; }
 
@@ -89,6 +93,56 @@ namespace ExoGraph
 		#endregion
 
 		#region Methods
+
+		/// <summary>
+		/// Gets or creates an extension instance linked to the current <see cref="GraphType"/>.
+		/// </summary>
+		/// <typeparam name="TExtension">The type of extension to create.</typeparam>
+		/// <returns></returns>
+		public TExtension GetExtension<TExtension>()
+			where TExtension : class, new()
+		{
+			object extension;
+			if (extensions == null)
+				extensions = new Dictionary<Type, object>();
+			if (!extensions.TryGetValue(typeof(TExtension), out extension))
+				extensions[typeof(TExtension)] = extension = new TExtension();
+			return (TExtension)extension;
+		}
+
+		/// <summary>
+		/// Gets the item type of a list type, or returns false if the type is not a supported list type.
+		/// </summary>
+		/// <param name="listType"></param>
+		/// <param name="itemType"></param>
+		/// <returns></returns>
+		protected internal virtual bool TryGetListItemType(Type listType, out Type itemType)
+		{
+			// First see if the type implements ICollection<T>
+			foreach (Type interfaceType in listType.GetInterfaces())
+			{
+				if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>))
+				{
+					itemType = interfaceType.GetGenericArguments()[0];
+					return true;
+				}
+			}
+
+			// First see if the type implements IList and has a strongly-typed Item property indexed by an integer value
+			if (typeof(IList).IsAssignableFrom(listType))
+			{
+				PropertyInfo itemProperty = listType.GetProperty("Item", new Type[] { typeof(int) });
+				if (itemProperty != null)
+				{
+					itemType = itemProperty.PropertyType;
+					return true;
+				}
+			}
+
+			// Return false to indicate that the specified type is not a supported list type
+			itemType = null;
+			return false;
+		}
 
 		/// <summary>
 		/// Performs one time initialization on the <see cref="GraphType"/> when it is registered
@@ -133,6 +187,15 @@ namespace ExoGraph
 				Values.Add((GraphValueProperty)property);
 
 			Properties.Add(property);
+		}
+
+		/// <summary>
+		/// Adds the specified method to the current graph type.
+		/// </summary>
+		/// <param name="method"></param>
+		protected void AddMethod(GraphMethod method)
+		{
+			Methods.Add(method);
 		}
 
 		internal void RaiseInit(GraphInitEvent initEvent)
@@ -277,16 +340,33 @@ namespace ExoGraph
 		/// <returns>The requested <see cref="GraphPath"/></returns>
 		public GraphPath GetPath(string path)
 		{
+			GraphPath graphPath;
+			if (!TryGetPath(path, out graphPath))
+				throw new ArgumentException("The specific path could not be evaluated: " + path);
+			return graphPath;
+		}
+
+		/// <summary>
+		///  Gets the <see cref="GraphPath"/> starting from the current <see cref="GraphType"/> based
+		/// on the specified path string.
+		/// </summary>
+		/// <param name="path"></param>
+		/// <param name="graphPath"></param>
+		/// <returns>True if the path is valid and was returned as an output parameter, otherwise false.</returns>
+		public bool TryGetPath(string path, out GraphPath graphPath)
+		{
 			// First see if the path has already been created for this instance type
-			GraphPath p = Paths[path];
-			if (p != null)
-				return p;
+			graphPath = Paths[path];
+			if (graphPath != null)
+				return true;
 
 			// Otherwise, create and cache a new path
-			p = new GraphPath(this, path);
-			Paths.Add(p);
+			graphPath = GraphPath.CreatePath(this, path);
+			if (graphPath == null)
+				return false;
 
-			return p;
+			Paths.Add(graphPath);
+			return true;
 		}
 
 		/// <summary>
@@ -447,31 +527,40 @@ namespace ExoGraph
 		}
 
 		/// <summary>
-		/// Creates an instance extension using the extension factory specified for the current <see cref="GraphType"/>.
+		/// Gets or sets the value of the specified property.
 		/// </summary>
-		/// <returns></returns>
-		internal object CreateExtension(GraphInstance instance)
+		/// <param name="property">The name of the property</param>
+		/// <returns>The underlying value of the property in the physical graph</returns>
+		public object this[string property]
 		{
-			if (ExtensionFactory == null)
-				return null;
-			else
-				return ExtensionFactory(instance);
+			get
+			{
+				return this[Properties[property]];
+			}
+			set
+			{
+				this[Properties[property]] = value;
+			}
 		}
 
-		#endregion
-
-		#region NewStuff
-
 		/// <summary>
-		/// Called by <see cref="Context"/> subclasses to obtain a <see cref="GraphInstance"/> for a 
-		/// newly created graph object.
+		/// Gets or sets the value of the specified property.
 		/// </summary>
-		/// <param name="instance"></param>
-		/// <returns></returns>
-		protected GraphInstance OnInit(object instance)
+		/// <param name="property">The <see cref="GraphProperty"/> to get or set</param>
+		/// <returns>The underlying value of the property in the physical graph</returns>
+		public object this[GraphProperty property]
 		{
-			// Create the new graph instance
-			return new GraphInstance(this, instance);
+			get
+			{
+				return property is GraphValueProperty ? GetValue((GraphValueProperty)property) : property.GetValue(null);
+			}
+			set
+			{
+				if (property is GraphValueProperty)
+					SetValue((GraphValueProperty)property, value);
+				else
+					property.SetValue(null, value);
+			}
 		}
 
 		protected void OnPropertyGet(GraphInstance instance, string property)
@@ -627,6 +716,52 @@ namespace ExoGraph
 			}
 			#endregion
 		}
+		#endregion
+
+		#region UnknownGraphType
+
+		class UnknownGraphType : GraphType
+		{
+			internal UnknownGraphType()
+				: base("Unknown", "ExoGraph.GraphType.Unknown", null, new Attribute[] { })
+			{ }
+
+			protected internal override void OnInit()
+			{
+				throw new NotSupportedException();
+			}
+
+			protected internal override IList ConvertToList(GraphReferenceProperty property, object list)
+			{
+				throw new NotSupportedException();
+			}
+
+			protected internal override void SaveInstance(GraphInstance graphInstance)
+			{
+				throw new NotSupportedException();
+			}
+
+			public override GraphInstance GetGraphInstance(object instance)
+			{
+				throw new NotSupportedException();
+			}
+
+			protected internal override string GetId(object instance)
+			{
+				throw new NotSupportedException();
+			}
+
+			protected internal override object GetInstance(string id)
+			{
+				throw new NotSupportedException();
+			}
+
+			protected internal override void DeleteInstance(GraphInstance graphInstance)
+			{
+				throw new NotSupportedException();
+			}
+		}
+
 		#endregion
 	}
 }

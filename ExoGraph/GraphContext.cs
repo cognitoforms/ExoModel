@@ -33,10 +33,10 @@ namespace ExoGraph
 		/// </summary>
 		Queue<GraphType> uninitialized = new Queue<GraphType>();
 
-        /// <summary>
-        /// Flag to indicate whether or not an initialization scope is in effect
-        /// </summary>
-        bool initializing = false;
+		/// <summary>
+		/// Flag to indicate whether or not an initialization scope is in effect
+		/// </summary>
+		bool initializing = false;
 
 		#endregion
 
@@ -132,15 +132,15 @@ namespace ExoGraph
 			return new GetNotificationSuspension(this);
 		}
 
-        /// <summary>
-        /// Gets the <see cref="GraphInstance"/> associated with the specified real instance.
-        /// </summary>
-        /// <param name="instance"></param>
-        /// <returns></returns>
-        public GraphInstance GetGraphInstance(object instance)
-        {
-            return GetGraphType(instance).GetGraphInstance(instance);
-        }
+		/// <summary>
+		/// Gets the <see cref="GraphInstance"/> associated with the specified real instance.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns></returns>
+		public GraphInstance GetGraphInstance(object instance)
+		{
+			return GetGraphType(instance).GetGraphInstance(instance);
+		}
 
 		#endregion
 
@@ -162,7 +162,7 @@ namespace ExoGraph
 			if (type == null)
 			{
 				// Only perform initialization on non-recursive calls to this method
-                bool initialize = initializing == false ? initializing = true : false;
+				bool initialize = initializing == false ? initializing = true : false;
 
 				// Attempt to create the graph type if it is not cached
 				foreach (var provider in typeProviders)
@@ -194,7 +194,7 @@ namespace ExoGraph
 						uninitialized.Peek().Initialize(this);
 						uninitialized.Dequeue();
 					}
-                    initializing = false;
+					initializing = false;
 				}
 			}
 			

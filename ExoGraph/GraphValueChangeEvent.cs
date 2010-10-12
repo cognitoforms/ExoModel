@@ -16,15 +16,15 @@ namespace ExoGraph
 		object oldValue;
 		object newValue;
 
-		internal GraphValueChangeEvent(GraphInstance instance, GraphValueProperty property, object oldValue, object newValue)
+		public GraphValueChangeEvent(GraphInstance instance, GraphValueProperty property, object oldValue, object newValue)
 			: base(instance)
 		{
 			this.property = property;
 
 			if (property.AutoConvert)
 			{
-				this.oldValue = property.Converter.ConvertTo(oldValue, typeof(object));
-				this.newValue = property.Converter.ConvertTo(newValue, typeof(object));
+				this.oldValue = oldValue == null ? null : property.Converter.ConvertTo(oldValue, typeof(object));
+				this.newValue = newValue == null ? null : property.Converter.ConvertTo(newValue, typeof(object));
 			}
 			else
 			{
@@ -90,8 +90,6 @@ namespace ExoGraph
 					string serializedDate = ((string)value).Replace("/Date(", "\"\\/Date(").Replace(")/", ")\\/\"");
 					newValue = jsonConverter.ConvertStringToValue(serializedDate, typeof(DateTime));
 				}
-				else if (Property.PropertyType.IsAssignableFrom(typeof(double)) && value is decimal)
-					newValue = (double)((decimal)value);
 				else
 					newValue = value;
 			}

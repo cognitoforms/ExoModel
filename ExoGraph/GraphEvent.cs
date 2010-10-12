@@ -19,6 +19,7 @@ namespace ExoGraph
 	[KnownType(typeof(GraphListChangeEvent))]
 	public abstract class GraphEvent : EventArgs
 	{
+		string id;
 		GraphInstance instance;
 
 		/// <summary>
@@ -28,7 +29,7 @@ namespace ExoGraph
 		/// <param name="type"></param>
 		internal GraphEvent(GraphType type, string id)
 		{
-			this.instance = new GraphInstance(type, id);
+			this.Instance = new GraphInstance(type, id);
 		}
 
 		/// <summary>
@@ -37,13 +38,12 @@ namespace ExoGraph
 		/// <param name="instance">The instance the event is for</param>
 		internal GraphEvent(GraphInstance instance)
 		{
-			this.instance = instance;
+			this.Instance = instance;
 		}
 
 		/// <summary>
 		/// Gets the <see cref="GraphInstance"/> the event is for.
 		/// </summary>
-		[DataMember(Name = "instance", Order = 1)]
 		public GraphInstance Instance
 		{
 			get
@@ -53,6 +53,18 @@ namespace ExoGraph
 			internal set
 			{
 				instance = value;
+				id = instance.Id;
+			}
+		}
+
+		/// <summary>
+		/// Gets the id of the instance at the moment the event occurred, which may be different than the current id of the instance.
+		/// </summary>
+		public string InstanceId
+		{
+			get
+			{
+				return id;
 			}
 		}
 

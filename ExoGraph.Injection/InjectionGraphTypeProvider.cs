@@ -10,27 +10,23 @@ namespace ExoGraph.Injection
 	/// Implementation of <see cref="GraphContext"/> that injects logic into compiled
 	/// assemblies to monitor graph changes.
 	/// </summary>
-	public abstract class InjectionGraphTypeProvider : StronglyTypedGraphTypeProvider
+	public abstract class InjectionGraphTypeProvider : ReflectionGraphTypeProvider
 	{
+		public InjectionGraphTypeProvider(IEnumerable<Type> types)
+			: base("", types)
+		{ }
+
 		public InjectionGraphTypeProvider(string @namespace, IEnumerable<Type> types)
-			: base(@namespace, types)
-		{
-		}
+			: base(@namespace, types, null)
+		{ }
 
-		public InjectionGraphTypeProvider(string @namespace, IEnumerable<Type> types, Func<GraphInstance, object> extensionFactory)
-			: base(@namespace, types, null, extensionFactory)
-		{
-		}
+		public InjectionGraphTypeProvider(params Assembly[] assemblies)
+			: base("", GetTypes(assemblies), null)
+		{ }
 
-		public InjectionGraphTypeProvider(string @namespace, Assembly assembly)
-			: base(@namespace, GetTypes(assembly))
-		{
-		}
-
-		public InjectionGraphTypeProvider(string @namespace, Func<GraphInstance, object> extensionFactory, params Assembly[] assemblies)
-			: base(@namespace, GetTypes(assemblies), null, extensionFactory)
-		{
-		}
+		public InjectionGraphTypeProvider(string @namespace, params Assembly[] assemblies)
+			: base(@namespace, GetTypes(assemblies), null)
+		{ }
 
 		static IEnumerable<Type> GetTypes(params Assembly[] assemblies)
 		{
@@ -57,10 +53,10 @@ namespace ExoGraph.Injection
 
 		#region InjectionGraphType
 
-		protected abstract class InjectionGraphType : StrongGraphType
+		protected abstract class InjectionGraphType : ReflectionGraphType
 		{
-			protected InjectionGraphType(string @namespace, Type type, Func<GraphInstance, object> extensionFactory)
-				: base(@namespace, type, extensionFactory)
+			protected InjectionGraphType(string @namespace, Type type)
+				: base(@namespace, type)
 			{ }
 
 			public override GraphInstance GetGraphInstance(object instance)
@@ -107,7 +103,7 @@ namespace ExoGraph.Injection
 				#region InstanceTracker
 
 				/// <summary>
-				/// Implementation of <see cref="IInstanceAware"/> that tracks the
+				/// Implementation of <see cref="IGraphInstance"/> that tracks the
 				/// <see cref="GraphInstance"/> on behalf of the real instance.
 				/// </summary>
 				[Serializable]
@@ -117,7 +113,7 @@ namespace ExoGraph.Injection
 
 					public InstanceTracker(object instance)
 					{
-						this.instance = ((InjectionGraphType) GraphContext.Current.GetGraphType(instance)).OnInit(instance);
+						this.instance = InjectionGraphTypeProvider.CreateGraphInstance(instance);
 					}
 
 					public GraphInstance Instance
@@ -163,7 +159,7 @@ namespace ExoGraph.Injection
 					GraphInstance instance = ((IGraphInstance) eventArgs.Instance).Instance;
 					GraphProperty property = instance.Type.Properties[this.property];
 					if (property != null)
-						((InjectionGraphType) instance.Type).OnPropertyGet(instance, property);
+						((InjectionGraphType)property.DeclaringType).OnPropertyGet(instance, property);
 				}
 			}
 

@@ -21,6 +21,11 @@ namespace ExoGraph
 
 		bool isActive = true;
 
+		GraphTransaction()
+		{
+			isActive = false;
+		}
+
 		internal GraphTransaction(GraphContext context)
 		{
 			this.context = context;
@@ -229,8 +234,8 @@ namespace ExoGraph
 			if (events == null)
 				return null;
 
-			// Create a new transaction
-			var transaction = new GraphTransaction(GraphContext.Current);
+			// Create a new inactive transaction
+			var transaction = new GraphTransaction();
 
 			// Initialize the events
 			transaction.events = (List<GraphEvent>)events;

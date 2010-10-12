@@ -77,6 +77,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DynamicGraphTypeProvider.cs" />
+    <Compile Include="DescriptorGraphTypeProvider.cs" />
+    <Compile Include="Extensions.cs" />
+    <Compile Include="GraphMethod.cs" />
+    <Compile Include="GraphMethodList.cs" />
+    <Compile Include="GraphMethodParameter.cs" />
+    <Compile Include="GraphMethodParameterList.cs" />
     <Compile Include="GraphSaveEvent.cs" />
     <Compile Include="GraphDeleteEvent.cs" />
     <Compile Include="GraphPropertyList.cs" />
@@ -96,6 +103,7 @@
     <Compile Include="GraphCustomEvent.cs" />
     <Compile Include="GraphEventScope.cs" />
     <Compile Include="GraphEventScopeExitedEventArgs.cs" />
+    <Compile Include="IGraphPropertySource.cs" />
     <Compile Include="IGraphTypeProvider.cs" />
     <Compile Include="ITransactedGraphEvent.cs">
     </Compile>
@@ -114,7 +122,7 @@
     <Compile Include="GraphType.cs" />
     <Compile Include="IGraphContextProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="StronglyTypedGraphTypeProvider.cs" />
+    <Compile Include="ReflectionGraphTypeProvider.cs" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
