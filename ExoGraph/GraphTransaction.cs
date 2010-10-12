@@ -152,9 +152,6 @@ namespace ExoGraph
 					// Return the new changes that occurred while applying the previous changes
 					return newChanges;
 				}
-			} catch (Exception e)
-			{
-				throw e;
 			}
 			finally
 			{
