@@ -44,6 +44,8 @@ namespace ExoGraph
 								Context = pool[0];
 								pool.RemoveAt(0);
 							}
+							else
+								OnCreateContext();
 						}
 					}
 					else
