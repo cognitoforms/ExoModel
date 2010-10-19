@@ -8,6 +8,7 @@ using System.Data.Objects.DataClasses;
 using System.ComponentModel;
 using System.Data.Metadata.Edm;
 using System.Web;
+using System.ComponentModel.DataAnnotations;
 
 namespace ExoGraph.EntityFramework
 {
@@ -87,11 +88,42 @@ namespace ExoGraph.EntityFramework
 			return ReflectionGraphTypeProvider.CreateGraphInstance(instance);
 		}
 
+		/// <summary>
+		/// Fetches any attributes on matching properties in an entity's "buddy class"
+		/// </summary>
+		/// <param name="declaringType"></param>
+		/// <param name="property"></param>
+		/// <returns></returns>
+		private Attribute[] GetBuddyClassAttributes(GraphType declaringType, System.Reflection.PropertyInfo property)
+		{
+			Attribute[] attributes = null;
+
+			var entityGraphType = declaringType as EntityGraphType;
+			if (entityGraphType.BuddyClass != null)
+			{
+				var buddyClassProperty = entityGraphType.BuddyClass.GetProperty(property.Name);
+
+				if (buddyClassProperty != null)
+					attributes = buddyClassProperty.GetCustomAttributes(true).Cast<Attribute>().ToArray();
+			}
+
+			return attributes ?? new Attribute[0];
+		}
+
+		protected override GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
+		{
+			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
+
+			return base.CreateReferenceProperty(declaringType, property, name, isStatic, isBoundary, propertyType, isList, attributes);
+		}
+
 		protected override GraphValueProperty CreateValueProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, Attribute[] attributes)
 		{
 			// Do not include entity reference properties in the model
 			if (property.PropertyType.IsSubclassOf(typeof(EntityReference)))
 				return null;
+
+			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
 
 			return base.CreateValueProperty(declaringType, property, name, isStatic, propertyType, converter, isList, attributes);
 		}
@@ -125,6 +157,11 @@ namespace ExoGraph.EntityFramework
 			/// </summary>
 			protected override void OnInit()
 			{
+				// Fetch the "buddy class", if any
+				var metadataTypeAttribute = this.UnderlyingType.GetCustomAttributes(typeof(MetadataTypeAttribute), false).OfType<MetadataTypeAttribute>().FirstOrDefault();			
+				if (metadataTypeAttribute != null)
+					BuddyClass = metadataTypeAttribute.MetadataClassType;
+
 				base.OnInit();
 
 				// Get the current object context
@@ -153,6 +190,8 @@ namespace ExoGraph.EntityFramework
 					select property as GraphValueProperty
 				).ToArray();
 			}
+
+			internal Type BuddyClass { get; set; }
 
 			/// <summary>
 			/// Gets or creates the object context for the current scope of work that corresponds to the 
