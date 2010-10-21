@@ -246,8 +246,13 @@ namespace ExoGraph
 
 			protected internal override void SetValue(object instance, object value)
 			{
-				((DynamicGraphTypeProvider<TTypeSource, TPropertySource>)((DynamicGraphType)DeclaringType).Provider)
-					.SetPropertyValue(instance, PropertySource, value);
+				object originalValue = GetValue(instance);
+				if ((originalValue == null ^ value == null) || (originalValue != null && !originalValue.Equals(value)))
+				{
+					((DynamicGraphTypeProvider<TTypeSource, TPropertySource>)((DynamicGraphType)DeclaringType).Provider)
+						.SetPropertyValue(instance, PropertySource, value);
+					OnPropertyChanged(DeclaringType.GetGraphInstance(instance), originalValue, value);
+				}
 			}
 		}
 

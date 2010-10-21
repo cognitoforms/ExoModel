@@ -45,6 +45,11 @@ namespace ExoGraph
 		#endregion
 
 		#region Methods
+		
+		public void OnPropertyChanged(GraphInstance instance, object oldValue, object newValue)
+		{
+			instance.Type.OnPropertyChanged(instance, this, oldValue, newValue);
+		}
 
 		internal void OnChange(GraphInstance instance)
 		{

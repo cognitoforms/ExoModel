@@ -212,8 +212,10 @@ namespace ExoGraph.Injection
 					// Get the graph instance associated with the current object
 					GraphInstance instance = ((IGraphInstance) eventArgs.Instance).Instance;
 
+					GraphProperty graphProperty = instance.Type.Properties[property];
+
 					// Exit immediately if the property is not valid for the current graph type
-					if (!instance.Type.Properties.Contains(property))
+					if (graphProperty == null)
 						return;
 
 					object originalValue = eventArgs.MethodExecutionTag;
@@ -221,7 +223,7 @@ namespace ExoGraph.Injection
 
 					// Raise property change if the current value is different from the original value
 					if ((originalValue == null ^ currentValue == null) || (originalValue != null && !originalValue.Equals(currentValue)))
-						((InjectionGraphType) instance.Type).OnPropertyChanged(instance, property, originalValue, currentValue);
+						graphProperty.OnPropertyChanged(instance, originalValue, currentValue);
 				}
 			}
 
