@@ -719,7 +719,7 @@ namespace ExoGraph
 		#endregion
 
 		#region UnknownGraphType
-
+        [Serializable]
 		class UnknownGraphType : GraphType
 		{
 			internal UnknownGraphType()
