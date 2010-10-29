@@ -11,7 +11,7 @@ namespace ExoGraph
 	/// Represents a specific type in a graph hierarchy.
 	/// </summary>
 	[DataContract]
-	[Serializable]
+    [Serializable]
 	public abstract class GraphType : ISerializable, IGraphPropertySource
 	{
 		#region Fields
@@ -712,18 +712,18 @@ namespace ExoGraph
 			#region IObjectReference Members
 			public object GetRealObject(StreamingContext context)
 			{
-				return GraphContext.Current.GetGraphType(typeName);
-			}
+                 return typeName == "ExoGraph.GraphType.Unknown" ? GraphType.Unknown : GraphContext.Current.GetGraphType(typeName);
+            }
 			#endregion
 		}
 		#endregion
 
 		#region UnknownGraphType
-        [Serializable]
+       [Serializable]
 		class UnknownGraphType : GraphType
 		{
 			internal UnknownGraphType()
-				: base("Unknown", "ExoGraph.GraphType.Unknown", null, new Attribute[] { })
+               : base("ExoGraph.GraphType.Unknown", "ExoGraph.GraphType.Unknown", null, new Attribute[] { })
 			{ }
 
 			protected internal override void OnInit()
