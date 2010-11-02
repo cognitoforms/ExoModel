@@ -500,7 +500,7 @@ namespace ExoGraph
 		/// <returns>The list of instances</returns>
 		public GraphInstanceList GetList(string property)
 		{
-			return GetList(type.OutReferences[property]);
+			return GetList(Type.OutReferences[property]);
 		}
 
 		/// <summary>
