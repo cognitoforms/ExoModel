@@ -53,7 +53,7 @@ namespace ExoGraph.Injection
 
 		#region InjectionGraphType
 
-		protected abstract class InjectionGraphType : ReflectionGraphType
+		public abstract class InjectionGraphType : ReflectionGraphType
 		{
 			protected InjectionGraphType(string @namespace, Type type)
 				: base(@namespace, type)
@@ -71,7 +71,7 @@ namespace ExoGraph.Injection
 			/// Aspect that supports storage of a <see cref="GraphInstance"/> on behalf of a real graph instance.
 			/// </summary>
 			[Serializable]
-			internal class InstanceAspect : CompositionAspect
+			public class InstanceAspect : CompositionAspect
 			{
 				/// <summary>
 				/// Called at runtime, creates the implementation of the <see cref="INotifyPropertyChanged"/> interface.
@@ -107,7 +107,7 @@ namespace ExoGraph.Injection
 				/// <see cref="GraphInstance"/> on behalf of the real instance.
 				/// </summary>
 				[Serializable]
-				class InstanceTracker : IGraphInstance
+				public class InstanceTracker : IGraphInstance
 				{
 					GraphInstance instance;
 
@@ -137,7 +137,7 @@ namespace ExoGraph.Injection
 			/// properties on the underlying instance are fetched.
 			/// </summary>
 			[Serializable]
-			internal class OnPropertyGetAspect : OnMethodBoundaryAspect
+			public class OnPropertyGetAspect : OnMethodBoundaryAspect
 			{
 				readonly string property;
 
@@ -172,7 +172,7 @@ namespace ExoGraph.Injection
 			/// properties on the underlying instance are fetched or changed.
 			/// </summary>
 			[Serializable]
-			internal class OnPropertySetAspect : OnMethodBoundaryAspect
+			public class OnPropertySetAspect : OnMethodBoundaryAspect
 			{
 				readonly string property;
 
