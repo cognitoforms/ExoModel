@@ -127,6 +127,7 @@ namespace ExoGraph
 
 		#region DynamicGraphType
 
+		[Serializable]
 		class DynamicGraphType : GraphType
 		{
 			IEnumerable<TPropertySource> properties;
