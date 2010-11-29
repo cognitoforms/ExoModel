@@ -11,7 +11,7 @@ namespace ExoGraph
 	/// Represents a specific type in a graph hierarchy.
 	/// </summary>
 	[DataContract]
-    [Serializable]
+	[Serializable]
 	public abstract class GraphType : ISerializable, IGraphPropertySource
 	{
 		#region Fields
@@ -22,6 +22,8 @@ namespace ExoGraph
 		Dictionary<Type, object> transactedCustomEvents = new Dictionary<Type, object>();
 		Attribute[] attributes;
 		Dictionary<Type, object> extensions;
+
+		IList<Action> initializers = new List<Action>();
 
 		#endregion
 
@@ -157,8 +159,24 @@ namespace ExoGraph
 			// Set the next property index for properties added inside OnInit
 			PropertyCount = BaseType == null ? 0 : BaseType.PropertyCount;
 
-			// Allow subclasses to perform initialization, such as added properties
+			// Allow subclasses to perform initialization, such as adding properties
 			OnInit();
+
+			// Fire after-initialization logic
+			foreach (var initializer in initializers)
+				initializer();
+		}
+
+		/// <summary>
+		/// Allow types to preform post-initialization logic
+		/// </summary>
+		/// <param name="afterInit"></param>
+		public void AfterInitialize(Action afterInit)
+		{
+			if (Context != null)
+				afterInit();
+			else
+				initializers.Add(afterInit);
 		}
 
 		/// <summary>
@@ -712,18 +730,18 @@ namespace ExoGraph
 			#region IObjectReference Members
 			public object GetRealObject(StreamingContext context)
 			{
-                 return typeName == "ExoGraph.GraphType.Unknown" ? GraphType.Unknown : GraphContext.Current.GetGraphType(typeName);
-            }
+				 return typeName == "ExoGraph.GraphType.Unknown" ? GraphType.Unknown : GraphContext.Current.GetGraphType(typeName);
+			}
 			#endregion
 		}
 		#endregion
 
 		#region UnknownGraphType
-       [Serializable]
+	   [Serializable]
 		class UnknownGraphType : GraphType
 		{
 			internal UnknownGraphType()
-               : base("ExoGraph.GraphType.Unknown", "ExoGraph.GraphType.Unknown", null, new Attribute[] { })
+			   : base("ExoGraph.GraphType.Unknown", "ExoGraph.GraphType.Unknown", null, new Attribute[] { })
 			{ }
 
 			protected internal override void OnInit()

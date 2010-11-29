@@ -38,6 +38,11 @@ namespace ExoGraph
 		/// </summary>
 		bool initializing = false;
 
+		/// <summary>
+		/// List of graph types that have been initialized
+		/// </summary>
+		IList<GraphType> initialized = new List<GraphType>();
+
 		#endregion
 
 		#region Constructors
@@ -86,6 +91,8 @@ namespace ExoGraph
 		/// raised within the current graph context.
 		/// </summary>
 		public event EventHandler<GraphEvent> Event;
+
+		public event EventHandler<TypesInitializedEventArgs> TypesInitialized;
 
 		#endregion
 
@@ -191,10 +198,24 @@ namespace ExoGraph
 					// Initialize new graph types in FIFO order
 					while (uninitialized.Count > 0)
 					{
-						uninitialized.Peek().Initialize(this);
+						// Initialize the type
+						var initType = uninitialized.Peek();
+						initType.Initialize(this);
+
+						// Record the initialized type and remove from list of types needing initialization
+						initialized.Add(initType);
 						uninitialized.Dequeue();
 					}
 					initializing = false;
+
+					// Raise event for all initialized types
+					if (TypesInitialized != null)
+					{
+						var initializedTypeArray = initialized.ToArray();
+						initialized.Clear();
+
+						TypesInitialized(this, new TypesInitializedEventArgs(initializedTypeArray));
+					}
 				}
 			}
 			

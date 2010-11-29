@@ -46,6 +46,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="EntityCollectionWrapper.cs" />
     <Compile Include="EntityFrameworkTypeProvider.cs" />
     <Compile Include="GraphEntity.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

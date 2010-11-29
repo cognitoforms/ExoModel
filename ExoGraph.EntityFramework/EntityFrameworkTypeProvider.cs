@@ -9,6 +9,8 @@ using System.ComponentModel;
 using System.Data.Metadata.Edm;
 using System.Web;
 using System.ComponentModel.DataAnnotations;
+using System.Collections;
+using System.Reflection;
 
 namespace ExoGraph.EntityFramework
 {
@@ -38,11 +40,29 @@ namespace ExoGraph.EntityFramework
 		internal ObjectContext GetObjectContext()
 		{
 			Storage storage = GetStorage();
+
 			if (storage.Context == null)
 			{
 				storage.Context = CreateContext();
 				storage.Context.MetadataWorkspace.LoadFromAssembly(storage.Context.GetType().Assembly);
+
+				// Raise OnSave whenever the object context is committed
+				storage.Context.SavingChanges += (sender, e) =>
+				{
+					var context = sender as ObjectContext;
+					var firstEntity = context.ObjectStateManager.GetObjectStateEntries(EntityState.Added | EntityState.Deleted | EntityState.Modified).Where(p => p.Entity != null).Select(p => p.Entity).FirstOrDefault();
+
+					// Raise the save event on the first found dirty entity
+					if (firstEntity != null)
+					{
+						var graphInstance = GraphContext.Current.GetGraphInstance(firstEntity);
+
+						if (graphInstance != null)
+							((EntityFrameworkGraphTypeProvider.EntityGraphType) graphInstance.Type).RaiseOnSave(graphInstance);
+					}
+				};
 			}
+
 			return storage.Context;
 		}
 
@@ -85,7 +105,9 @@ namespace ExoGraph.EntityFramework
 
 		internal static GraphInstance CreateGraphInstance(object instance)
 		{
-			return ReflectionGraphTypeProvider.CreateGraphInstance(instance);
+			GraphInstance graphInstance = ReflectionGraphTypeProvider.CreateGraphInstance(instance);
+
+			return graphInstance;
 		}
 
 		/// <summary>
@@ -110,19 +132,45 @@ namespace ExoGraph.EntityFramework
 			return attributes ?? new Attribute[0];
 		}
 
+		/// <summary>
+		/// Overridden to allow the addition of buddy-class attributes to the list of attributes associated with the <see cref="GraphType"/>
+		/// </summary>
+		/// <param name="declaringType"></param>
+		/// <param name="property"></param>
+		/// <param name="name"></param>
+		/// <param name="isStatic"></param>
+		/// <param name="isBoundary"></param>
+		/// <param name="propertyType"></param>
+		/// <param name="isList"></param>
+		/// <param name="attributes"></param>
+		/// <returns></returns>
 		protected override GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
 		{
+			// Fetch any attributes associated with a buddy-class
 			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
 
 			return base.CreateReferenceProperty(declaringType, property, name, isStatic, isBoundary, propertyType, isList, attributes);
 		}
 
+		/// <summary>
+		/// Overridden to allow the addition of buddy-class attributes to the list of attributes associated with the <see cref="GraphType"/>
+		/// </summary>
+		/// <param name="declaringType"></param>
+		/// <param name="property"></param>
+		/// <param name="name"></param>
+		/// <param name="isStatic"></param>
+		/// <param name="isBoundary"></param>
+		/// <param name="propertyType"></param>
+		/// <param name="isList"></param>
+		/// <param name="attributes"></param>
+		/// <returns></returns>
 		protected override GraphValueProperty CreateValueProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, Attribute[] attributes)
 		{
 			// Do not include entity reference properties in the model
 			if (property.PropertyType.IsSubclassOf(typeof(EntityReference)))
-				return null;
+			    return null;
 
+			// Fetch any attributes associated with a buddy-class
 			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
 
 			return base.CreateValueProperty(declaringType, property, name, isStatic, propertyType, converter, isList, attributes);
@@ -150,7 +198,8 @@ namespace ExoGraph.EntityFramework
 
 			protected internal EntityGraphType(string @namespace, Type type)
 				: base(@namespace, type)
-			{ }
+			{
+			}
 
 			/// <summary>
 			/// Performs initialization of the graph type outside of the constructor to avoid recursion deadlocks.
@@ -181,6 +230,9 @@ namespace ExoGraph.EntityFramework
 					context.MetadataWorkspace.GetItems<EntityContainer>(DataSpace.CSpace)[0]
 						.BaseEntitySets.First(s => s.ElementType.Name == baseType.Name).Name;
 
+				// Get the entity type of the current graph type
+				var entityType = context.MetadataWorkspace.GetItem<EntityType>(context.DefaultContainerName + "." + Name, DataSpace.OSpace);
+
 				// Get the value properties that comprise the identifier for the entity type
 				idProperties = (
 					from property in Properties
@@ -189,9 +241,64 @@ namespace ExoGraph.EntityFramework
 						property.GetAttributes<EdmScalarPropertyAttribute>()[0].EntityKeyProperty
 					select property as GraphValueProperty
 				).ToArray();
+
+				// Find all back-references from entities contained in each parent-child relationship for use when
+				// items are expected to be deleted because they were removed from the assocation
+				var listAssociations = new Dictionary<GraphReferenceProperty, GraphReferenceProperty>();
+				foreach (GraphReferenceProperty property in Properties.Where(p => p.IsList && p is GraphReferenceProperty))
+				{
+					var relatedGraphType = ((GraphReferenceProperty) property).PropertyType;
+					var relatedEntityType = context.MetadataWorkspace.GetItem<EntityType>(context.DefaultContainerName + "." + relatedGraphType.Name, DataSpace.OSpace);
+					NavigationProperty manyNavProp;
+					if (!entityType.NavigationProperties.TryGetValue(property.Name, false, out manyNavProp))
+						continue;
+					var oneNavProp = relatedEntityType.NavigationProperties.FirstOrDefault(np => np.RelationshipType == manyNavProp.RelationshipType);
+					if (oneNavProp == null)
+						continue;
+
+					var oneNavDeclaringType = GraphContext.Current.GetGraphType(oneNavProp.DeclaringType.Name);
+					oneNavDeclaringType.AfterInitialize(delegate
+					{
+						var parentReference = property.PropertyType.Properties[oneNavProp.Name];
+						if (parentReference != null && parentReference.HasAttribute<RequiredAttribute>())
+							listAssociations.Add(property, parentReference as GraphReferenceProperty);
+					});
+				}
+
+				// When a list-change event is raised, check to see if an parent/child dependency exists, and delete the child if
+				// the parent is deleted
+				this.ListChange += (sender, e) =>
+				{
+					if (e.Removed.Any())
+					{
+						if (listAssociations[e.Property] != null)
+						{
+							GraphInstance removed = e.Removed.First();
+
+							if (removed.GetReference(listAssociations[e.Property]) == null)
+								removed.Delete();
+						}
+						return;
+					}
+				};
 			}
 
 			internal Type BuddyClass { get; set; }
+
+			protected override System.Collections.IList ConvertToList(GraphReferenceProperty property, object list)
+			{
+				// If the list is managed by Entity Framework, convert to a list with listeners
+				if (list is RelatedEnd)
+				{
+					Type d1 = typeof(CollectionWrapper<>);
+					Type constructed = d1.MakeGenericType(((EntityGraphType) property.PropertyType).UnderlyingType);
+
+					var constructor = constructed.GetConstructors()[0];
+					return (IList) constructor.Invoke(new object[] { list });
+				}
+
+				return base.ConvertToList(property, list);
+			}
 
 			/// <summary>
 			/// Gets or creates the object context for the current scope of work that corresponds to the 
@@ -205,7 +312,7 @@ namespace ExoGraph.EntityFramework
 
 			protected override void SaveInstance(GraphInstance graphInstance)
 			{
-				GetObjectContext().SaveChanges(true);
+				GetObjectContext().SaveChanges(SaveOptions.None);
 			}
 
 			protected override string GetId(object instance)
@@ -256,7 +363,14 @@ namespace ExoGraph.EntityFramework
 
 			protected override void DeleteInstance(GraphInstance graphInstance)
 			{
-				throw new NotImplementedException();
+				ObjectContext context = GetObjectContext();
+
+				context.DeleteObject(graphInstance.Instance);
+			}
+
+			internal void RaiseOnSave(GraphInstance instance)
+			{
+				base.OnSave(instance);
 			}
 		}
 		#endregion
