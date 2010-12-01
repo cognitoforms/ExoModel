@@ -221,6 +221,8 @@ namespace ExoGraph.EntityFramework
 				while (baseType.BaseType is EntityGraphType)
 					baseType = baseType.BaseType;
 
+				string entityNamespace = context.GetType().Namespace;
+
 				// Determine the qualified entity set name
 				// This assumes:
 				//   1. only one entity container
@@ -231,7 +233,7 @@ namespace ExoGraph.EntityFramework
 						.BaseEntitySets.First(s => s.ElementType.Name == baseType.Name).Name;
 
 				// Get the entity type of the current graph type
-				var entityType = context.MetadataWorkspace.GetItem<EntityType>(context.DefaultContainerName + "." + Name, DataSpace.OSpace);
+				var entityType = context.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + Name, DataSpace.OSpace);
 
 				// Get the value properties that comprise the identifier for the entity type
 				idProperties = (
@@ -248,7 +250,7 @@ namespace ExoGraph.EntityFramework
 				foreach (GraphReferenceProperty property in Properties.Where(p => p.IsList && p is GraphReferenceProperty))
 				{
 					var relatedGraphType = ((GraphReferenceProperty) property).PropertyType;
-					var relatedEntityType = context.MetadataWorkspace.GetItem<EntityType>(context.DefaultContainerName + "." + relatedGraphType.Name, DataSpace.OSpace);
+					var relatedEntityType = context.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + relatedGraphType.Name, DataSpace.OSpace);
 					NavigationProperty manyNavProp;
 					if (!entityType.NavigationProperties.TryGetValue(property.Name, false, out manyNavProp))
 						continue;
