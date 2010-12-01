@@ -1,18 +1,19 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.ComponentModel;
 
 namespace ExoGraph
 {
+	#region DynamicGraphTypeProvider
+
 	/// <summary>
 	/// Base class for type providers that expose properties dynamically but leverage base type providers
 	/// for core functionality.
 	/// </summary>
 	/// <typeparam name="TTypeSource"></typeparam>
 	/// <typeparam name="TPropertySource"></typeparam>
-	public abstract class DynamicGraphTypeProvider<TTypeSource, TPropertySource> : IGraphTypeProvider
+	public abstract class DynamicGraphTypeProvider : IGraphTypeProvider
 	{
 		#region Fields
 
@@ -26,12 +27,54 @@ namespace ExoGraph
 		/// <summary>
 		/// Creates a new <see cref="DynamicGraphTypeProvider"/> based on the specified types.
 		/// </summary>
-		/// <param name="namespace"></param>
-		/// <param name="create"></param>
-		public DynamicGraphTypeProvider(string @namespace, string baseType)
+		/// <param name="@namespace"></param>
+		/// <param name="baseType"></param>
+		internal DynamicGraphTypeProvider(string @namespace, string baseType)
 		{
 			this.@namespace = string.IsNullOrEmpty(@namespace) ? string.Empty : @namespace + ".";
 			this.baseType = baseType;
+		}
+
+		#endregion
+
+		#region Properties
+
+		protected string Namespace
+		{
+			get { return @namespace; }
+		}
+
+		protected string BaseType
+		{
+			get { return baseType; }
+		}
+
+		#endregion
+
+		#region Methods
+
+		/// <summary>
+		/// Gets the unique name of the <see cref="GraphType"/> for the specified graph object instance.
+		/// </summary>
+		/// <param name="instance">The actual graph object instance</param>
+		/// <returns>The unique name of the graph type for the instance if it is a valid graph type, otherwise null</returns>
+		protected abstract string GetGraphTypeName(object instance);
+
+		/// <summary>
+		/// Creates a <see cref="GraphType"/> that corresponds to the specified type name.
+		/// </summary>
+		/// <param name="typeName"></param>
+		/// <returns></returns>
+		protected abstract GraphType CreateGraphType(string typeName);
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="obj"></param>
+		/// <returns></returns>
+		public static string GetSafeId(object obj)
+		{
+			return "_" + obj.ToString().Replace("-", "").Replace("*", "_");
 		}
 
 		#endregion
@@ -45,8 +88,7 @@ namespace ExoGraph
 		/// <returns>The unique name of the graph type for the instance if it is a valid graph type, otherwise null</returns>
 		string IGraphTypeProvider.GetGraphTypeName(object instance)
 		{
-			TTypeSource type = GetTypeSource(instance);
-			return type == null ? null : @namespace + GetTypeName(type);
+			return GetGraphTypeName(instance);
 		}
 
 		/// <summary>
@@ -67,15 +109,64 @@ namespace ExoGraph
 		/// <returns></returns>
 		GraphType IGraphTypeProvider.CreateGraphType(string typeName)
 		{
+			return CreateGraphType(typeName);
+		}
+
+		#endregion
+	}
+
+	#endregion
+
+	#region DynamicGraphTypeProvider<TTypeSource, TPropertySource>
+
+	/// <summary>
+	/// Base class for type providers that expose properties dynamically but leverage base type providers
+	/// for core functionality.
+	/// </summary>
+	/// <typeparam name="TTypeSource"></typeparam>
+	/// <typeparam name="TPropertySource"></typeparam>
+	public abstract class DynamicGraphTypeProvider<TTypeSource, TPropertySource> : DynamicGraphTypeProvider
+	{
+		#region Constructors
+
+		/// <summary>
+		/// Creates a new <see cref="DynamicGraphTypeProvider"/> based on the specified types.
+		/// </summary>
+		/// <param name="@namespace"></param>
+		/// <param name="baseType"></param>
+		public DynamicGraphTypeProvider(string @namespace, string baseType)
+			: base(@namespace, baseType)
+		{
+		}
+
+		#endregion
+
+		#region IGraphTypeProvider
+
+		/// <summary>
+		/// Gets the unique name of the <see cref="GraphType"/> for the specified graph object instance.
+		/// </summary>
+		/// <param name="instance">The actual graph object instance</param>
+		/// <returns>The unique name of the graph type for the instance if it is a valid graph type, otherwise null</returns>
+		protected override string GetGraphTypeName(object instance)
+		{
+			TTypeSource type = GetTypeSource(instance);
+			return type == null ? null : GetTypeName(type);
+		}
+
+		/// <summary>
+		/// Creates a <see cref="GraphType"/> that corresponds to the specified type name.
+		/// </summary>
+		/// <param name="typeName"></param>
+		/// <returns></returns>
+		protected override GraphType CreateGraphType(string typeName)
+		{
 			// Exit immediately if the requested type is from a different namespace.
-			if (!typeName.StartsWith(@namespace))
+			if (!typeName.StartsWith(Namespace))
 				return null;
-			
-			// Remove the namespace
-			string className = typeName.Substring(@namespace.Length);
-			
+
 			// See if a type source is available for the specified type name
-			TTypeSource type = GetTypeSource(className);
+			TTypeSource type = GetTypeSource(typeName);
 			if (type == null)
 				return null;
 
@@ -83,24 +174,30 @@ namespace ExoGraph
 			return new DynamicGraphType(typeName, GetBaseType(), GetTypeAttributes(type), GetProperties(type));
 		}
 
-		#endregion
-
-		#region Methods
-
 		internal virtual GraphType GetBaseType()
 		{
-			return GraphContext.Current.GetGraphType(baseType);
+			return GraphContext.Current.GetGraphType(BaseType);
+		}
+
+		protected internal string GetTypeName(TTypeSource type)
+		{
+			return Namespace + GetClassName(type);
 		}
 
 		protected abstract object CreateInstance(TTypeSource type);
 
 		protected abstract IEnumerable<TPropertySource> GetProperties(TTypeSource type);
 
+		/// <summary>
+		/// Gets the real object that provides type information based on the given dynamic type name.
+		/// </summary>
+		/// <param name="typeName"></param>
+		/// <returns></returns>
 		protected abstract TTypeSource GetTypeSource(string typeName);
 
 		protected abstract TTypeSource GetTypeSource(object instance);
 
-		protected abstract string GetTypeName(TTypeSource type);
+		protected abstract string GetClassName(TTypeSource type);
 
 		protected abstract Attribute[] GetTypeAttributes(TTypeSource type);
 
@@ -125,6 +222,10 @@ namespace ExoGraph
 
 		#endregion
 
+		#region Methods
+
+		#endregion
+
 		#region DynamicGraphType
 
 		[Serializable]
@@ -133,7 +234,7 @@ namespace ExoGraph
 			IEnumerable<TPropertySource> properties;
 
 			internal DynamicGraphType(string name, GraphType baseType, Attribute[] attributes, IEnumerable<TPropertySource> properties)
-				: base(name, baseType.QualifiedName + "+" + name, baseType, attributes) 
+				: base(name, baseType.QualifiedName + "+" + name, baseType, attributes)
 			{
 				this.properties = properties;
 			}
@@ -164,7 +265,7 @@ namespace ExoGraph
 					var attributes = provider.GetPropertyAttributes(property);
 
 					// Determine whether the property is a reference or value type
-					var referenceType	= provider.GetReferenceType(property);
+					var referenceType = provider.GetReferenceType(property);
 
 					// Add the new value or reference property
 					if (referenceType == null)
@@ -177,7 +278,7 @@ namespace ExoGraph
 							new DynamicGraphTypeProvider<TTypeSource, TPropertySource>.DynamicReferenceProperty(
 								this, property, name, referenceType, isList, attributes)
 						);
-					
+
 				}
 
 				// Remove the reference to the property source to avoid caching instance data with the type
@@ -187,7 +288,7 @@ namespace ExoGraph
 				provider.OnCreateGraphType(this);
 			}
 
-			protected internal override System.Collections.IList ConvertToList(GraphReferenceProperty property, object list)
+			protected internal override IList ConvertToList(GraphReferenceProperty property, object list)
 			{
 				return BaseType.ConvertToList(property, list);
 			}
@@ -288,6 +389,10 @@ namespace ExoGraph
 		#endregion
 	}
 
+	#endregion
+
+	#region DynamicGraphTypeProvider<TBaseType, TTypeSource, TPropertySource>
+
 	/// <summary>
 	/// Base class for type providers that expose properties dynamically but leverage base type providers
 	/// for core functionality.
@@ -301,9 +406,9 @@ namespace ExoGraph
 			: base(@namespace, null)
 		{ }
 
-		internal override GraphType  GetBaseType()
+		internal override GraphType GetBaseType()
 		{
-			 return GraphContext.Current.GetGraphType<TBaseType>();
+			return GraphContext.Current.GetGraphType<TBaseType>();
 		}
 
 		protected abstract TBaseType Create(TTypeSource type);
@@ -334,4 +439,6 @@ namespace ExoGraph
 			return GetTypeSource((TBaseType)instance);
 		}
 	}
+
+	#endregion
 }

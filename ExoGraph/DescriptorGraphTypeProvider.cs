@@ -57,7 +57,7 @@ namespace ExoGraph
 			return type.GetAttributes().Cast<Attribute>().ToArray();
 		}
 
-		protected override string GetTypeName(ICustomTypeDescriptor instance)
+		protected override string GetClassName(ICustomTypeDescriptor instance)
 		{
 			return instance.GetClassName();
 		}
