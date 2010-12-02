@@ -141,7 +141,7 @@ namespace ExoGraph
 
 		#endregion
 
-		#region IGraphTypeProvider
+		#region Methods
 
 		/// <summary>
 		/// Gets the unique name of the <see cref="GraphType"/> for the specified graph object instance.
@@ -219,10 +219,6 @@ namespace ExoGraph
 
 		protected virtual void OnCreateGraphType(GraphType type)
 		{ }
-
-		#endregion
-
-		#region Methods
 
 		#endregion
 
