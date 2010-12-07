@@ -235,6 +235,14 @@ namespace ExoGraph
 				this.properties = properties;
 			}
 
+			protected internal new DynamicGraphTypeProvider<TTypeSource, TPropertySource> Provider
+			{
+				get
+				{
+					return base.Provider as DynamicGraphTypeProvider<TTypeSource, TPropertySource>;
+				}
+			}
+
 			protected internal override void OnInit()
 			{
 				// Get the type provider
@@ -266,12 +274,12 @@ namespace ExoGraph
 					// Add the new value or reference property
 					if (referenceType == null)
 						AddProperty(
-							new DynamicGraphTypeProvider<TTypeSource, TPropertySource>.DynamicValueProperty(
+							new DynamicValueProperty(
 								this, property, name, provider.GetValueType(property), provider.GetValueConverter(property), isList, attributes)
 						);
 					else
 						AddProperty(
-							new DynamicGraphTypeProvider<TTypeSource, TPropertySource>.DynamicReferenceProperty(
+							new DynamicReferenceProperty(
 								this, property, name, referenceType, isList, attributes)
 						);
 
@@ -307,10 +315,7 @@ namespace ExoGraph
 			protected internal override object GetInstance(string id)
 			{
 				if (id == null)
-				{
-					var provider = (DynamicGraphTypeProvider<TTypeSource, TPropertySource>)Provider;
-					return provider.CreateInstance(provider.GetTypeSource(Name));
-				}
+					return Provider.CreateInstance(Provider.GetTypeSource(Name));
 				else
 					return BaseType.GetInstance(id);
 			}
@@ -319,67 +324,86 @@ namespace ExoGraph
 			{
 				BaseType.DeleteInstance(graphInstance);
 			}
-		}
 
-		#endregion
-
-		#region DescriptorValueProperty
-
-		[Serializable]
-		class DynamicValueProperty : GraphValueProperty
-		{
-			internal DynamicValueProperty(DynamicGraphType declaringType, TPropertySource property, string name, Type propertyType, TypeConverter converter, bool isList, Attribute[] attributes)
-				: base(declaringType, name, false, propertyType, converter, isList, attributes)
+			protected internal override void OnStartTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
 			{
-				this.PropertySource = property;
+				Provider.GetBaseType().OnStartTrackingList(instance, property, list);
 			}
 
-			protected internal TPropertySource PropertySource { get; private set; }
-
-			protected internal override object GetValue(object instance)
+			protected internal override void OnStopTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
 			{
-				return ((DynamicGraphTypeProvider<TTypeSource, TPropertySource>)((DynamicGraphType)DeclaringType).Provider)
-					.GetPropertyValue(instance, PropertySource);
+				Provider.GetBaseType().OnStopTrackingList(instance, property, list);
 			}
 
-			protected internal override void SetValue(object instance, object value)
+			#region DescriptorValueProperty
+
+			[Serializable]
+			class DynamicValueProperty : GraphValueProperty
 			{
-				object originalValue = GetValue(instance);
-				if ((originalValue == null ^ value == null) || (originalValue != null && !originalValue.Equals(value)))
+				internal DynamicValueProperty(DynamicGraphType declaringType, TPropertySource property, string name, Type propertyType, TypeConverter converter, bool isList, Attribute[] attributes)
+					: base(declaringType, name, false, propertyType, converter, isList, attributes)
 				{
-					((DynamicGraphTypeProvider<TTypeSource, TPropertySource>)((DynamicGraphType)DeclaringType).Provider)
-						.SetPropertyValue(instance, PropertySource, value);
-					OnPropertyChanged(DeclaringType.GetGraphInstance(instance), originalValue, value);
+					this.PropertySource = property;
+				}
+
+				protected internal TPropertySource PropertySource { get; private set; }
+
+				public new DynamicGraphType DeclaringType { get { return (DynamicGraphType)base.DeclaringType; } }
+
+				protected internal override object GetValue(object instance)
+				{
+					DeclaringType.OnPropertyGet(DeclaringType.GetGraphInstance(instance), this);
+					return DeclaringType.Provider.GetPropertyValue(instance, PropertySource);
+				}
+
+				protected internal override void SetValue(object instance, object value)
+				{
+					object originalValue = DeclaringType.Provider.GetPropertyValue(instance, PropertySource);
+
+					if ((originalValue == null ^ value == null) || (originalValue != null && !originalValue.Equals(value)))
+					{
+						DeclaringType.Provider.SetPropertyValue(instance, PropertySource, value);
+						OnPropertyChanged(DeclaringType.GetGraphInstance(instance), originalValue, value);
+					}
 				}
 			}
-		}
 
-		#endregion
+			#endregion
 
-		#region DynamicReferenceProperty
+			#region DynamicReferenceProperty
 
-		[Serializable]
-		class DynamicReferenceProperty : GraphReferenceProperty
-		{
-			internal DynamicReferenceProperty(DynamicGraphType declaringType, TPropertySource property, string name, GraphType propertyType, bool isList, Attribute[] attributes)
-				: base(declaringType, name, false, false, propertyType, isList, attributes)
+			[Serializable]
+			class DynamicReferenceProperty : GraphReferenceProperty
 			{
-				this.PropertySource = property;
+				internal DynamicReferenceProperty(DynamicGraphType declaringType, TPropertySource property, string name, GraphType propertyType, bool isList, Attribute[] attributes)
+					: base(declaringType, name, false, false, propertyType, isList, attributes)
+				{
+					this.PropertySource = property;
+				}
+
+				protected internal TPropertySource PropertySource { get; private set; }
+
+				public new DynamicGraphType DeclaringType { get { return (DynamicGraphType)base.DeclaringType; } }
+
+				protected internal override object GetValue(object instance)
+				{
+					DeclaringType.OnPropertyGet(DeclaringType.GetGraphInstance(instance), this);
+					return DeclaringType.Provider.GetPropertyValue(instance, PropertySource);
+				}
+
+				protected internal override void SetValue(object instance, object value)
+				{
+					object originalValue = DeclaringType.Provider.GetPropertyValue(instance, PropertySource);
+
+					if ((originalValue == null ^ value == null) || (originalValue != null && !originalValue.Equals(value)))
+					{
+						DeclaringType.Provider.SetPropertyValue(instance, PropertySource, value);
+						OnPropertyChanged(DeclaringType.GetGraphInstance(instance), originalValue, value);
+					}
+				}
 			}
 
-			protected internal TPropertySource PropertySource { get; private set; }
-
-			protected internal override object GetValue(object instance)
-			{
-				return ((DynamicGraphTypeProvider<TTypeSource, TPropertySource>)((DynamicGraphType)DeclaringType).Provider)
-					.GetPropertyValue(instance, PropertySource);
-			}
-
-			protected internal override void SetValue(object instance, object value)
-			{
-				((DynamicGraphTypeProvider<TTypeSource, TPropertySource>)((DynamicGraphType)DeclaringType).Provider)
-					.SetPropertyValue(instance, PropertySource, value);
-			}
+			#endregion
 		}
 
 		#endregion
