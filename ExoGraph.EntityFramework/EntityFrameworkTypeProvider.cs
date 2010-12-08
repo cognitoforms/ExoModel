@@ -344,7 +344,13 @@ namespace ExoGraph.EntityFramework
 
 				// Create a new instance if the id is null
 				if (id == null)
-					return context.GetType().GetMethod("CreateObject").MakeGenericMethod(UnderlyingType).Invoke(context, null);
+				{
+					// When a new entity is created, it is detached by default.  Attach it to the context so it will be tracked.
+					var entity = context.GetType().GetMethod("CreateObject").MakeGenericMethod(UnderlyingType).Invoke(context, null);
+					context.AddObject(qualifiedEntitySetName, entity);
+
+					return entity;
+				}
 
 				// Otherwise, load the existing instance
 
@@ -365,9 +371,7 @@ namespace ExoGraph.EntityFramework
 
 			protected override void DeleteInstance(GraphInstance graphInstance)
 			{
-				ObjectContext context = GetObjectContext();
-
-				context.DeleteObject(graphInstance.Instance);
+				GetObjectContext().DeleteObject(graphInstance.Instance);
 			}
 
 			internal void RaiseOnSave(GraphInstance instance)
