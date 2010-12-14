@@ -69,6 +69,14 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Returns true if the graph event is serializable.
+		/// </summary>
+		public virtual bool IsSerializable
+		{
+			get { return true; }
+		}
+
+		/// <summary>
 		/// Starts a new <see cref="GraphEventScope"/>, allows subclasses to perform
 		/// event specific notifications by overriding <see cref="OnNotify"/>, and
 		/// notifies the context that the event has occurred.

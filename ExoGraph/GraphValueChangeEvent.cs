@@ -95,6 +95,11 @@ namespace ExoGraph
 			}
 		}
 
+		public override bool IsSerializable
+		{
+			get { return Property.PropertyType.IsSerializable; }
+		}
+
 		/// <summary>
 		/// Notify subscribers that the property value has changed.
 		/// </summary>
