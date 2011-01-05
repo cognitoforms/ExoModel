@@ -100,6 +100,11 @@ namespace ExoGraph
 			return true;
 		}
 
+		public override string ToString()
+		{
+			return string.Format("Added {0} items to and removed {1} items from '{2}'", AddedArray.Length, RemovedArray.Length, PropertyName);
+		}
+
 		#region ITransactedGraphEvent Members
 
 		void Prepare(GraphTransaction transaction)
