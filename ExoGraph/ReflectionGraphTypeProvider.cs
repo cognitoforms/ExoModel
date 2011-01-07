@@ -215,7 +215,7 @@ namespace ExoGraph
 
 				// Process all properties on the instance type to create references.  Process static properties
 				// last since they would otherwise complicate calculated indexes when dealing with sub types.
-				foreach (PropertyInfo property in UnderlyingType.GetProperties().OrderBy(p => (p.GetGetMethod(true) ?? p.GetSetMethod(true)).IsStatic))
+				foreach (PropertyInfo property in GetEligibleProperties())
 				{
 					// Exit immediately if the property was not in the list of valid declaring types
 					if (GraphContext.Current.GetGraphType(property.DeclaringType) == null || (isNewProperty[property.Name] && property.DeclaringType != UnderlyingType))
@@ -259,6 +259,15 @@ namespace ExoGraph
 					if (gm != null)
 						AddMethod(gm);
 				}
+			}
+
+			/// <summary>
+			/// Gets the set of eligible properties that should be considered valid graph properties.
+			/// </summary>
+			/// <returns></returns>
+			protected virtual IEnumerable<PropertyInfo> GetEligibleProperties()
+			{
+				return UnderlyingType.GetProperties().OrderBy(p => (p.GetGetMethod(true) ?? p.GetSetMethod(true)).IsStatic);
 			}
 
 			/// <summary>

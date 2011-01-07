@@ -194,11 +194,42 @@ namespace ExoGraph.EntityFramework
 		public class EntityGraphType : ReflectionGraphType
 		{
 			string qualifiedEntitySetName;
-			GraphValueProperty[] idProperties;
+			PropertyInfo[] idProperties;
 
 			protected internal EntityGraphType(string @namespace, Type type)
 				: base(@namespace, type)
 			{
+			}
+
+			/// <summary>
+			/// Gets an array of <see cref="PropertyInfo"/> instances for each property marked 
+			/// as being an entity key for the current type.
+			/// </summary>
+			PropertyInfo[] IdProperties
+			{
+				get
+				{
+					if (idProperties == null)
+					{
+						idProperties = 
+							base.GetEligibleProperties()
+							.Where(p => 
+								p.GetCustomAttributes(typeof(EdmScalarPropertyAttribute), true)
+								.Cast<EdmScalarPropertyAttribute>().Where(a => a.EntityKeyProperty).Any()
+							)
+							.ToArray();
+					}
+					return idProperties;
+				}
+			}
+
+			/// <summary>
+			/// Override to ensure that entity key properties are excluded from the model.
+			/// </summary>
+			/// <returns></returns>
+			protected override IEnumerable<PropertyInfo> GetEligibleProperties()
+			{
+				return base.GetEligibleProperties().Where(p => !IdProperties.Contains(p));
 			}
 
 			/// <summary>
@@ -234,15 +265,6 @@ namespace ExoGraph.EntityFramework
 
 				// Get the entity type of the current graph type
 				var entityType = context.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + Name, DataSpace.OSpace);
-
-				// Get the value properties that comprise the identifier for the entity type
-				idProperties = (
-					from property in Properties
-					where property is GraphValueProperty &&
-						property.HasAttribute<EdmScalarPropertyAttribute>() &&
-						property.GetAttributes<EdmScalarPropertyAttribute>()[0].EntityKeyProperty
-					select property as GraphValueProperty
-				).ToArray();
 
 				// Find all back-references from entities contained in each parent-child relationship for use when
 				// items are expected to be deleted because they were removed from the assocation
