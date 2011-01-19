@@ -16,19 +16,19 @@ namespace ExoGraph.EntityFramework
 {
 	public class EntityFrameworkGraphTypeProvider : ReflectionGraphTypeProvider
 	{
-		public EntityFrameworkGraphTypeProvider(Func<ObjectContext> createContext)
+		public EntityFrameworkGraphTypeProvider(Func<GraphObjectContext> createContext)
 			: this("", createContext)
 		{ }
 
-		public EntityFrameworkGraphTypeProvider(string @namespace, Func<ObjectContext> createContext)
+		public EntityFrameworkGraphTypeProvider(string @namespace, Func<GraphObjectContext> createContext)
 			: base(@namespace, GetEntityTypes(createContext()), null) 
 		{
 			this.CreateContext = createContext;
 		}
 
-		Func<ObjectContext> CreateContext { get; set; }
+		Func<GraphObjectContext> CreateContext { get; set; }
 
-		static IEnumerable<Type> GetEntityTypes(ObjectContext context)
+		static IEnumerable<Type> GetEntityTypes(GraphObjectContext context)
 		{
 			using (context)
 			{
@@ -37,7 +37,7 @@ namespace ExoGraph.EntityFramework
 			}
 		}
 
-		internal ObjectContext GetObjectContext()
+		internal GraphObjectContext GetObjectContext()
 		{
 			Storage storage = GetStorage();
 
@@ -47,10 +47,10 @@ namespace ExoGraph.EntityFramework
 				storage.Context.MetadataWorkspace.LoadFromAssembly(storage.Context.GetType().Assembly);
 
 				// Raise OnSave whenever the object context is committed
-				storage.Context.SavingChanges += (sender, e) =>
+				storage.Context.SavedChanges += (sender, e) =>
 				{
-					var context = sender as ObjectContext;
-					var firstEntity = context.ObjectStateManager.GetObjectStateEntries(EntityState.Added | EntityState.Deleted | EntityState.Modified).Where(p => p.Entity != null).Select(p => p.Entity).FirstOrDefault();
+					var context = sender as GraphObjectContext;
+					var firstEntity = context.ObjectStateManager.GetObjectStateEntries(EntityState.Added | EntityState.Deleted | EntityState.Modified | EntityState.Unchanged).Where(p => p.Entity != null).Select(p => p.Entity).FirstOrDefault();
 
 					// Raise the save event on the first found dirty entity
 					if (firstEntity != null)
@@ -183,7 +183,7 @@ namespace ExoGraph.EntityFramework
 		/// </summary>
 		class Storage
 		{
-			public ObjectContext Context { get; set; }
+			public GraphObjectContext Context { get; set; }
 		}
 
 		#endregion
@@ -245,7 +245,7 @@ namespace ExoGraph.EntityFramework
 				base.OnInit();
 
 				// Get the current object context
-				ObjectContext context = GetObjectContext();
+				GraphObjectContext context = GetObjectContext();
 
 				// Find the base entity graph type
 				GraphType baseType = this;
@@ -329,14 +329,14 @@ namespace ExoGraph.EntityFramework
 			/// current <see cref="EntityGraphType"/>.
 			/// </summary>
 			/// <returns></returns>
-			internal ObjectContext GetObjectContext()
+			internal GraphObjectContext GetObjectContext()
 			{
 				return ((EntityFrameworkGraphTypeProvider)Provider).GetObjectContext();
 			}
 
 			protected override void SaveInstance(GraphInstance graphInstance)
 			{
-				GetObjectContext().SaveChanges(SaveOptions.None);
+				GetObjectContext().SaveChanges(SaveOptions.AcceptAllChangesAfterSave);
 			}
 
 			protected override string GetId(object instance)
@@ -362,7 +362,7 @@ namespace ExoGraph.EntityFramework
 			protected override object GetInstance(string id)
 			{
 				// Get the current object context
-				ObjectContext context = GetObjectContext();
+				GraphObjectContext context = GetObjectContext();
 
 				// Create a new instance if the id is null
 				if (id == null)

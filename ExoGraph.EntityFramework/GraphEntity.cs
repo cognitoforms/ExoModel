@@ -44,17 +44,17 @@ namespace ExoGraph.EntityFramework
 	}
 
 	public abstract class GraphEntity<TObjectContext> : GraphEntity
-		where TObjectContext : ObjectContext
+		where TObjectContext : GraphObjectContext
 	{
 		/// <summary>
 		/// Enables the base class to know the type of the concrete subclass in order to obtain the
-		/// correct <see cref="ObjectContext"/>.  Ideally, this would be a generic type parameter,
+		/// correct <see cref="GraphObjectContext"/>.  Ideally, this would be a generic type parameter,
 		/// but a bug in the Entity Framework does not support curiously recursing generic types
 		/// as a subclass of EntityObject.
 		/// </summary>
 		protected static Type entityType;
 
-		protected static TObjectContext ObjectContext
+		protected static TObjectContext GraphObjectContext
 		{
 			get
 			{

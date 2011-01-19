@@ -49,6 +49,7 @@
     <Compile Include="EntityCollectionWrapper.cs" />
     <Compile Include="EntityFrameworkTypeProvider.cs" />
     <Compile Include="GraphEntity.cs" />
+    <Compile Include="GraphObjectContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -56,6 +57,13 @@
       <Project>{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}</Project>
       <Name>ExoGraph</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Infrastructure\DataModel.tt" />
+    <None Include="Infrastructure\DataModel.tt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
