@@ -331,6 +331,26 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Gets the first occurence of an attribute.  Optionally searches base classes
+		/// </summary>
+		/// <typeparam name="TAttribute">The type of attribute to locate</typeparam>
+		/// <param name="inherit">If true, base types will be searched</param>
+		/// <returns>The first matching attribute</returns>
+		public TAttribute GetAttribute<TAttribute>(bool inherit)
+			where TAttribute : Attribute
+		{
+			for (GraphType t = this; inherit && t != null; t = t.BaseType)
+			{
+				var attribute = t.GetAttributes<TAttribute>().FirstOrDefault();
+
+				if (attribute != null)
+					return attribute;
+			}
+
+			return null;
+		}
+
+		/// <summary>
 		/// Returns an array of attributes defined on the current type.
 		/// </summary>
 		/// <typeparam name="TAttribute"></typeparam>
