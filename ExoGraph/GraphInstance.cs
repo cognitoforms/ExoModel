@@ -329,7 +329,7 @@ namespace ExoGraph
 			references.Add(reference);
 
 			// Only add in references if the property is not a boundary between separately scoped instances
-			if (!property.IsBoundary)
+			if (Type.Provider.GetScopeName(this) == instance.Type.Provider.GetScopeName(instance))
 			{
 				// Create a reference set if no in references have been established for this property
 				if (!instance.InReferences.TryGetValue(property, out references))

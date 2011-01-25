@@ -27,5 +27,10 @@ namespace ExoGraph
 		/// <param name="typeName"></param>
 		/// <returns></returns>
 		GraphType CreateGraphType(string typeName);
+
+		/// <summary>
+		/// Gets the fully-qualified name of the scope that the instance is currently in.
+		/// </summary>
+		string GetScopeName(GraphInstance instance);
 	}
 }

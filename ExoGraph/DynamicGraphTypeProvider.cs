@@ -68,6 +68,11 @@ namespace ExoGraph
 		protected abstract GraphType CreateGraphType(string typeName);
 
 		/// <summary>
+		/// Gets the fully qualified name of the scope that the current instance is in
+		/// </summary>
+		protected abstract string GetScopeName(GraphInstance instance);
+
+		/// <summary>
 		/// 
 		/// </summary>
 		/// <param name="obj"></param>
@@ -112,6 +117,13 @@ namespace ExoGraph
 			return CreateGraphType(typeName);
 		}
 
+		/// <summary>
+		/// Gets the fully qualified name of the scope that the current instance is in
+		/// </summary>
+		string IGraphTypeProvider.GetScopeName(GraphInstance instance)
+		{
+			return GetScopeName(instance);
+		}
 		#endregion
 	}
 
@@ -376,7 +388,7 @@ namespace ExoGraph
 			class DynamicReferenceProperty : GraphReferenceProperty
 			{
 				internal DynamicReferenceProperty(DynamicGraphType declaringType, TPropertySource property, string name, GraphType propertyType, bool isList, Attribute[] attributes)
-					: base(declaringType, name, false, false, propertyType, isList, attributes)
+					: base(declaringType, name, false, propertyType, isList, attributes)
 				{
 					this.PropertySource = property;
 				}

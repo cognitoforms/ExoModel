@@ -9,11 +9,10 @@ namespace ExoGraph
 	{
 		#region Constructors
 
-		protected internal GraphReferenceProperty(GraphType declaringType, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
+		protected internal GraphReferenceProperty(GraphType declaringType, string name, bool isStatic, GraphType propertyType, bool isList, Attribute[] attributes)
 			: base(declaringType, name, isStatic, isList, attributes)
 		{
 			this.PropertyType = propertyType;
-			this.IsBoundary = isBoundary;
 		}
 
 		#endregion
@@ -21,8 +20,6 @@ namespace ExoGraph
 		#region Properties
 
 		public GraphType PropertyType { get; private set; }
-
-		public bool IsBoundary { get; private set; }
 
 		#endregion
 	}

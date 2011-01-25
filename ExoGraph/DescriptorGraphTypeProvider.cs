@@ -12,6 +12,7 @@ namespace ExoGraph
 		#region Fields
 
 		Func<string, T> create;
+		Func<GraphInstance, string> getScopeName;
 
 		#endregion
 
@@ -22,10 +23,11 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="namespace"></param>
 		/// <param name="create"></param>
-		public DescriptorGraphTypeProvider(string @namespace, Func<string, T> create)
+		public DescriptorGraphTypeProvider(string @namespace, Func<string, T> create, Func<GraphInstance, string> getScopeName)
 			: base(@namespace, GraphContext.Current.GetGraphType<T>().Name)
 		{
 			this.create = create;
+			this.getScopeName = getScopeName;
 		}
 
 		#endregion
@@ -84,6 +86,11 @@ namespace ExoGraph
 			Type itemType;
 			GraphContext.Current.GetGraphType<T>().TryGetListItemType(property.PropertyType, out itemType);
 			return GraphContext.Current.GetGraphType(itemType ?? property.PropertyType);
+		}
+
+		protected override string GetScopeName(GraphInstance instance)
+		{
+			return getScopeName(instance);
 		}
 
 		protected override TypeConverter GetValueConverter(PropertyDescriptor property)
