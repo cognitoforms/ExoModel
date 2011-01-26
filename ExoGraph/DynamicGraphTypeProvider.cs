@@ -138,6 +138,7 @@ namespace ExoGraph
 	/// <typeparam name="TTypeSource"></typeparam>
 	/// <typeparam name="TPropertySource"></typeparam>
 	public abstract class DynamicGraphTypeProvider<TTypeSource, TPropertySource> : DynamicGraphTypeProvider
+        where TTypeSource : class
 	{
 		#region Constructors
 
@@ -433,6 +434,7 @@ namespace ExoGraph
 	/// <typeparam name="TTypeSource"></typeparam>
 	/// <typeparam name="TPropertySource"></typeparam>
 	public abstract class DynamicGraphTypeProvider<TBaseType, TTypeSource, TPropertySource> : DynamicGraphTypeProvider<TTypeSource, TPropertySource>
+        where TTypeSource : class
 	{
 		protected DynamicGraphTypeProvider(string @namespace)
 			: base(@namespace, null)
@@ -468,6 +470,9 @@ namespace ExoGraph
 
 		protected override TTypeSource GetTypeSource(object instance)
 		{
+            if (!(instance is TBaseType))
+                return null;
+
 			return GetTypeSource((TBaseType)instance);
 		}
 	}
