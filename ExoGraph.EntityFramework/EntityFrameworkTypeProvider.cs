@@ -103,6 +103,11 @@ namespace ExoGraph.EntityFramework
 			return new EntityGraphType(@namespace, type);
 		}
 
+		protected override string GetScopeName(GraphInstance instance)
+		{
+			return string.Empty;
+		}
+
 		internal static GraphInstance CreateGraphInstance(object instance)
 		{
 			GraphInstance graphInstance = ReflectionGraphTypeProvider.CreateGraphInstance(instance);
@@ -144,12 +149,12 @@ namespace ExoGraph.EntityFramework
 		/// <param name="isList"></param>
 		/// <param name="attributes"></param>
 		/// <returns></returns>
-		protected override GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, bool isStatic, bool isBoundary, GraphType propertyType, bool isList, Attribute[] attributes)
+		protected override GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, bool isStatic, GraphType propertyType, bool isList, Attribute[] attributes)
 		{
 			// Fetch any attributes associated with a buddy-class
 			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
 
-			return base.CreateReferenceProperty(declaringType, property, name, isStatic, isBoundary, propertyType, isList, attributes);
+			return base.CreateReferenceProperty(declaringType, property, name, isStatic, propertyType, isList, attributes);
 		}
 
 		/// <summary>
