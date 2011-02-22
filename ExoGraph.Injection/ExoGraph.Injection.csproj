@@ -106,6 +106,12 @@
     <Content Include="Dependencies\PostSharp.Public.dll" />
     <Content Include="Dependencies\PostSharp.Public.xml" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="NuGet\ExoGraph.Injection.nuspec" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="NuGet\lib\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

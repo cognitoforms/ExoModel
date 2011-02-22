@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<package>
+	<metadata>
+		<id>ExoGraph.Injection</id>
+		<version>1.0.0</version>
+		<authors>Jamie Thomas</authors>
+		<description>ExoGraph.Injection description</description>
+		<summary>ExoGraph.Injection summary</summary>
+		<projectUrl>http://exosuite.com/</projectUrl>
+		<licenseUrl>http://exosuite.com/license</licenseUrl>
+		<dependencies>
+			<dependency id="ExoGraph" version="1.0.0" />
+		</dependencies>
+	</metadata>
+	<files>
+		<file src="..\bin\Debug\ExoGraph.Injection.dll" target="lib"/>
+		<file src="..\bin\Debug\PostSharp.Laos.dll" target="lib"/>
+		<file src="..\bin\Debug\PostSharp.Public.dll" target="lib"/>
+	</files>
+</package>

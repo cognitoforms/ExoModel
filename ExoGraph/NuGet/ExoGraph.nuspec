@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<package>
+  <metadata>
+    <id>ExoGraph</id>
+    <version>1.0.0</version>
+    <authors>Jamie Thomas</authors>
+    <description>ExoGraph description</description>
+    <summary>ExoGraph summary</summary>
+    <projectUrl>http://exosuite.com/</projectUrl>
+    <licenseUrl>http://exosuite.com/license</licenseUrl>
+  </metadata>
+  <files>
+    <file src="..\bin\Debug\ExoGraph.dll" target="lib"/>
+  </files>
+</package>
