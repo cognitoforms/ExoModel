@@ -171,51 +171,80 @@ namespace ExoGraph
 				// Only perform initialization on non-recursive calls to this method
 				bool initialize = initializing == false ? initializing = true : false;
 
-				// Attempt to create the graph type if it is not cached
-				foreach (var provider in typeProviders)
+				try
 				{
-					type = provider.CreateGraphType(typeName);
-					if (type != null)
+					// Attempt to create the graph type if it is not cached
+					foreach (var provider in typeProviders)
 					{
-						type.Provider = provider;
-						break;
+						type = provider.CreateGraphType(typeName);
+						if (type != null)
+						{
+							type.Provider = provider;
+							break;
+						}
+					}
+
+					// Return null to indicate that the graph type could not be created
+					if (type == null)
+						return null;
+
+					// Register the new graph type with the context
+					graphTypes.Add(type);
+
+					// Register the new graph type to be initialized
+					uninitialized.Enqueue(type);
+
+					// Perform initialization if not recursing
+					if (initialize)
+					{
+						// Initialize new graph types in FIFO order
+						while (uninitialized.Count > 0)
+						{
+							// Initialize the type
+							var initType = uninitialized.Peek();
+
+							// Handle exceptions that are thrown as a result of initializing the type. If an
+							// error occurs, restore the graph types list to a valid state and remove the set
+							// of uninitialized graph types. This is needed to ensure that the context is 
+							// valid should it be assigned to another thread in the future.
+							try
+							{
+								initType.Initialize(this);
+							}
+							catch (Exception e)
+							{
+								// Recreate the graph types list based on only initialized types
+								graphTypes = new GraphTypeList(graphTypes.Where(t => !uninitialized.Contains(t)).ToArray());
+
+								// Discard all uninitialized graph types
+								uninitialized.Clear();
+
+								throw e;
+							}
+
+							// Record the initialized type and remove from list of types needing initialization
+							initialized.Add(initType);
+							uninitialized.Dequeue();
+						}
+
+						initializing = false;
+						initialize = false;
+
+						// Raise event for all initialized types
+						if (TypesInitialized != null)
+						{
+							var initializedTypeArray = initialized.ToArray();
+							initialized.Clear();
+
+							TypesInitialized(this, new TypesInitializedEventArgs(initializedTypeArray));
+						}
 					}
 				}
-
-				// Return null to indicate that the graph type could not be created
-				if (type == null)
-					return null;
-
-				// Register the new graph type with the context
-				graphTypes.Add(type);
-
-				// Register the new graph type to be initialized
-				uninitialized.Enqueue(type);
-
-				// Perform initialization if not recursing
-				if (initialize)
+				finally
 				{
-					// Initialize new graph types in FIFO order
-					while (uninitialized.Count > 0)
-					{
-						// Initialize the type
-						var initType = uninitialized.Peek();
-						initType.Initialize(this);
-
-						// Record the initialized type and remove from list of types needing initialization
-						initialized.Add(initType);
-						uninitialized.Dequeue();
-					}
-					initializing = false;
-
-					// Raise event for all initialized types
-					if (TypesInitialized != null)
-					{
-						var initializedTypeArray = initialized.ToArray();
-						initialized.Clear();
-
-						TypesInitialized(this, new TypesInitializedEventArgs(initializedTypeArray));
-					}
+					// If an error occurred during initilization, the initializing flag must be reset
+					if (initialize)
+						initializing = false;
 				}
 			}
 			

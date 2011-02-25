@@ -10,6 +10,16 @@ namespace ExoGraph
 	/// </summary>
 	public class GraphTypeList : ReadOnlyList<GraphType>
 	{
+		public GraphTypeList()
+			: base()
+		{
+		}
+
+		internal GraphTypeList(IEnumerable<GraphType> graphTypes)
+			: base(graphTypes)
+		{
+		}
+
 		protected override string GetName(GraphType item)
 		{
 			return item.Name;

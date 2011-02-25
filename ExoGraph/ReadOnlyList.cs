@@ -18,6 +18,13 @@ namespace ExoGraph
 		{
 		}
 
+		protected ReadOnlyList(IEnumerable<TItem> items)
+			: this()
+		{
+			foreach (TItem item in items)
+				Add(item);
+		}
+
 		protected ReadOnlyList(Converter<TItem, object> sortKey)
 		{
 			this.sorted = new SortedList();
