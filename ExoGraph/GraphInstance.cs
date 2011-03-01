@@ -408,9 +408,11 @@ namespace ExoGraph
 			// If the property is a reference property, establish edges
 			if (property is GraphReferenceProperty)
 			{
-				// Prevent gets on reference properties from raising get notifications
-				using (Type.Context.SuspendGetNotifications())
+				try
 				{
+					// Prevent gets on reference properties from raising get notifications
+					Type.Context.AddPendingPropertyGet(this, property);
+
 					GraphReferenceProperty refProp = (GraphReferenceProperty)property;
 					if (refProp.IsList)
 					{
@@ -430,6 +432,10 @@ namespace ExoGraph
 						if (reference != null)
 							AddReference(refProp, reference, true);
 					}
+				}
+				finally
+				{
+					Type.Context.RemovePendingPropertyGet(this, property);
 				}
 			}
 

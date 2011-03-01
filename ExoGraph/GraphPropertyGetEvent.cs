@@ -24,7 +24,7 @@ namespace ExoGraph
 			if (IsFirstAccess)
 			{
 				// Abort if property get notifications have been suspended
-				if (Instance.Type.Context.ShouldSuspendGetNotifications)
+				if (Instance.Type.Context.IsPropertyBeingAccessed(Instance, Property))
 					return false;
 
 				// Notify the instance that it is being accessed

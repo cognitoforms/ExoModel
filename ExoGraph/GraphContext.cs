@@ -43,6 +43,11 @@ namespace ExoGraph
 		/// </summary>
 		IList<GraphType> initialized = new List<GraphType>();
 
+		/// <summary>
+		/// List of properties that are being accessed for the first time.
+		/// </summary>
+		List<KeyValuePair<GraphInstance, GraphProperty>> pendingGetProperties = new List<KeyValuePair<GraphInstance, GraphProperty>>();
+
 		#endregion
 
 		#region Constructors
@@ -75,12 +80,6 @@ namespace ExoGraph
 		/// creating and storing the <see cref="GraphContext"/> for the application.
 		/// </summary>
 		public static IGraphContextProvider Provider { get; set; }
-
-		/// <summary>
-		/// Indicates whether <see cref="GraphPropertyGetEvent"/> notifications should not be
-		/// raised when a property is accessed.
-		/// </summary>
-		internal bool ShouldSuspendGetNotifications { get; private set; }
 
 		#endregion
 
@@ -134,9 +133,36 @@ namespace ExoGraph
 			return "?" + ++nextId;
 		}
 
-		internal IDisposable SuspendGetNotifications()
+		/// <summary>
+		/// Notify that a property is being accessed for the first time.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="property"></param>
+		internal void AddPendingPropertyGet(GraphInstance instance, GraphProperty property)
 		{
-			return new GetNotificationSuspension(this);
+			pendingGetProperties.Add(new KeyValuePair<GraphInstance, GraphProperty>(instance, property));
+		}
+
+		/// <summary>
+		/// Notify that a property was accessed for the first time.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="property"></param>
+		internal void RemovePendingPropertyGet(GraphInstance instance, GraphProperty property)
+		{
+			pendingGetProperties.Remove(new KeyValuePair<GraphInstance, GraphProperty>(instance, property));
+		}
+
+		/// <summary>
+		/// Indicates that the given property is being accessed for the first time on the given graph instance,
+		/// so property get events should be temporarily suspended.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="property"></param>
+		/// <returns></returns>
+		internal bool IsPropertyBeingAccessed(GraphInstance instance, GraphProperty property)
+		{
+			return pendingGetProperties.Count > 0 && pendingGetProperties.Contains(new KeyValuePair<GraphInstance, GraphProperty>(instance, property));
 		}
 
 		/// <summary>
@@ -305,26 +331,6 @@ namespace ExoGraph
 		public void AddGraphTypeProvider(IGraphTypeProvider typeProvider)
 		{
 			typeProviders.Insert(0, typeProvider);
-		}
-
-		#endregion
-
-		#region GetNotificationSuspension
-
-		class GetNotificationSuspension : IDisposable
-		{
-			GraphContext context;
-
-			internal GetNotificationSuspension(GraphContext context)
-			{
-				this.context = context;
-				context.ShouldSuspendGetNotifications = true;
-			}
-
-			void IDisposable.Dispose()
-			{
-				context.ShouldSuspendGetNotifications = false;
-			}
 		}
 
 		#endregion
