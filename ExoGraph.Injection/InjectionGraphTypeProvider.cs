@@ -55,8 +55,8 @@ namespace ExoGraph.Injection
 
 		public abstract class InjectionGraphType : ReflectionGraphType
 		{
-			protected InjectionGraphType(string @namespace, Type type)
-				: base(@namespace, type)
+			protected InjectionGraphType(string @namespace, Type type, string scope)
+				: base(@namespace, type, scope)
 			{ }
 
 			public override GraphInstance GetGraphInstance(object instance)
