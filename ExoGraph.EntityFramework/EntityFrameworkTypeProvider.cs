@@ -100,12 +100,7 @@ namespace ExoGraph.EntityFramework
 
 		protected override ReflectionGraphType CreateGraphType(string @namespace, Type type)
 		{
-			return new EntityGraphType(@namespace, type);
-		}
-
-		protected override string GetScopeName(GraphInstance instance)
-		{
-			return string.Empty;
+			return new EntityGraphType(@namespace, type, "");
 		}
 
 		internal static GraphInstance CreateGraphInstance(object instance)
@@ -198,12 +193,14 @@ namespace ExoGraph.EntityFramework
 		[Serializable]
 		public class EntityGraphType : ReflectionGraphType
 		{
+			string @namespace;
 			string qualifiedEntitySetName;
 			PropertyInfo[] idProperties;
 
-			protected internal EntityGraphType(string @namespace, Type type)
-				: base(@namespace, type)
+			protected internal EntityGraphType(string @namespace, Type type, string scope)
+				: base(@namespace, type, scope)
 			{
+				this.@namespace = @namespace;
 			}
 
 			/// <summary>
@@ -266,10 +263,10 @@ namespace ExoGraph.EntityFramework
 				//   3. only one entity type with a name that matches the graph type
 				qualifiedEntitySetName = context.DefaultContainerName + "." +
 					context.MetadataWorkspace.GetItems<EntityContainer>(DataSpace.CSpace)[0]
-						.BaseEntitySets.First(s => s.ElementType.Name == baseType.Name).Name;
+						.BaseEntitySets.First(s => s.ElementType.Name == ((EntityFrameworkGraphTypeProvider.EntityGraphType)baseType).UnderlyingType.Name).Name;
 
 				// Get the entity type of the current graph type
-				var entityType = context.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + Name, DataSpace.OSpace);
+				var entityType = context.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + UnderlyingType.Name, DataSpace.OSpace);
 
 				// Find all back-references from entities contained in each parent-child relationship for use when
 				// items are expected to be deleted because they were removed from the assocation
@@ -277,7 +274,7 @@ namespace ExoGraph.EntityFramework
 				foreach (GraphReferenceProperty property in Properties.Where(p => p.IsList && p is GraphReferenceProperty))
 				{
 					var relatedGraphType = ((GraphReferenceProperty) property).PropertyType;
-					var relatedEntityType = context.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + relatedGraphType.Name, DataSpace.OSpace);
+					var relatedEntityType = context.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + ((EntityFrameworkGraphTypeProvider.EntityGraphType)relatedGraphType).UnderlyingType.Name, DataSpace.OSpace);
 					NavigationProperty manyNavProp;
 					if (!entityType.NavigationProperties.TryGetValue(property.Name, false, out manyNavProp))
 						continue;
@@ -285,12 +282,12 @@ namespace ExoGraph.EntityFramework
 					if (oneNavProp == null)
 						continue;
 
-					var oneNavDeclaringType = GraphContext.Current.GetGraphType(oneNavProp.DeclaringType.Name);
+					var oneNavDeclaringType = GraphContext.Current.GetGraphType(@namespace + oneNavProp.DeclaringType.Name);
 					oneNavDeclaringType.AfterInitialize(delegate
 					{
 						var parentReference = property.PropertyType.Properties[oneNavProp.Name];
 						if (parentReference != null && parentReference.HasAttribute<RequiredAttribute>())
-							listAssociations.Add(property, parentReference as GraphReferenceProperty);
+							listAssociations[property] = parentReference as GraphReferenceProperty;
 					});
 				}
 

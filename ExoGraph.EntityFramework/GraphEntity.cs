@@ -23,7 +23,7 @@ namespace ExoGraph.EntityFramework
 				if (EntityKey == null || EntityKey.IsTemporary)
 					return null;
 				else if (EntityKey.EntityKeyValues.Length > 1)
-					throw new NotImplementedException();
+					return EntityKey.EntityKeyValues.Select(v => v.Value.ToString()).Aggregate((v1, v2) => v1 + "," + v2);
 				else
 					return EntityKey.EntityKeyValues[0].Value.ToString();
 			}
@@ -54,7 +54,7 @@ namespace ExoGraph.EntityFramework
 		/// </summary>
 		protected static Type entityType;
 
-		protected static TObjectContext GraphObjectContext
+		protected static TObjectContext ObjectContext
 		{
 			get
 			{
