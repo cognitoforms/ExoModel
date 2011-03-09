@@ -400,6 +400,8 @@ namespace ExoGraph
 					isCached = knownType.IsCached(instance);
 					if (isCached)
 					{
+						inReferences = null;
+						outReferences = null;
 						typeName = knownType.Name;
 						type = null;
 					}
