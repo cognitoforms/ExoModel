@@ -52,14 +52,17 @@ namespace ExoGraph
 
 		#region Constructors
 
-		public GraphContext()
-		{
-		}
-
 		public GraphContext(params IGraphTypeProvider[] providers)
 		{
+			if (providers == null)
+				return;
+
 			foreach (IGraphTypeProvider provider in providers)
 				AddGraphTypeProvider(provider);
+
+			// Notify subscribers that a new context was created
+			if (ContextInit != null)
+				ContextInit(this, EventArgs.Empty);
 		}
 
 		#endregion
@@ -86,12 +89,19 @@ namespace ExoGraph
 		#region Events
 
 		/// <summary>
-		/// Allows subscribers to be notified of all <see cref="GraphEvent"/> occurrences
-		/// raised within the current graph context.
+		/// Notifies when all <see cref="GraphEvent"/> occurrences are raised within the current graph context.
 		/// </summary>
 		public event EventHandler<GraphEvent> Event;
 
-		public event EventHandler<TypesInitializedEventArgs> TypesInitialized;
+		/// <summary>
+		/// Notifies when new types are initialized within the current graph context.
+		/// </summary>
+		public event EventHandler<TypeInitEventArgs> TypeInit;
+
+		/// <summary>
+		/// Notifies when a new <see cref="GraphContext"/> is initialized.
+		/// </summary>
+		public static event EventHandler ContextInit;
 
 		#endregion
 
@@ -166,13 +176,22 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Resets the current context in preparation for being reused after being cached in a context pool.
+		/// </summary>
+		internal void Reset()
+		{
+			nextId = 0;
+		}
+
+		/// <summary>
 		/// Gets the <see cref="GraphInstance"/> associated with the specified real instance.
 		/// </summary>
 		/// <param name="instance"></param>
 		/// <returns></returns>
 		public GraphInstance GetGraphInstance(object instance)
 		{
-			return GetGraphType(instance).GetGraphInstance(instance);
+			var type = GetGraphType(instance);
+			return type != null ? type.GetGraphInstance(instance) : null;
 		}
 
 		#endregion
@@ -257,12 +276,12 @@ namespace ExoGraph
 						initialize = false;
 
 						// Raise event for all initialized types
-						if (TypesInitialized != null)
+						if (TypeInit != null)
 						{
 							var initializedTypeArray = initialized.ToArray();
 							initialized.Clear();
 
-							TypesInitialized(this, new TypesInitializedEventArgs(initializedTypeArray));
+							TypeInit(this, new TypeInitEventArgs(initializedTypeArray));
 						}
 					}
 				}

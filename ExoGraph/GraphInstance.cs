@@ -22,6 +22,7 @@ namespace ExoGraph
 		string id;
 		object instance;
 		GraphType type;
+		string typeName;
 
 		[NonSerialized]
 		Dictionary<GraphReferenceProperty, ReferenceSet> outReferences =
@@ -35,8 +36,8 @@ namespace ExoGraph
 		object extension;
 
 		bool[] hasBeenAccessed;
-
 		bool isInitialized;
+		bool isCached;
 
 		static GraphReference[] noReferences = new GraphReference[0];
 
@@ -82,7 +83,7 @@ namespace ExoGraph
 			{
 				if (!isInitialized && type == GraphType.Unknown)
 					OnAccess();
-				return type;
+				return type ?? GraphContext.Current.GetGraphType(typeName);
 			}
 		}
 
@@ -160,8 +161,13 @@ namespace ExoGraph
 		{
 			get
 			{
-				if(outReferences == null)
-					outReferences = new Dictionary<GraphReferenceProperty, ReferenceSet>();
+				if (outReferences == null)
+				{
+					if (isCached)
+						return new Dictionary<GraphReferenceProperty, ReferenceSet>();
+					else
+						outReferences = new Dictionary<GraphReferenceProperty, ReferenceSet>();
+				}
 
 				return outReferences;
 			}
@@ -172,7 +178,12 @@ namespace ExoGraph
 			get
 			{
 				if(inReferences == null)
-					inReferences = new Dictionary<GraphReferenceProperty, ReferenceSet>();
+				{
+					if (isCached)
+						return new Dictionary<GraphReferenceProperty, ReferenceSet>();
+					else
+						inReferences = new Dictionary<GraphReferenceProperty, ReferenceSet>();
+				}
 
 				return inReferences;
 			}
@@ -216,7 +227,7 @@ namespace ExoGraph
 		}
 
 		/// <summary>
-		/// Explicity implementation of <see cref="IGraphPropertySource"/> exposing the set of properties for the current instance.
+		/// Explicit implementation of <see cref="IGraphPropertySource"/> exposing the set of properties for the current instance.
 		/// </summary>
 		GraphPropertyList IGraphPropertySource.Properties
 		{
@@ -329,7 +340,7 @@ namespace ExoGraph
 			references.Add(reference);
 
 			// Only add in references if the property is not a boundary between separately scoped instances
-			if (Type.Provider.GetScopeName(this) == instance.Type.Provider.GetScopeName(instance))
+			if (Type.Scope == instance.Type.Scope)
 			{
 				// Create a reference set if no in references have been established for this property
 				if (!instance.InReferences.TryGetValue(property, out references))
@@ -385,8 +396,16 @@ namespace ExoGraph
 				// Initialize the graph type if necessary
 				if (type == GraphType.Unknown)
 				{
-					type = GraphContext.Current.GetGraphType(instance);
-					hasBeenAccessed = new bool[type.PropertyCount];
+					GraphType knownType = GraphContext.Current.GetGraphType(instance);
+					isCached = knownType.IsCached(instance);
+					if (isCached)
+					{
+						typeName = knownType.Name;
+						type = null;
+					}
+					else
+						type = knownType;
+					hasBeenAccessed = new bool[knownType.PropertyCount];
 				}
 
 				// Raise the appropriate init event

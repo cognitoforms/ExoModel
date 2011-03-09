@@ -120,11 +120,6 @@ namespace ExoGraph
 			return instance.GetType();
 		}
 
-		/// <summary>
-		/// Gets the fully qualified name of the scope that the current instance is in
-		/// </summary>
-		protected abstract string GetScopeName(GraphInstance instance);
-
 		protected static GraphInstance CreateGraphInstance(object instance)
 		{
 			return new GraphInstance(instance);
@@ -151,14 +146,6 @@ namespace ExoGraph
 		string IGraphTypeProvider.GetGraphTypeName(Type type)
 		{
 			return supportedTypes.Contains(type) ? @namespace + type.Name : null;
-		}
-
-		/// <summary>
-		/// Gets the fully qualified name of the scope that the current instance is in
-		/// </summary>
-		string IGraphTypeProvider.GetScopeName(GraphInstance instance)
-		{
-			return GetScopeName(instance);
 		}
 
 		/// <summary>
@@ -196,8 +183,8 @@ namespace ExoGraph
 		[Serializable]
 		public abstract class ReflectionGraphType : GraphType
 		{
-			protected internal ReflectionGraphType(string @namespace, Type type)
-				: base(@namespace + type.Name, type.AssemblyQualifiedName, GetBaseType(type), type.GetCustomAttributes(false).Cast<Attribute>().ToArray())
+			protected internal ReflectionGraphType(string @namespace, Type type, string scope)
+				: base(@namespace + type.Name, type.AssemblyQualifiedName, GetBaseType(type), scope, type.GetCustomAttributes(false).Cast<Attribute>().ToArray())
 			{
 				this.UnderlyingType = type;
 			}

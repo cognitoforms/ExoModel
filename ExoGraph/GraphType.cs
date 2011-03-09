@@ -29,10 +29,11 @@ namespace ExoGraph
 
 		#region Contructors
 
-		public GraphType(string name, string qualifiedName, GraphType baseType, Attribute[] attributes)
+		public GraphType(string name, string qualifiedName, GraphType baseType, string scope, Attribute[] attributes)
 		{
 			this.Name = name;
 			this.QualifiedName = qualifiedName;
+			this.Scope = scope;
 			this.attributes = attributes;
 
 			if (baseType != null)
@@ -60,6 +61,8 @@ namespace ExoGraph
 		public string Name { get; private set; }
 
 		public string QualifiedName { get; private set; }
+
+		public string Scope { get; private set; }
 
 		public GraphType BaseType { get; private set; }
 
@@ -427,6 +430,22 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Indicates whether the specified type is a subtype of the current type.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public bool IsSubType(GraphType type)
+		{
+			while (type != null)
+			{
+				if (type.BaseType == this)
+					return true;
+				type = type.BaseType;
+			}
+			return false;
+		}
+
+		/// <summary>
 		/// Creates a new instance of the current <see cref="GraphType"/>.
 		/// </summary>
 		/// <returns></returns>
@@ -721,6 +740,17 @@ namespace ExoGraph
 
 		protected internal abstract void DeleteInstance(GraphInstance graphInstance);
 
+		/// <summary>
+		/// Indicates whether the specified instance is cached and should be prevented from maintaining 
+		/// references to <see cref="GraphContext"/>.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns></returns>
+		protected internal virtual bool IsCached(object instance)
+		{
+			return false;
+		}
+
 		#endregion
 
 		#region ISerializable Members
@@ -761,7 +791,7 @@ namespace ExoGraph
 		class UnknownGraphType : GraphType
 		{
 			internal UnknownGraphType()
-			   : base("ExoGraph.GraphType.Unknown", "ExoGraph.GraphType.Unknown", null, new Attribute[] { })
+			   : base("ExoGraph.GraphType.Unknown", "ExoGraph.GraphType.Unknown", null, "Unknown", new Attribute[] { })
 			{ }
 
 			protected internal override void OnInit()

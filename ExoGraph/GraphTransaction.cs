@@ -117,6 +117,20 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Allows multiple <see cref="GraphTransaction"/> instances to be applied in sequence, or "chained",
+		/// by propogating information about newly created instances from one transaction to the next.
+		/// </summary>
+		public void Chain(GraphTransaction nextTransaction)
+		{
+			// Propogate the new instance cache forward to the next transaction
+			if (newInstances != null)
+			{
+				foreach (GraphInstance instance in newInstances.Values)
+					nextTransaction.RegisterNewInstance(instance);
+			}
+		}
+
+		/// <summary>
 		/// Performs a set of previous changes, performs the specified operation, and records new changes that
 		/// occur as a result of the previous changes.
 		/// </summary>
@@ -238,7 +252,7 @@ namespace ExoGraph
 			var transaction = new GraphTransaction();
 
 			// Initialize the events
-			transaction.events = (List<GraphEvent>)events;
+			transaction.events = events;
 
 			// Return the new transaction
 			return transaction;
@@ -252,40 +266,53 @@ namespace ExoGraph
 		/// <returns></returns>
 		public static GraphTransaction operator +(GraphTransaction first, GraphTransaction second)
 		{
-			if (first.Context != second.Context)
+			return Combine(new GraphTransaction[] { first, second });
+		}
+
+		/// <summary>
+		/// Combines two or more transactions creating a new 
+		/// </summary>
+		/// <param name="transactions"></param>
+		/// <returns></returns>
+		public static GraphTransaction Combine(IEnumerable<GraphTransaction> transactions)
+		{
+			// Get the first transaction
+			GraphTransaction first = transactions.FirstOrDefault();
+			if (first == null)
+				return null;
+
+			// Verify that all transactions are tied to the same context
+			if (transactions.Skip(1).Any(t => t.Context != first.Context))
 				throw new InvalidOperationException("Cannot combine GraphTransactions that are associated with different GraphContexts");
 
-			if (first.isActive || second.isActive)
+			// Verify than none of the transactions are still active
+			if (transactions.Any(t => t.isActive))
 				throw new InvalidOperationException("Cannot combine GraphTransactions that are still active");
 
+			// Create a new transaction and combine the information from the specified transactions
 			GraphTransaction newTransaction;
-
 			using (newTransaction = first.Context.BeginTransaction())
 			{
-				if (first.newInstances != null)
+				foreach (var transaction in transactions)
 				{
-					if (newTransaction.newInstances == null)
+					// Copy new instances
+					if (transaction.newInstances != null)
+					{
+						if (newTransaction.newInstances == null)
 						newTransaction.newInstances = new Dictionary<string, GraphInstance>();
 
-					foreach (var entry in first.newInstances)
-						newTransaction.newInstances.Add(entry.Key, entry.Value);
+						foreach (var entry in transaction.newInstances)
+							newTransaction.newInstances.Add(entry.Key, entry.Value);
+					}
+
+					// Copy events
+					newTransaction.events.AddRange(transaction.events);
 				}
-
-				if (second.newInstances != null)
-				{
-					if (newTransaction.newInstances == null)
-						newTransaction.newInstances = new Dictionary<string, GraphInstance>();
-
-					foreach (var entry in second.newInstances)
-						newTransaction.newInstances.Add(entry.Key, entry.Value);
-				}
-
-				newTransaction.events.AddRange(first.events);
-				newTransaction.events.AddRange(second.events);
 
 				newTransaction.Commit();
 			}
 
+			// Return the combined transactions
 			return newTransaction;
 		}
 	}

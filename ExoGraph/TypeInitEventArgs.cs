@@ -5,7 +5,7 @@ using System.Text;
 
 namespace ExoGraph
 {
-	public class TypesInitializedEventArgs : EventArgs
+	public class TypeInitEventArgs : EventArgs
 	{
 		GraphType[] graphTypes;
 
@@ -17,11 +17,11 @@ namespace ExoGraph
 			}
 		}
 
-		public TypesInitializedEventArgs()
+		public TypeInitEventArgs()
 		{
 		}
 
-		public TypesInitializedEventArgs(GraphType[] types)
+		public TypeInitEventArgs(GraphType[] types)
 		{
 			graphTypes = types;
 		}

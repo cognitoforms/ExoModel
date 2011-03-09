@@ -42,6 +42,7 @@ namespace ExoGraph
 							if (pool.Count > 0)
 							{
 								Context = pool[0];
+								Context.Reset();
 								pool.RemoveAt(0);
 							}
 							else

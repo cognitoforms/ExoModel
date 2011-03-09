@@ -88,11 +88,6 @@ namespace ExoGraph
 			return GraphContext.Current.GetGraphType(itemType ?? property.PropertyType);
 		}
 
-		protected override string GetScopeName(GraphInstance instance)
-		{
-			return getScopeName(instance);
-		}
-
 		protected override TypeConverter GetValueConverter(PropertyDescriptor property)
 		{
 			return property.Converter;
