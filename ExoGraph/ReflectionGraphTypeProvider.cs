@@ -382,7 +382,17 @@ namespace ExoGraph
 
 			protected internal override void SetValue(object instance, object value)
 			{
-				PropertyInfo.SetValue(instance, value, null);
+				try
+				{
+					PropertyInfo.SetValue(instance, value, null);
+				}
+				catch (ArgumentException e)
+				{
+					if (e.Message == "Property set method not found.")
+						throw new ArgumentException(string.Format("Property set method not found on property {0} of type {1}.", PropertyInfo.Name, PropertyInfo.DeclaringType.Name));
+
+					throw e;
+				}
 			}
 		}
 
