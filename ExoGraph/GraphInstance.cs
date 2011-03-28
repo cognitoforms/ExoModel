@@ -577,7 +577,7 @@ namespace ExoGraph
 		/// <param name="value">The value of the property</param>
 		public void SetValue(GraphValueProperty property, object value)
 		{
-			if (property.AutoConvert)
+			if (property.AutoConvert && (value == null || property.Converter.CanConvertFrom(value.GetType())) )
 				property.SetValue(instance, property.Converter.ConvertFrom(value));
 			else
 				property.SetValue(instance, value);

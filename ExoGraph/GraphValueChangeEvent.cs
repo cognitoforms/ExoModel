@@ -122,8 +122,7 @@ namespace ExoGraph
 		void ITransactedGraphEvent.Perform(GraphTransaction transaction)
 		{
 			Instance = EnsureInstance(transaction, Instance);
-
-			Property.SetValue(Instance.Instance, NewValue);
+			Instance.SetValue(Property, NewValue);
 		}
 
 		void ITransactedGraphEvent.Commit(GraphTransaction transaction)
@@ -135,8 +134,7 @@ namespace ExoGraph
 		void ITransactedGraphEvent.Rollback(GraphTransaction transaction)
 		{
 			Instance = EnsureInstance(transaction, Instance);
-
-			Property.SetValue(Instance.Instance, OldValue);
+			Instance.SetValue(Property, OldValue);
 		}
 
 		#endregion
