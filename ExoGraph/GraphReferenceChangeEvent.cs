@@ -10,13 +10,15 @@ namespace ExoGraph
 		GraphReferenceProperty property;
 		GraphInstance oldValue;
 		GraphInstance newValue;
+		string oldValueId;
+		string newValueId;
 
 		public GraphReferenceChangeEvent(GraphInstance instance, GraphReferenceProperty property, GraphInstance oldValue, GraphInstance newValue)
 			: base(instance)
 		{
 			this.property = property;
-			this.oldValue = oldValue;
-			this.newValue = newValue;
+			this.OldValue = oldValue;
+			this.NewValue = newValue;
 		}
 
 		public GraphReferenceProperty Property
@@ -49,7 +51,19 @@ namespace ExoGraph
 			}
 			private set
 			{
-				this.oldValue = value;
+				oldValue = value;
+				oldValueId = (value != null) ? value.Id : null;
+			}
+		}
+
+		/// <summary>
+		/// Gets the id of the old value at the moment the event occurred, which may be different than the current id of the old value.
+		/// </summary>
+		public string OldValueId
+		{
+			get
+			{
+				return oldValueId;
 			}
 		}
 
@@ -62,7 +76,19 @@ namespace ExoGraph
 			}
 			private set
 			{
-				this.newValue = value;
+				newValue = value;
+				newValueId = (value != null) ? value.Id : null;
+			}
+		}
+
+		/// <summary>
+		/// Gets the id of the new value at the moment the event occurred, which may be different than the current id of the new value.
+		/// </summary>
+		public string NewValueId
+		{
+			get
+			{
+				return newValueId;
 			}
 		}
 

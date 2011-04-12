@@ -12,14 +12,16 @@ namespace ExoGraph
 	{
 		GraphReferenceProperty property;
 		GraphInstance[] added;
+		string[] addedIds;
 		GraphInstance[] removed;
+		string[] removedIds;
 
 		public GraphListChangeEvent(GraphInstance instance, GraphReferenceProperty property, IEnumerable<GraphInstance> added, IEnumerable<GraphInstance> removed)
 			: base(instance)
 		{
 			this.property = property;
-			this.added = added.ToArray();
-			this.removed = removed.ToArray();
+			this.AddedArray = added.ToArray();
+			this.RemovedArray = removed.ToArray();
 		}
 
 		public GraphReferenceProperty Property
@@ -61,6 +63,15 @@ namespace ExoGraph
 			set
 			{
 				added = value;
+				addedIds = value.Select(i => i.Id).ToArray();
+			}
+		}
+
+		public IEnumerable<string> AddedIds
+		{
+			get
+			{
+				return addedIds;
 			}
 		}
 
@@ -83,6 +94,15 @@ namespace ExoGraph
 			set
 			{
 				removed = value;
+				removedIds = value.Select(i => i.Id).ToArray();
+			}
+		}
+
+		public IEnumerable<string> RemovedIds
+		{
+			get
+			{
+				return removedIds;
 			}
 		}
 
