@@ -14,7 +14,7 @@ namespace ExoGraph.EntityFramework
 		{
 			// Ensure the target is a DbContext or ObjectContext subclass
 			// Use late-binding approach for DbContext to ensure implementation can still support 4.0 without NuGet EF package
-			if ((target.IsSubclassOf(typeof(ObjectContext)) && target != typeof(GraphObjectContext)) || (target.BaseType != null && target.BaseType.Name == "System.Data.Entity.DbContext"))
+			if ((target.IsSubclassOf(typeof(ObjectContext)) && target != typeof(GraphObjectContext)) || (target.BaseType != null && target.BaseType.FullName == "System.Data.Entity.DbContext"))
 			{
 				// Determine the set of entity types from the object context target type
 				var entityTypes = target.GetProperties()
@@ -22,6 +22,10 @@ namespace ExoGraph.EntityFramework
 					.Where(t => t.IsGenericType && t.GetGenericTypeDefinition().GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQueryable<>)))
 					.Select(t => t.GetGenericArguments()[0])
 					.ToHashSet();
+
+				// Find all subclasses
+				foreach (Type t in target.Assembly.GetTypes())
+					EnsureSubTypes(entityTypes, t);
 
 				// Return amendments for each entity type
 				foreach (var type in entityTypes)
@@ -31,6 +35,23 @@ namespace ExoGraph.EntityFramework
 					yield return (ITypeAmendment)amendment;
 				}
 			}
+		}
+
+		bool EnsureSubTypes(HashSet<Type> types, Type type)
+		{
+			if (type == null)
+				return false;
+
+			if (types.Contains(type))
+				return true;
+
+			if (EnsureSubTypes(types, type.BaseType))
+			{
+				types.Add(type);
+				return true;
+			}
+
+			return false;
 		}
 	}
 }
