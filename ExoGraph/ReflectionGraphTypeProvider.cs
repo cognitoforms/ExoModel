@@ -29,6 +29,22 @@ namespace ExoGraph
 		/// Creates a new <see cref="ReflectionGraphTypeProvider"/> based on the specified types.
 		/// </summary>
 		/// <param name="types">The types to create graph types from</param>
+		public ReflectionGraphTypeProvider(params Assembly[] assemblies)
+			: this("", assemblies)
+		{ }
+
+		/// <summary>
+		/// Creates a new <see cref="ReflectionGraphTypeProvider"/> based on the specified types.
+		/// </summary>
+		/// <param name="types">The types to create graph types from</param>
+		public ReflectionGraphTypeProvider(string @namespace, params Assembly[] assemblies)
+			: this("", assemblies.SelectMany(a => a.GetTypes()).Where(t => t.GetCustomAttributes(typeof(GraphTypeAttribute), true).Any()), null)
+		{ }
+
+		/// <summary>
+		/// Creates a new <see cref="ReflectionGraphTypeProvider"/> based on the specified types.
+		/// </summary>
+		/// <param name="types">The types to create graph types from</param>
 		public ReflectionGraphTypeProvider(IEnumerable<Type> types)
 			: this("", types, null)
 		{ }
@@ -120,10 +136,6 @@ namespace ExoGraph
 			return instance.GetType();
 		}
 
-		protected static GraphInstance CreateGraphInstance(object instance)
-		{
-			return new GraphInstance(instance);
-		}
 		#endregion
 
 		#region IGraphTypeProvider
@@ -135,7 +147,8 @@ namespace ExoGraph
 		/// <returns>The unique name of the graph type for the instance if it is a valid graph type, otherwise null</returns>
 		string IGraphTypeProvider.GetGraphTypeName(object instance)
 		{
-			return supportedTypes.Contains(GetUnderlyingType(instance)) ? @namespace + GetUnderlyingType(instance).Name : null;
+			Type underlyingType = GetUnderlyingType(instance);
+			return supportedTypes.Contains(underlyingType) ? @namespace + underlyingType.Name : null;
 		}
 
 		/// <summary>
@@ -199,6 +212,14 @@ namespace ExoGraph
 			}
 
 			public Type UnderlyingType { get; private set; }
+
+			public override GraphInstance GetGraphInstance(object instance)
+			{
+				if (instance is IGraphInstance)
+					return ((IGraphInstance)instance).Instance;
+
+				return null;
+			}
 
 			protected internal override void OnInit()
 			{
@@ -365,7 +386,7 @@ namespace ExoGraph
 		#region ReflectionValueProperty
 
 		[Serializable]
-		protected class ReflectionValueProperty : GraphValueProperty
+		public class ReflectionValueProperty : GraphValueProperty
 		{
 			protected internal ReflectionValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, Attribute[] attributes)
 				: base(declaringType, name, isStatic, propertyType, converter, isList, attributes)
@@ -401,7 +422,7 @@ namespace ExoGraph
 		#region ReflectionReferenceProperty
 
 		[Serializable]
-		protected class ReflectionReferenceProperty : GraphReferenceProperty
+		public class ReflectionReferenceProperty : GraphReferenceProperty
 		{
 			protected internal ReflectionReferenceProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, GraphType propertyType, bool isList, Attribute[] attributes)
 				: base(declaringType, name, isStatic, propertyType, isList, attributes)

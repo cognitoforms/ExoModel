@@ -354,7 +354,7 @@ namespace ExoGraph
 
 				protected internal override object GetValue(object instance)
 				{
-					DeclaringType.OnPropertyGet(DeclaringType.GetGraphInstance(instance), this);
+					DeclaringType.GetGraphInstance(instance).OnPropertyGet(this);
 					return DeclaringType.Provider.GetPropertyValue(instance, PropertySource);
 				}
 
@@ -389,7 +389,7 @@ namespace ExoGraph
 
 				protected internal override object GetValue(object instance)
 				{
-					DeclaringType.OnPropertyGet(DeclaringType.GetGraphInstance(instance), this);
+					DeclaringType.GetGraphInstance(instance).OnPropertyGet(this);
 					return DeclaringType.Provider.GetPropertyValue(instance, PropertySource);
 				}
 

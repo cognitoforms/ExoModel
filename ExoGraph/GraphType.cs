@@ -123,7 +123,14 @@ namespace ExoGraph
 		/// <returns></returns>
 		protected internal virtual bool TryGetListItemType(Type listType, out Type itemType)
 		{
-			// First see if the type implements ICollection<T>
+			// First see if the type is ICollection<T>
+			if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(ICollection<>))
+			{
+				itemType = listType.GetGenericArguments()[0];
+				return true;
+			}
+
+			// Then see if the type implements ICollection<T>
 			foreach (Type interfaceType in listType.GetInterfaces())
 			{
 				if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>))
@@ -133,7 +140,7 @@ namespace ExoGraph
 				}
 			}
 
-			// First see if the type implements IList and has a strongly-typed Item property indexed by an integer value
+			// Then see if the type implements IList and has a strongly-typed Item property indexed by an integer value
 			if (typeof(IList).IsAssignableFrom(listType))
 			{
 				PropertyInfo itemProperty = listType.GetProperty("Item", new Type[] { typeof(int) });
@@ -473,7 +480,6 @@ namespace ExoGraph
 			return Name;
 		}
 
-
 		/// <summary>
 		/// Gets the <see cref="GraphInstance"/> assigned to the specified property.
 		/// </summary>
@@ -620,22 +626,6 @@ namespace ExoGraph
 			}
 		}
 
-		protected void OnPropertyGet(GraphInstance instance, string property)
-		{
-			OnPropertyGet(instance, instance.Type.Properties[property]);
-		}
-
-		protected void OnPropertyGet(GraphInstance instance, GraphProperty property)
-		{
-			// Static notifications are not supported
-			if (property.IsStatic)
-				return;
-
-			GraphEvent propertyGet = new GraphPropertyGetEvent(instance, property);
-
-			propertyGet.Notify();
-		}
-
 		/// <summary>
 		/// Converts the specified object into a instance that implements <see cref="IList"/>.
 		/// </summary>
@@ -652,13 +642,12 @@ namespace ExoGraph
 		{
 		}
 
-		protected internal void OnPropertyChanged(GraphInstance instance, string property, object oldValue, object newValue)
-		{
-			OnPropertyChanged(instance, instance.Type.Properties[property], oldValue, newValue);
-		}
-
 		protected internal void OnPropertyChanged(GraphInstance instance, GraphProperty property, object oldValue, object newValue)
 		{
+			// Static notifications are not supported
+			if (property.IsStatic)
+				return;
+
 			// Check to see what type of property was changed
 			if (property is GraphReferenceProperty)
 			{
@@ -706,6 +695,10 @@ namespace ExoGraph
 
 		protected void OnListChanged(GraphInstance instance, GraphReferenceProperty property, IEnumerable added, IEnumerable removed)
 		{
+			// Static notifications and notifications during load are not supported
+			if (property.IsStatic)
+				return;
+
 			// Create a new graph list change event and notify subscribers
 			new GraphListChangeEvent(instance, property, EnumerateInstances(added), EnumerateInstances(removed)).Notify();
 		}

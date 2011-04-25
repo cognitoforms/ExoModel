@@ -45,7 +45,8 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
-    <DocumentationFile>bin\Debug\ExoGraph.XML</DocumentationFile>
+    <DocumentationFile>
+    </DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -80,6 +81,7 @@
   <ItemGroup>
     <Compile Include="DynamicGraphTypeProvider.cs" />
     <Compile Include="DescriptorGraphTypeProvider.cs" />
+    <Compile Include="GraphTypeAttribute.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="GraphMethod.cs" />
     <Compile Include="GraphMethodList.cs" />
@@ -104,6 +106,7 @@
     <Compile Include="GraphCustomEvent.cs" />
     <Compile Include="GraphEventScope.cs" />
     <Compile Include="GraphEventScopeExitedEventArgs.cs" />
+    <Compile Include="IGraphInstance.cs" />
     <Compile Include="IGraphPropertySource.cs" />
     <Compile Include="IGraphTypeProvider.cs" />
     <Compile Include="ITransactedGraphEvent.cs">
@@ -147,12 +150,6 @@
       <ProductName>Windows Installer 3.1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="NuGet\ExoGraph.nuspec" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="NuGet\lib\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

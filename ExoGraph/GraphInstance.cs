@@ -51,7 +51,7 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="graphType"></param>
 		/// <param name="instance"></param>
-		internal GraphInstance(object instance)
+		public GraphInstance(object instance)
 		{
 			this.type = GraphType.Unknown;
 			this.instance = instance;
@@ -284,6 +284,44 @@ namespace ExoGraph
 			return exn;
 		}
 
+		public void OnPropertyGet(string property)
+		{
+			var p = Type.Properties[property];
+			if (p != null)
+				OnPropertyGet(p);
+		}
+
+		public void OnPropertyGet(GraphProperty property)
+		{
+			// Static notifications are not supported
+			if (property.IsStatic)
+				return;
+
+			// Raise the property get event
+			new GraphPropertyGetEvent(this, property).Notify();
+		}
+
+		public void OnPropertySet(string property, object oldValue, object newValue)
+		{
+			var p = Type.Properties[property];
+			if (p == null)
+				return;
+			if ((oldValue == null ^ newValue == null) || (oldValue != null && !oldValue.Equals(newValue)))
+				OnPropertyChanged(p, oldValue, newValue);
+		}
+
+		public void OnPropertyChanged(string property, object oldValue, object newValue)
+		{
+			var p = Type.Properties[property];
+			if (p != null)
+				OnPropertyChanged(p, oldValue, newValue);
+		}
+
+		public void OnPropertyChanged(GraphProperty property, object oldValue, object newValue)
+		{
+			Type.OnPropertyChanged(this, property, oldValue, newValue);
+		}
+
 		internal IEnumerable<GraphReference> GetInReferences(GraphReferenceProperty property)
 		{
 			ReferenceSet references;
@@ -397,6 +435,7 @@ namespace ExoGraph
 				if (type == GraphType.Unknown)
 				{
 					GraphType knownType = GraphContext.Current.GetGraphType(instance);
+					hasBeenAccessed = new bool[knownType.PropertyCount];
 					isCached = knownType.IsCached(instance);
 					if (isCached)
 					{
@@ -407,7 +446,6 @@ namespace ExoGraph
 					}
 					else
 						type = knownType;
-					hasBeenAccessed = new bool[knownType.PropertyCount];
 				}
 
 				// Raise the appropriate init event

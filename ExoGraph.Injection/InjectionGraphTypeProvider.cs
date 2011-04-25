@@ -113,7 +113,7 @@ namespace ExoGraph.Injection
 
 					public InstanceTracker(object instance)
 					{
-						this.instance = InjectionGraphTypeProvider.CreateGraphInstance(instance);
+						this.instance = new GraphInstance(instance);
 					}
 
 					public GraphInstance Instance
@@ -156,10 +156,7 @@ namespace ExoGraph.Injection
 				/// <param name="eventArgs">Information about the current execution context.</param>
 				public override void OnEntry(MethodExecutionEventArgs eventArgs)
 				{
-					GraphInstance instance = ((IGraphInstance) eventArgs.Instance).Instance;
-					GraphProperty property = instance.Type.Properties[this.property];
-					if (property != null)
-						((InjectionGraphType)property.DeclaringType).OnPropertyGet(instance, property);
+					((IGraphInstance) eventArgs.Instance).Instance.OnPropertyGet(this.property);
 				}
 			}
 
