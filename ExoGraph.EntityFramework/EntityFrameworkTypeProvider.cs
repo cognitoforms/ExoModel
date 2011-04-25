@@ -16,41 +16,38 @@ namespace ExoGraph.EntityFramework
 {
 	public class EntityFrameworkGraphTypeProvider : ReflectionGraphTypeProvider
 	{
-		public EntityFrameworkGraphTypeProvider(Func<GraphObjectContext> createContext)
+		public EntityFrameworkGraphTypeProvider(Func<IEntityContext> createContext)
 			: this("", createContext)
 		{ }
 
-		public EntityFrameworkGraphTypeProvider(string @namespace, Func<GraphObjectContext> createContext)
-			: base(@namespace, GetEntityTypes(createContext()), null) 
+		public EntityFrameworkGraphTypeProvider(string @namespace, Func<IEntityContext> createContext)
+			: base(@namespace, GetEntityTypes(createContext())) 
 		{
 			this.CreateContext = createContext;
 		}
 
-		Func<GraphObjectContext> CreateContext { get; set; }
+		Func<IEntityContext> CreateContext { get; set; }
 
-		static IEnumerable<Type> GetEntityTypes(GraphObjectContext context)
+		static IEnumerable<Type> GetEntityTypes(IEntityContext context)
 		{
-			using (context)
-			{
-				foreach (Type type in context.GetType().Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(GraphEntity))))
-					yield return type;
-			}
+			foreach (Type type in context.GetType().Assembly.GetTypes().Where(t => typeof(IGraphInstance).IsAssignableFrom(t)))
+				yield return type;
 		}
 
-		internal GraphObjectContext GetObjectContext()
+		internal IEntityContext GetObjectContext()
 		{
 			Storage storage = GetStorage();
 
 			if (storage.Context == null)
 			{
 				storage.Context = CreateContext();
-				storage.Context.MetadataWorkspace.LoadFromAssembly(storage.Context.GetType().Assembly);
+				storage.Context.ObjectContext.MetadataWorkspace.LoadFromAssembly(storage.Context.GetType().Assembly);
 
 				// Raise OnSave whenever the object context is committed
 				storage.Context.SavedChanges += (sender, e) =>
 				{
-					var context = sender as GraphObjectContext;
-					var firstEntity = context.ObjectStateManager.GetObjectStateEntries(EntityState.Added | EntityState.Deleted | EntityState.Modified | EntityState.Unchanged).Where(p => p.Entity != null).Select(p => p.Entity).FirstOrDefault();
+					var context = sender as IEntityContext;
+					var firstEntity = context.ObjectContext.ObjectStateManager.GetObjectStateEntries(EntityState.Added | EntityState.Deleted | EntityState.Modified | EntityState.Unchanged).Where(p => p.Entity != null).Select(p => p.Entity).FirstOrDefault();
 
 					// Raise the save event on the first found dirty entity
 					if (firstEntity != null)
@@ -98,16 +95,18 @@ namespace ExoGraph.EntityFramework
 			}
 		}
 
+		protected override Type GetUnderlyingType(object instance)
+		{
+			var type = instance.GetType();
+			if (type.Assembly.IsDynamic)
+				return type.BaseType;
+			else
+				return type;
+		}
+
 		protected override ReflectionGraphType CreateGraphType(string @namespace, Type type)
 		{
 			return new EntityGraphType(@namespace, type, "");
-		}
-
-		internal static GraphInstance CreateGraphInstance(object instance)
-		{
-			GraphInstance graphInstance = ReflectionGraphTypeProvider.CreateGraphInstance(instance);
-
-			return graphInstance;
 		}
 
 		/// <summary>
@@ -149,7 +148,14 @@ namespace ExoGraph.EntityFramework
 			// Fetch any attributes associated with a buddy-class
 			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
 
-			return base.CreateReferenceProperty(declaringType, property, name, isStatic, propertyType, isList, attributes);
+			// Determine whether the property represents an actual entity framework navigation property or an custom property
+			var context = GetObjectContext();
+			var type = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(((EntityGraphType)declaringType).UnderlyingType.FullName, DataSpace.CSpace);
+			NavigationProperty navProp;
+			if (type.NavigationProperties.TryGetValue(name, false, out navProp))
+				return new EntityReferenceProperty(declaringType, navProp, property, name, isStatic, propertyType, isList, attributes);
+			else
+				return base.CreateReferenceProperty(declaringType, property, name, isStatic, propertyType, isList, attributes);
 		}
 
 		/// <summary>
@@ -183,18 +189,16 @@ namespace ExoGraph.EntityFramework
 		/// </summary>
 		class Storage
 		{
-			public GraphObjectContext Context { get; set; }
+			public IEntityContext Context { get; set; }
 		}
 
 		#endregion
 
 		#region EntityGraphType
 
-		[Serializable]
 		public class EntityGraphType : ReflectionGraphType
 		{
 			string @namespace;
-			string qualifiedEntitySetName;
 			PropertyInfo[] idProperties;
 
 			protected internal EntityGraphType(string @namespace, Type type, string scope)
@@ -213,17 +217,25 @@ namespace ExoGraph.EntityFramework
 				{
 					if (idProperties == null)
 					{
-						idProperties = 
-							base.GetEligibleProperties()
-							.Where(p => 
-								p.GetCustomAttributes(typeof(EdmScalarPropertyAttribute), true)
-								.Cast<EdmScalarPropertyAttribute>().Where(a => a.EntityKeyProperty).Any()
-							)
-							.ToArray();
+						var context = GetObjectContext();
+						var type = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(UnderlyingType.FullName, DataSpace.CSpace);
+						idProperties = type.KeyMembers.Select(m => GetProperty(UnderlyingType, m.Name)).ToArray();
 					}
 					return idProperties;
 				}
 			}
+
+			PropertyInfo GetProperty(Type declaringType, string name)
+			{
+				if (declaringType == null)
+					return null;
+				var property = declaringType.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+				return property ?? GetProperty(declaringType.BaseType, name);
+			}
+
+			internal Type BuddyClass { get; set; }
+
+			internal string QualifiedEntitySetName { get; private set; }
 
 			/// <summary>
 			/// Override to ensure that entity key properties are excluded from the model.
@@ -247,7 +259,7 @@ namespace ExoGraph.EntityFramework
 				base.OnInit();
 
 				// Get the current object context
-				GraphObjectContext context = GetObjectContext();
+				IEntityContext context = GetObjectContext();
 
 				// Find the base entity graph type
 				GraphType baseType = this;
@@ -261,20 +273,19 @@ namespace ExoGraph.EntityFramework
 				//   1. only one entity container
 				//   2. only one entity set for an given entity type
 				//   3. only one entity type with a name that matches the graph type
-				qualifiedEntitySetName = context.DefaultContainerName + "." +
-					context.MetadataWorkspace.GetItems<EntityContainer>(DataSpace.CSpace)[0]
+				QualifiedEntitySetName = context.ObjectContext.DefaultContainerName + "." +
+					context.ObjectContext.MetadataWorkspace.GetItems<EntityContainer>(DataSpace.CSpace)[0]
 						.BaseEntitySets.First(s => s.ElementType.Name == ((EntityFrameworkGraphTypeProvider.EntityGraphType)baseType).UnderlyingType.Name).Name;
 
 				// Get the entity type of the current graph type
-				var entityType = context.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + UnderlyingType.Name, DataSpace.OSpace);
+				var entityType = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + UnderlyingType.Name, DataSpace.OSpace);
 
 				// Find all back-references from entities contained in each parent-child relationship for use when
 				// items are expected to be deleted because they were removed from the assocation
-				var listAssociations = new Dictionary<GraphReferenceProperty, GraphReferenceProperty>();
-				foreach (GraphReferenceProperty property in Properties.Where(p => p.IsList && p is GraphReferenceProperty))
+				var ownerProperties = new Dictionary<GraphReferenceProperty, GraphReferenceProperty>();
+				foreach (var property in Properties.OfType<EntityReferenceProperty>().Where(p => p.IsList))
 				{
-					var relatedGraphType = ((GraphReferenceProperty) property).PropertyType;
-					var relatedEntityType = context.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + ((EntityFrameworkGraphTypeProvider.EntityGraphType)relatedGraphType).UnderlyingType.Name, DataSpace.OSpace);
+					var relatedEntityType = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + ((EntityGraphType)property.PropertyType).UnderlyingType.Name, DataSpace.OSpace);
 					NavigationProperty manyNavProp;
 					if (!entityType.NavigationProperties.TryGetValue(property.Name, false, out manyNavProp))
 						continue;
@@ -287,7 +298,7 @@ namespace ExoGraph.EntityFramework
 					{
 						var parentReference = property.PropertyType.Properties[oneNavProp.Name];
 						if (parentReference != null && parentReference.HasAttribute<RequiredAttribute>())
-							listAssociations[property] = parentReference as GraphReferenceProperty;
+							ownerProperties[property] = parentReference as GraphReferenceProperty;
 					});
 				}
 
@@ -297,19 +308,33 @@ namespace ExoGraph.EntityFramework
 				{
 					if (e.Removed.Any())
 					{
-						if (listAssociations[e.Property] != null)
+						GraphReferenceProperty relatedProperty;
+						if (ownerProperties.TryGetValue(e.Property, out relatedProperty))
 						{
-							GraphInstance removed = e.Removed.First();
-
-							if (removed.GetReference(listAssociations[e.Property]) == null)
-								removed.Delete();
+							foreach (var instance in e.Removed)
+							{
+								if (instance.GetReference(relatedProperty) == null)
+									instance.Delete();
+							}
 						}
 						return;
 					}
 				};
-			}
 
-			internal Type BuddyClass { get; set; }
+				// Automatically add new IGraphEntity instances to the object context during initialization
+				if (typeof(IGraphEntity).IsAssignableFrom(UnderlyingType))
+				{
+					this.Init += (sender, e) =>
+					{
+						var entity = e.Instance.Instance as IGraphEntity;
+						if (!entity.IsInitialized && entity.EntityKey == null)
+						{
+							entity.IsInitialized = true;
+							GetObjectContext().ObjectContext.AddObject(QualifiedEntitySetName, entity);
+						}
+					};
+				}
+			}
 
 			protected override System.Collections.IList ConvertToList(GraphReferenceProperty property, object list)
 			{
@@ -331,47 +356,52 @@ namespace ExoGraph.EntityFramework
 			/// current <see cref="EntityGraphType"/>.
 			/// </summary>
 			/// <returns></returns>
-			internal GraphObjectContext GetObjectContext()
+			public IEntityContext GetObjectContext()
 			{
 				return ((EntityFrameworkGraphTypeProvider)Provider).GetObjectContext();
 			}
 
 			protected override void SaveInstance(GraphInstance graphInstance)
 			{
-				GetObjectContext().SaveChanges(SaveOptions.AcceptAllChangesAfterSave);
+				GetObjectContext().ObjectContext.SaveChanges(SaveOptions.AcceptAllChangesAfterSave);
 			}
 
+			/// <summary>
+			/// Gets the string identifier of the specified instance.
+			/// </summary>
+			/// <param name="instance"></param>
+			/// <returns></returns>
 			protected override string GetId(object instance)
 			{
-				return ((GraphEntity)instance).Id;
+				// Get the entity key
+				var key = instance is IEntityWithKey ? 
+					((IEntityWithKey)instance).EntityKey :
+					GetObjectContext().ObjectContext.CreateEntityKey(QualifiedEntitySetName, instance);
+
+				if (key == null || key.IsTemporary)
+					return null;
+				else if (key.EntityKeyValues.Length > 1)
+					return key.EntityKeyValues.Select(v => v.Value.ToString()).Aggregate((v1, v2) => v1 + "," + v2);
+				else
+					return key.EntityKeyValues[0].Value.ToString();
 			}
 
-			internal void OnPropertyGet(GraphInstance instance, string property)
-			{
-				base.OnPropertyGet(instance, property);
-			}
-
-			internal void OnPropertyChanged(GraphInstance instance, string property, object oldValue, object newValue)
-			{
-				base.OnPropertyChanged(instance, property, oldValue, newValue);
-			}
-
-			public override GraphInstance GetGraphInstance(object instance)
-			{
-				return ((GraphEntity)instance).Instance;
-			}
-
+			/// <summary>
+			/// Gets or creates the instance for the specified id.
+			/// </summary>
+			/// <param name="id">The identifier of an existing instance, or null to create a new instance</param>
+			/// <returns>The new or existing instance</returns>
 			protected override object GetInstance(string id)
 			{
 				// Get the current object context
-				GraphObjectContext context = GetObjectContext();
+				IEntityContext context = GetObjectContext();
 
 				// Create a new instance if the id is null
 				if (id == null)
 				{
 					// When a new entity is created, it is detached by default.  Attach it to the context so it will be tracked.
 					var entity = context.GetType().GetMethod("CreateObject").MakeGenericMethod(UnderlyingType).Invoke(context, null);
-					context.AddObject(qualifiedEntitySetName, entity);
+					context.ObjectContext.AddObject(QualifiedEntitySetName, entity);
 
 					return entity;
 				}
@@ -380,22 +410,22 @@ namespace ExoGraph.EntityFramework
 
 				// Split the id string into id tokens
 				var tokens = id.Split(',');
-				if (tokens.Length != idProperties.Length)
+				if (tokens.Length != IdProperties.Length)
 					throw new ArgumentException("The specified id, '" + id + "', does not have the correct number of key values.");
 
 				// Create an entity key based on the specified id tokens
-				var key = new EntityKey(qualifiedEntitySetName,
-					idProperties.Select((property, index) => new EntityKeyMember(property.Name, TypeDescriptor.GetConverter(property.PropertyType).ConvertFromString(tokens[index]))));
+				var key = new EntityKey(QualifiedEntitySetName,
+					IdProperties.Select((property, index) => new EntityKeyMember(property.Name, TypeDescriptor.GetConverter(property.PropertyType).ConvertFromString(tokens[index]))));
 
 				// Attempt to create the entity using the key
 				object instance;
-				context.TryGetObjectByKey(key, out instance);
-				return instance as GraphEntity;
+				context.ObjectContext.TryGetObjectByKey(key, out instance);
+				return instance;
 			}
 
 			protected override void DeleteInstance(GraphInstance graphInstance)
 			{
-				GetObjectContext().DeleteObject(graphInstance.Instance);
+				GetObjectContext().ObjectContext.DeleteObject(graphInstance.Instance);
 			}
 
 			internal void RaiseOnSave(GraphInstance instance)
@@ -403,6 +433,27 @@ namespace ExoGraph.EntityFramework
 				base.OnSave(instance);
 			}
 		}
+		#endregion
+
+		#region EntityReferenceProperty
+
+		/// <summary>
+		/// Subclass of <see cref="ReflectionReferenceProperty"/> used to track the corresponding relationship and target role name.
+		/// </summary>
+		internal class EntityReferenceProperty : ReflectionReferenceProperty
+		{
+			internal EntityReferenceProperty(GraphType declaringType, NavigationProperty navProp, PropertyInfo property, string name, bool isStatic, GraphType propertyType, bool isList, Attribute[] attributes)
+				: base(declaringType, property, name, isStatic, propertyType, isList, attributes)
+			{
+				RelationshipName = navProp.RelationshipType.Name;
+				TargetRoleName = navProp.ToEndMember.Name;
+			}
+
+			internal string RelationshipName { get; private set; }
+
+			internal string TargetRoleName { get; private set; }
+		}
+
 		#endregion
 	}
 }

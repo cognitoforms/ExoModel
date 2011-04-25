@@ -35,6 +35,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Afterthought, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\GIT\Afterthought\Afterthought\bin\Debug\Afterthought.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core" />
@@ -46,10 +50,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="EntityAdapter.cs" />
     <Compile Include="EntityCollectionWrapper.cs" />
     <Compile Include="EntityFrameworkTypeProvider.cs" />
+    <Compile Include="EntityAmendment.cs" />
+    <Compile Include="GraphContextAttribute.cs" />
     <Compile Include="GraphEntity.cs" />
     <Compile Include="GraphObjectContext.cs" />
+    <Compile Include="IEntityContext.cs" />
+    <Compile Include="IGraphEntity.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

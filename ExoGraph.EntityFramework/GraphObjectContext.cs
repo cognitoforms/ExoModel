@@ -7,10 +7,8 @@ using System.Data.EntityClient;
 
 namespace ExoGraph.EntityFramework
 {
-	public class GraphObjectContext : ObjectContext
+	public class GraphObjectContext : ObjectContext, IEntityContext
 	{
-		public event EventHandler SavedChanges;
-
     	/// <summary>
     	/// Initialize a new GraphObjectContext object.
     	/// </summary>
@@ -20,7 +18,8 @@ namespace ExoGraph.EntityFramework
     	/// <summary>
     	/// Initialize a new GraphObjectContext object.
     	/// </summary>
-    	public GraphObjectContext(EntityConnection connection, string defaultContainerName) : base(connection, defaultContainerName)
+		public GraphObjectContext(EntityConnection connection, string defaultContainerName)
+			: base(connection, defaultContainerName)
     	{ }
 
 		public override int SaveChanges(SaveOptions options)
@@ -32,5 +31,9 @@ namespace ExoGraph.EntityFramework
 
 			return result;
 		}
+
+		public event EventHandler SavedChanges;
+
+		ObjectContext IEntityContext.ObjectContext { get { return this; } }
 	}
 }
