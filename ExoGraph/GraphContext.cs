@@ -194,6 +194,48 @@ namespace ExoGraph
 			return type != null ? type.GetGraphInstance(instance) : null;
 		}
 
+		/// <summary>
+		/// Creates a new instance of the specified type.
+		/// </summary>
+		/// <typeparam name="TType"></typeparam>
+		/// <returns></returns>
+		public static TType Create<TType>()
+		{
+			return (TType)Current.GetGraphType<TType>().Create().Instance;
+		}
+
+		/// <summary>
+		/// Creates an existing instance of the specified type.
+		/// </summary>
+		/// <typeparam name="TType"></typeparam>
+		/// <param name="id"></param>
+		/// <returns></returns>
+		public static TType Create<TType>(string id)
+		{
+			return (TType)Current.GetGraphType<TType>().Create(id).Instance;
+		}
+
+		/// <summary>
+		/// Creates a new instance of the specified type.
+		/// </summary>
+		/// <param name="typeName"></param>
+		/// <returns></returns>
+		public static object Create(string typeName)
+		{
+			return Current.GetGraphType(typeName).Create().Instance;
+		}
+
+		/// <summary>
+		/// Creates an existing instance of the specified type.
+		/// </summary>
+		/// <param name="typeName"></param>
+		/// <param name="id"></param>
+		/// <returns></returns>
+		public static object Create(string typeName, string id)
+		{
+			return Current.GetGraphType(typeName).Create(id).Instance;
+		}
+
 		#endregion
 
 		#region Graph Type Methods
@@ -292,7 +334,7 @@ namespace ExoGraph
 						initializing = false;
 				}
 			}
-			
+
 			// Return the requested graph type
 			return type;
 		}
@@ -305,22 +347,32 @@ namespace ExoGraph
 		public GraphType GetGraphType<TType>()
 		{
 			return GetGraphType(typeof(TType));
-		}	
-		
+		}
+
 		/// <summary>
 		/// Gets the <see cref="GraphType"/> that corresponds to the specified <see cref="Type"/>.
 		/// </summary>
 		/// <param name="type"></param>
 		/// <returns></returns>
 		public GraphType GetGraphType(Type type)
-		{		
-			return GetGraphType
-			(
-				(from provider in typeProviders
-				 let typeName = provider.GetGraphTypeName(type)
-				 where typeName != null
-				 select typeName).FirstOrDefault()
-			 );
+		{
+			// Walk up the inheritance hierarchy to find a graph type for the specified .NET type
+			do
+			{
+				var graphType = GetGraphType
+				(
+					(from provider in typeProviders
+					 let typeName = provider.GetGraphTypeName(type)
+					 where typeName != null
+					 select typeName).FirstOrDefault()
+				 );
+				if (graphType != null)
+					return graphType;
+				type = type.BaseType;
+			}
+			while (type != null);
+
+			return null;
 		}
 
 		/// <summary>
