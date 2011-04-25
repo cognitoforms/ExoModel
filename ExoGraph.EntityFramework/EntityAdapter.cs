@@ -93,6 +93,10 @@ namespace ExoGraph.EntityFramework
 		public static void SetReference<TRef>(IGraphEntity instance, string property, TRef value)
 			where TRef : class
 		{
+			// Ignore reference setting before the instance is initialized
+			if (!instance.IsInitialized)
+				return;
+
 			// Get the entity reference
 			var reference = (EntityReference<TRef>)getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property });
 
