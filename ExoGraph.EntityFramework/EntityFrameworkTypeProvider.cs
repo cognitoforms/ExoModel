@@ -400,7 +400,7 @@ namespace ExoGraph.EntityFramework
 				if (id == null)
 				{
 					// When a new entity is created, it is detached by default.  Attach it to the context so it will be tracked.
-					var entity = context.GetType().GetMethod("CreateObject").MakeGenericMethod(UnderlyingType).Invoke(context, null);
+					var entity = context.ObjectContext.GetType().GetMethod("CreateObject").MakeGenericMethod(UnderlyingType).Invoke(context.ObjectContext, null);
 					context.ObjectContext.AddObject(QualifiedEntitySetName, entity);
 
 					return entity;
