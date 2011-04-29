@@ -34,6 +34,9 @@ namespace ExoGraph.EntityFramework
 					var amendment = constructor.Invoke(new object[] { entityTypes });
 					yield return (ITypeAmendment)amendment;
 				}
+
+				// Return a context amendment for the DBContext or ObjectContext target
+				yield return (ITypeAmendment)typeof(ContextAmendment<>).MakeGenericType(target).GetConstructor(Type.EmptyTypes).Invoke(new object[0]);
 			}
 		}
 

@@ -35,5 +35,11 @@ namespace ExoGraph.EntityFramework
 		public event EventHandler SavedChanges;
 
 		ObjectContext IEntityContext.ObjectContext { get { return this; } }
+
+		void IEntityContext.OnSavedChanges()
+		{
+			if (SavedChanges != null)
+				SavedChanges(this, new EventArgs());
+		}
 	}
 }

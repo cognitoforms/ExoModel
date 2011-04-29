@@ -16,19 +16,19 @@ namespace ExoGraph.EntityFramework
 {
 	public class EntityFrameworkGraphTypeProvider : ReflectionGraphTypeProvider
 	{
-		public EntityFrameworkGraphTypeProvider(Func<IEntityContext> createContext)
+		public EntityFrameworkGraphTypeProvider(Func<object> createContext)
 			: this("", createContext)
 		{ }
 
-		public EntityFrameworkGraphTypeProvider(string @namespace, Func<IEntityContext> createContext)
+		public EntityFrameworkGraphTypeProvider(string @namespace, Func<object> createContext)
 			: base(@namespace, GetEntityTypes(createContext())) 
 		{
 			this.CreateContext = createContext;
 		}
 
-		Func<IEntityContext> CreateContext { get; set; }
+		Func<object> CreateContext { get; set; }
 
-		static IEnumerable<Type> GetEntityTypes(IEntityContext context)
+		static IEnumerable<Type> GetEntityTypes(object context)
 		{
 			foreach (Type type in context.GetType().Assembly.GetTypes().Where(t => typeof(IGraphInstance).IsAssignableFrom(t)))
 				yield return type;
@@ -40,7 +40,7 @@ namespace ExoGraph.EntityFramework
 
 			if (storage.Context == null)
 			{
-				storage.Context = CreateContext();
+				storage.Context = CreateContext() as IEntityContext;
 				storage.Context.ObjectContext.MetadataWorkspace.LoadFromAssembly(storage.Context.GetType().Assembly);
 
 				// Raise OnSave whenever the object context is committed

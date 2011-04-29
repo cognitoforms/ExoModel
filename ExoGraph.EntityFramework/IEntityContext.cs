@@ -11,5 +11,7 @@ namespace ExoGraph.EntityFramework
 		event EventHandler SavedChanges;
 
 		ObjectContext ObjectContext { get; }
+
+		void OnSavedChanges();
 	}
 }

@@ -1,5 +1,7 @@
 ﻿using System.Data.Objects.DataClasses;
 using System.Reflection;
+using System.Data.Objects;
+using System;
 
 namespace ExoGraph.EntityFramework
 {
@@ -16,6 +18,21 @@ namespace ExoGraph.EntityFramework
 		public static GraphInstance InitializeGraphInstance(IGraphEntity instance, string property)
 		{
 			return new GraphInstance(instance);
+		}
+
+		public static ObjectContext GetObjectContext(IEntityContext context, string property)
+		{
+			// Lazy-load EF 4.1
+			var contextAdapter = Type.GetType("System.Data.Entity.Infrastructure.IObjectContextAdapter, EntityFramework, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089");
+			if (contextAdapter.IsAssignableFrom(context.GetType()))
+				return (ObjectContext)contextAdapter.GetProperty("ObjectContext").GetValue(context, null);
+			return context as ObjectContext;
+		}
+
+		public static int AfterSaveChanges(IEntityContext context, int result)
+		{
+			context.OnSavedChanges();
+			return result;
 		}
 
 		/// <summary>
