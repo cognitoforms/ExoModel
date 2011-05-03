@@ -6,11 +6,16 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("ExoGraph")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription(
+@"ExoGraph provides a rich event-driven abstraction layer over any ORM or domain model.
+ExoGraph allows open source libraries to extend a variety of popular ORM's, like Entity Framework or nHibernate, 
+without having to be specifically designed to work with each one.
+Additionally, ExoGraph's eventing approach supports new programming models such as change-driven code execution,
+change tracking and rollbacks, and domain events.")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("VC3")]
 [assembly: AssemblyProduct("ExoGraph")]
-[assembly: AssemblyCopyright("Copyright © VC3 2009")]
+[assembly: AssemblyCopyright("Copyright © VC3 2009-2011")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
