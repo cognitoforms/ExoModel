@@ -5,7 +5,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>9.0.30729</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{FECB1E15-5C85-43D4-8B4D-D14B6D21C468}</ProjectGuid>
+    <ProjectGuid>{C94DD0FA-E302-4CB1-A493-B538B0939B4A}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ExoGraph.Injection</RootNamespace>
