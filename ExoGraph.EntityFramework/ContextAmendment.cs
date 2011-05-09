@@ -21,9 +21,13 @@ namespace ExoGraph.EntityFramework
 		/// </summary>
 		public override void Amend()
 		{
+			var savedChanges = new Event<EventHandler>("SavedChanges");
+
 			// IEntityContext
 			ImplementInterface<IEntityContext>(
-				new Property<ObjectContext>("ObjectContext") { Getter = EntityAdapter.GetObjectContext }
+				new Property<ObjectContext>("ObjectContext") { Getter = EntityAdapter.GetObjectContext },
+				savedChanges,
+				savedChanges.RaisedBy("OnSavedChanges")
 			);
 
 			// Override SaveChanges
