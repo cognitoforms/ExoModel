@@ -100,7 +100,15 @@ namespace ExoGraph
 			if (NewValue != null)
 				Instance.AddReference(property, NewValue, false);
 
-			Instance.Type.RaiseReferenceChange(this);
+			// Raise reference change on all types in the inheritance hierarchy
+			for (GraphType type = Instance.Type; type != null; type = type.BaseType)
+			{
+				type.RaiseReferenceChange(this);
+
+				// Stop walking the type hierarchy if this is the type that declares the property that was accessed
+				if (type == Property.DeclaringType)
+					break;
+			}
 
 			// Indicate that the notification should be raised by the context
 			return true;

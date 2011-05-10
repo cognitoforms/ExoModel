@@ -102,7 +102,15 @@ namespace ExoGraph
 		{
 			property.OnChange(Instance);
 
-			Instance.Type.RaiseValueChange(this);
+			// Raise value change on all types in the inheritance hierarchy
+			for (GraphType type = Instance.Type; type != null; type = type.BaseType)
+			{
+				type.RaiseValueChange(this);
+
+				// Stop walking the type hierarchy if this is the type that declares the property that was accessed
+				if (type == Property.DeclaringType)
+					break;
+			}
 
 			// Indicate that the notification should be raised by the context
 			return true;
