@@ -111,7 +111,14 @@ namespace ExoGraph
 				if (instance != null)
 				{
 					if (id == null)
-						return this.id = Type.GetId(instance) ?? Type.Context.GenerateId();
+					{
+						// Ensure that calling OnAccess does not assign an id
+						if (!isInitialized)
+							OnAccess();
+
+						// Return id assigned by first access (OnAccess), or assign on as needed
+						return this.id ?? (this.id = Type.GetId(instance) ?? Type.Context.GenerateId());
+					}
 					else
 						return Type.GetId(instance) ?? id;
 				}
