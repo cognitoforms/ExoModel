@@ -297,7 +297,7 @@ namespace ExoGraph.EntityFramework
 					oneNavDeclaringType.AfterInitialize(delegate
 					{
 						var parentReference = property.PropertyType.Properties[oneNavProp.Name];
-						if (parentReference != null && parentReference.HasAttribute<RequiredAttribute>())
+						if (parentReference != null && oneNavProp.ToEndMember.TypeUsage.Facets.Any(f => f.Name == "Nullable" && !(bool)f.Value))
 							ownerProperties[property] = parentReference as GraphReferenceProperty;
 					});
 				}
@@ -363,7 +363,7 @@ namespace ExoGraph.EntityFramework
 
 			protected override void SaveInstance(GraphInstance graphInstance)
 			{
-				GetObjectContext().ObjectContext.SaveChanges(SaveOptions.AcceptAllChangesAfterSave);
+				GetObjectContext().SaveChanges();
 			}
 
 			/// <summary>

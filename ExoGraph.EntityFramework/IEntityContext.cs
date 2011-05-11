@@ -13,5 +13,7 @@ namespace ExoGraph.EntityFramework
 		ObjectContext ObjectContext { get; }
 
 		void OnSavedChanges();
+
+		int SaveChanges();
 	}
 }
