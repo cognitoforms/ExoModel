@@ -87,6 +87,29 @@ namespace ExoGraph
 		#region Methods
 
 		/// <summary>
+		/// Raises the Exited event for the current scope and all parent scopes.
+		/// </summary>
+		public void Flush()
+		{
+			// flush parent scopes first
+			if (parent != null)
+				parent.Flush();
+
+			RaiseExited();
+		}
+
+		private void RaiseExited()
+		{
+			// Raise the event in a loop to catch event subscriptions that occur while raising the event
+			while (Exited != null)
+			{
+				EventHandler<GraphEventScopeExitedEventArgs> exited = Exited;
+				Exited = null;
+				exited(this, new GraphEventScopeExitedEventArgs(this));
+			}
+		}
+
+		/// <summary>
 		/// Causes the specified action to be performed when the outermost graph event
 		/// scope has exited, or performs the action immediately if there is not a current scope.
 		/// </summary>
@@ -115,15 +138,7 @@ namespace ExoGraph
 					if (parent != null)
 						parent.Exited += Exited;
 					else
-					{
-						// Raise the event in a loop to catch event subscriptions that occur while raising the event
-						while (Exited != null)
-						{
-							EventHandler<GraphEventScopeExitedEventArgs> exited = Exited;
-							Exited = null;
-							exited(this, new GraphEventScopeExitedEventArgs(this));
-						}
-					}
+						RaiseExited();
 				}
 			}
 			finally
