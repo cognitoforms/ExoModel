@@ -19,19 +19,19 @@ namespace ExoGraph.EntityFramework
 		/// <summary>
 		/// Amend the type to implement <see cref="IEntityContext"/>.
 		/// </summary>
-		public override void Amend()
+		public ContextAmendment()
 		{
-			var savedChanges = new Event<EventHandler>("SavedChanges");
+			var savedChanges = Events.Add<EventHandler>("SavedChanges");
 
 			// IEntityContext
-			ImplementInterface<IEntityContext>(
-				new Property<ObjectContext>("ObjectContext") { Getter = EntityAdapter.GetObjectContext },
+			Implement<IEntityContext>(
+				Properties.Add<ObjectContext>("ObjectContext").Get(EntityAdapter.GetObjectContext),
 				savedChanges,
-				savedChanges.RaisedBy("OnSavedChanges")
+				Methods.Raise(savedChanges, "OnSavedChanges")
 			);
 
 			// Override SaveChanges
-			AddMethod(Method.Override("SaveChanges").After((Method.AfterMethodFunc<int>)EntityAdapter.AfterSaveChanges));
+			Methods.Override("SaveChanges").After<int>(EntityAdapter.AfterSaveChanges);
 		}
 	}
 }

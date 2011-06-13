@@ -66,15 +66,14 @@ namespace ExoGraph.EntityFramework
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
 		/// <returns></returns>
-		public static TRef GetReference<TRef>(IGraphEntity instance, string property)
-			where TRef : class
+		public static object GetReference(IGraphEntity instance, string property)
 		{
 			// Raise property get notifications
 			instance.Instance.OnPropertyGet(property);
 
 			// Return the property reference
 			var graphProperty = (EntityFrameworkGraphTypeProvider.EntityReferenceProperty)instance.Instance.Type.Properties[property];
-			return instance.RelationshipManager.GetRelatedReference<TRef>(graphProperty.RelationshipName, graphProperty.TargetRoleName).Value;
+			return instance.RelationshipManager.GetRelatedReference<IGraphEntity>(graphProperty.RelationshipName, graphProperty.TargetRoleName).Value;
 		}
 
 		/// <summary>
@@ -84,7 +83,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
 		/// <returns></returns>
-		public static TList GetList<TList>(IGraphEntity instance, string property)
+		public static object GetList(IGraphEntity instance, string property)
 		{
 			// Raise property get notifications
 			instance.Instance.OnPropertyGet(property);
@@ -97,7 +96,7 @@ namespace ExoGraph.EntityFramework
 				reference.Load();
 
 			// Return the reference
-			return (TList)reference;
+			return reference;
 		}
 
 		/// <summary>
@@ -137,7 +136,7 @@ namespace ExoGraph.EntityFramework
 		/// <typeparam name="TProperty"></typeparam>
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
-		public static void BeforeGetValue<TProperty>(IGraphEntity instance, string property)
+		public static void BeforeGetValue(IGraphEntity instance, string property)
 		{
 			// Raise property get notifications for initialized instances
 			if (instance.IsInitialized)
