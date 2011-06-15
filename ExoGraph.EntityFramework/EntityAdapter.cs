@@ -62,7 +62,6 @@ namespace ExoGraph.EntityFramework
 		/// <summary>
 		/// Gets a navigation property reference for the specified property.
 		/// </summary>
-		/// <typeparam name="TRef"></typeparam>
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
 		/// <returns></returns>
@@ -72,14 +71,14 @@ namespace ExoGraph.EntityFramework
 			instance.Instance.OnPropertyGet(property);
 
 			// Return the property reference
-			var graphProperty = (EntityFrameworkGraphTypeProvider.EntityReferenceProperty)instance.Instance.Type.Properties[property];
-			return instance.RelationshipManager.GetRelatedReference<IGraphEntity>(graphProperty.RelationshipName, graphProperty.TargetRoleName).Value;
+			var reference = ((IRelatedEnd)getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property })).GetEnumerator();
+			reference.MoveNext();
+			return reference.Current;
 		}
 
 		/// <summary>
 		/// Gets a navigation property reference for the specified property.
 		/// </summary>
-		/// <typeparam name="TList"></typeparam>
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
 		/// <returns></returns>
@@ -92,7 +91,7 @@ namespace ExoGraph.EntityFramework
 			var reference = (IRelatedEnd)getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property });
 
 			// Load the reference if necessary
-			if (!reference.IsLoaded && !instance.Instance.IsNew)
+			if (!reference.IsLoaded)
 				reference.Load();
 
 			// Return the reference
@@ -102,28 +101,30 @@ namespace ExoGraph.EntityFramework
 		/// <summary>
 		/// Sets a navigation property reference for the specified property.
 		/// </summary>
-		/// <typeparam name="TRef"></typeparam>
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
 		/// <param name="value"></param>
-		public static void SetReference<TRef>(IGraphEntity instance, string property, TRef value)
-			where TRef : class
+		public static void SetReference(IGraphEntity instance, string property, object value)
 		{
 			// Ignore reference setting before the instance is initialized
 			if (!instance.IsInitialized)
 				return;
 
 			// Get the entity reference
-			var reference = (EntityReference<TRef>)getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property });
+			var reference = (IRelatedEnd)getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property });
 
 			// Track the current value
-			var oldValue = reference.Value;
+			var set = reference.GetEnumerator();
+			set.MoveNext();
+			var oldValue = set.Current;
 
 			// Update the reference if it is being assigned a different value
 			if ((oldValue == null ^ value == null) || (oldValue != null && !oldValue.Equals(value)))
 			{
-				// Assign the new value to the reference
-				reference.Value = value;
+				if (oldValue != null)
+					reference.Remove((IGraphEntity)oldValue);
+				if (value != null)
+					reference.Add((IGraphEntity)value);
 
 				// Raise property change notifications
 				instance.Instance.OnPropertyChanged(property, oldValue, value);
