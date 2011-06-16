@@ -152,7 +152,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="property"></param>
 		/// <param name="oldValue"></param>
 		/// <param name="value"></param>
-		public static TProperty BeforeSetValue<TProperty>(IGraphEntity instance, string property, TProperty oldValue, TProperty value)
+		public static TProperty BeforeSetValueMapped<TProperty>(IGraphEntity instance, string property, TProperty oldValue, TProperty value)
 		{
 			// Notify the change tracker that the property is changing
 			if (instance.IsInitialized)
@@ -171,7 +171,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="oldValue"></param>
 		/// <param name="value"></param>
 		/// <param name="newValue"></param>
-		public static void AfterSetValue<TProperty>(IGraphEntity instance, string property, TProperty oldValue, TProperty value, TProperty newValue)
+		public static void AfterSetValueMapped<TProperty>(IGraphEntity instance, string property, TProperty oldValue, TProperty value, TProperty newValue)
 		{
 			// Ignore changes to uninitialized instances
 			if (instance.IsInitialized)
@@ -179,6 +179,25 @@ namespace ExoGraph.EntityFramework
 				// Notify the change tracker that the property has changed
 				instance.ChangeTracker.EntityMemberChanged(property);
 
+				// Raise property change notifications
+				instance.Instance.OnPropertySet(property, oldValue, newValue);
+			}
+		}
+
+		/// <summary>
+		/// Raise member changed events and property change notifications after a property is set.
+		/// </summary>
+		/// <typeparam name="TProperty"></typeparam>
+		/// <param name="instance"></param>
+		/// <param name="property"></param>
+		/// <param name="oldValue"></param>
+		/// <param name="value"></param>
+		/// <param name="newValue"></param>
+		public static void AfterSetValueUnmapped<TProperty>(IGraphEntity instance, string property, TProperty oldValue, TProperty value, TProperty newValue)
+		{
+			// Ignore changes to uninitialized instances
+			if (instance.IsInitialized)
+			{
 				// Raise property change notifications
 				instance.Instance.OnPropertySet(property, oldValue, newValue);
 			}
