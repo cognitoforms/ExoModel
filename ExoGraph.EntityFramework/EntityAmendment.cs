@@ -44,7 +44,9 @@ namespace ExoGraph.EntityFramework
 				.Where(p =>
 					// Public Read/Write
 					p.PropertyInfo != null && p.PropertyInfo.CanRead && p.PropertyInfo.CanWrite && p.PropertyInfo.GetGetMethod().IsPublic &&
-						// Reference
+					// Mapped
+					!p.PropertyInfo.GetCustomAttributes(typeof(NotMappedAttribute), true).Any() &&
+					// Reference
 					entityTypes.Contains(p.Type))
 				.Get(EntityAdapter.GetReference)
 				.Set(EntityAdapter.SetReference);
