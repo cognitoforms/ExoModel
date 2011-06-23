@@ -71,9 +71,21 @@ namespace ExoGraph.EntityFramework
 			instance.Instance.OnPropertyGet(property);
 
 			// Return the property reference
-			var reference = ((IRelatedEnd)getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property })).GetEnumerator();
+			var reference = ((IRelatedEnd) getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property })).GetEnumerator();
 			reference.MoveNext();
 			return reference.Current;
+		}
+
+		/// <summary>
+		/// Gets a navigation property reference for the specified property.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="property"></param>
+		/// <returns></returns>
+		public static void BeforeGetReferenceUnmapped(IGraphEntity instance, string property)
+		{
+			// Raise property get notifications
+			instance.Instance.OnPropertyGet(property);
 		}
 
 		/// <summary>
@@ -130,6 +142,25 @@ namespace ExoGraph.EntityFramework
 				instance.Instance.OnPropertyChanged(property, oldValue, value);
 			}
 		}
+
+		/// <summary>
+		/// Raise property set notification when an unmapped reference changes
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="property"></param>
+		/// <param name="oldValue"></param>
+		/// <param name="value"></param>
+		/// <param name="newValue"></param>
+		public static void AfterSetReferenceUnmapped(IGraphEntity instance, string property, object oldValue, object value, object newValue)
+		{
+			// Ignore changes to uninitialized instances
+			if (instance.IsInitialized)
+			{
+				// Raise property change notifications
+				instance.Instance.OnPropertyChanged(property, oldValue, value);
+			}
+		}
+
 
 		/// <summary>
 		/// Notifies ExoGraph that a value property is being accessed.

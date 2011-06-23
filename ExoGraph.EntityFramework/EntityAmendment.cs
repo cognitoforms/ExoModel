@@ -39,7 +39,7 @@ namespace ExoGraph.EntityFramework
 				Methods.Add<IEntityChangeTracker>("SetChangeTracker", EntityAdapter.SetChangeTracker)
 			);
 
-			// Entity Properties
+			// Mapped Entity Properties
 			Properties
 				.Where(p =>
 					// Public Read/Write
@@ -50,6 +50,16 @@ namespace ExoGraph.EntityFramework
 					entityTypes.Contains(p.Type))
 				.Get(EntityAdapter.GetReference)
 				.Set(EntityAdapter.SetReference);
+
+			// Unmapped Entity Properties
+			Properties
+				.Where(p =>
+					// Public Read/Write
+					p.PropertyInfo != null && p.PropertyInfo.CanRead && p.PropertyInfo.CanWrite && p.PropertyInfo.GetGetMethod().IsPublic &&
+					// Mapped
+					p.PropertyInfo.GetCustomAttributes(typeof(NotMappedAttribute), true).Any())
+				.BeforeGet(EntityAdapter.BeforeGetReferenceUnmapped)
+				.AfterSet(EntityAdapter.AfterSetReferenceUnmapped);
 
 
 			// List Properties
