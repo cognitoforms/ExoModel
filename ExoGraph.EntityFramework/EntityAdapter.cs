@@ -103,7 +103,8 @@ namespace ExoGraph.EntityFramework
 			var reference = (IRelatedEnd)getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property });
 
 			// Load the reference if necessary
-			if (!reference.IsLoaded)
+			if (!reference.IsLoaded && !(instance.ChangeTracker.EntityState == System.Data.EntityState.Added 
+										|| instance.ChangeTracker.EntityState == System.Data.EntityState.Detached))
 				reference.Load();
 
 			// Return the reference
