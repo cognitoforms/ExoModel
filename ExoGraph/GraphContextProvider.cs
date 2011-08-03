@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Linq;
 using System.Web;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace ExoGraph
 {
@@ -11,7 +13,11 @@ namespace ExoGraph
 	/// </summary>
 	public class GraphContextProvider : IGraphContextProvider
 	{
-		static List<GraphContext> pool = new List<GraphContext>();
+		static HashSet<GraphContext> pool = new HashSet<GraphContext>();
+
+		static int inUse = 0;
+
+		int minContexts = 0;
 
 		[ThreadStatic]
 		Storage context;
@@ -41,16 +47,23 @@ namespace ExoGraph
 						{
 							if (pool.Count > 0)
 							{
-								Context = pool[0];
+								Context = pool.First();
 								Context.Reset();
-								pool.RemoveAt(0);
+								pool.Remove(Context);
+								inUse++;
 							}
 							else
+							{
 								OnCreateContext();
+								inUse++;
+							}
 						}
 					}
 					else
+					{
 						OnCreateContext();
+						inUse++;
+					}
 				}
 				return GetStorage().Context;
 			}
@@ -63,12 +76,13 @@ namespace ExoGraph
 		/// <summary>
 		/// Adds the specified <see cref="GraphContext"/> to the context pool.
 		/// </summary>
-		/// <param name="context"></param>
-		public static void AddToPool(GraphContext context)
+		/// <param name="context">The <see cref="GraphContext"/> to add.</param>
+		/// <returns>True if the context was added to the pool, false if the context was already present.</returns>
+		public static bool AddToPool(GraphContext context)
 		{
 			lock (pool)
 			{
-				pool.Add(context);
+				return pool.Add(context);
 			}
 		}
 
@@ -80,6 +94,28 @@ namespace ExoGraph
 			lock (pool)
 			{
 				pool.Clear();
+			}
+		}
+
+		/// <summary>
+		/// Specifies the minimum number of contexts that should
+		/// be available in the pool or in use.
+		/// </summary>
+		public int MinContexts
+		{
+			get
+			{
+				return minContexts;
+			}
+			set
+			{
+				minContexts = value;
+
+				for (int i = 0, difference = minContexts - (pool.Count + inUse); i < difference; i++)
+				{
+					OnCreateContext();
+					AddToPool(GetStorage().Context);
+				}
 			}
 		}
 
@@ -189,7 +225,6 @@ namespace ExoGraph
 
 			void IHttpModule.Dispose()
 			{
-				FlushPool();
 			}
 
 			void IHttpModule.Init(HttpApplication context)
@@ -204,6 +239,7 @@ namespace ExoGraph
 				if (storage != null)
 				{
 					AddToPool(storage.Context);
+					inUse--;
 					storage.Context = null;
 				}
 			}
