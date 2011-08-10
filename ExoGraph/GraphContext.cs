@@ -6,9 +6,16 @@ using System.Linq;
 namespace ExoGraph
 {
 	/// <summary>
-	/// Base class for context classes tracking the type information and events
-	/// for a set of objects in graph.
+	/// Container class which tracks <see cref="GraphType"/>'s and related graph
+	/// information for a single thread of execution.
 	/// </summary>
+	/// <remarks>
+	/// Use <see cref="GraphContext.Current"/> to access the current context.
+	/// <see cref="GraphContext.Provider"/> must be set in order to create and cache
+	/// <see cref="GraphContext"/> instances.  <see cref="GraphContext.Init"/> can be
+	/// called to perform standard initialization of <see cref="GraphContext"/> using
+	/// the default context provider.
+	/// </remarks>
 	public sealed class GraphContext
 	{
 		#region Fields
@@ -52,6 +59,11 @@ namespace ExoGraph
 
 		#region Constructors
 
+		/// <summary>
+		/// Constructs a new <see cref="GraphContext"/>, using the specified <see cref="IGraphTypeProvider"/>
+		/// implementations to create <see cref="GraphType"/>'s for the context.
+		/// </summary>
+		/// <param name="providers"></param>
 		public GraphContext(params IGraphTypeProvider[] providers)
 		{
 			if (providers == null)
@@ -102,6 +114,38 @@ namespace ExoGraph
 		/// Notifies when a new <see cref="GraphContext"/> is initialized.
 		/// </summary>
 		public static event EventHandler ContextInit;
+
+		#endregion
+
+		#region Graph Context Methods
+
+		/// <summary>
+		/// Provides a default implementation for initializing and caching <see cref="GraphContext"/>
+		/// instances using the <see cref="GraphContextProvider"/> implementation of <see cref="IGraphContextProvider"/>.
+		/// </summary>
+		/// <param name="createContext"></param>
+		public static void Init(Action contextInit, params IGraphTypeProvider[] providers)
+		{
+			new GraphContextProvider().CreateContext +=
+				(source, args) =>
+				{
+					// Create the new context
+					args.Context = new GraphContext(providers);
+
+					// Perform initialization after the context has been assigned
+					if (contextInit != null)
+						contextInit();
+				};
+		}
+		/// <summary>
+		/// Provides a default implementation for initializing and caching <see cref="GraphContext"/>
+		/// instances using the <see cref="GraphContextProvider"/> implementation of <see cref="IGraphContextProvider"/>.
+		/// </summary>
+		/// <param name="createContext"></param>
+		public static void Init(params IGraphTypeProvider[] providers)
+		{
+			Init(null, providers);
+		}
 
 		#endregion
 
