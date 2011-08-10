@@ -7,11 +7,10 @@ using System.Linq;
 namespace ExoGraph.UnitTest
 {
 	/// <summary>
-	///This is a test class for GraphContextTest and is intended
-	///to contain all GraphContextTest Unit Tests
-	///</summary>
+	/// Base validation test that ensures a graph provider correctly supports all of the requisite graph events.
+	/// </summary>
 	[TestClass]
-	public abstract class GraphContextTest<TUser, TCategory, TPriority, TRequest, TRequestList, TCategoryList>
+	public abstract class GraphProviderTest<TUser, TCategory, TPriority, TRequest, TRequestList, TCategoryList>
 		where TUser : IUser<TUser, TCategory, TPriority, TRequest, TRequestList, TCategoryList>, new()
 		where TCategory : ICategory<TUser, TCategory, TPriority, TRequest, TRequestList, TCategoryList>, new()
 		where TPriority : IPriority<TUser, TCategory, TPriority, TRequest, TRequestList, TCategoryList>, new()
@@ -371,7 +370,7 @@ namespace ExoGraph.UnitTest
 			switch (type.Name)
 			{
 				case "Request":
-					Assert.AreEqual<int>(6, type.Properties.Count, "The Request type does not have the correct number of properties.");
+					Assert.AreEqual<int>(5, type.Properties.Count, "The Request type does not have the correct number of properties.");
 					Assert.IsTrue(type.Properties["User"] is GraphReferenceProperty, "Request graph type does not have expected User value property.");
 					Assert.IsTrue(type.Properties["Description"] is GraphValueProperty, "Request graph type does not have expected Description value property.");
 					break;
@@ -407,6 +406,31 @@ namespace ExoGraph.UnitTest
 		void UpdateLastEvent(object sender, GraphEvent e)
 		{
 			events.Add(e);
+		}
+	}
+
+	[TestClass]
+	public class DefaultGraphProviderTest : GraphProviderTest<User, Category, Priority, Request, ICollection<Request>, ICollection<Category>>
+	{
+		[TestInitialize]
+		public void CreateContext()
+		{
+			GraphContext.Init(new TestGraphTypeProvider());
+
+			foreach (var entity in CreatePersistedEntities())
+				GraphContext.Current.GetGraphInstance(entity).Save();
+		}
+
+		IEnumerable<TestEntity> CreatePersistedEntities()
+		{
+			yield return new Category() { Name = "Client" };
+			yield return new Priority() { Name = "High" };
+		}
+
+		[TestCleanup]
+		public void DisposeContext()
+		{
+			GraphContext.Current = null;
 		}
 	}
 }
