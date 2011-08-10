@@ -131,6 +131,20 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Activates a committed transaction, allowing additional changes to be recorded and appended to the current transaction.
+		/// </summary>
+		/// <returns></returns>
+		public GraphTransaction Append()
+		{
+			if (isActive)
+				throw new InvalidOperationException("Append cannot be called on active transactions.");
+
+			isActive = true;
+			Context.Event += context_Event;
+			return this;
+		}
+
+		/// <summary>
 		/// Performs a set of previous changes, performs the specified operation, and records new changes that
 		/// occur as a result of the previous changes.
 		/// </summary>
