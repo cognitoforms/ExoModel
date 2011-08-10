@@ -119,5 +119,17 @@ namespace ExoGraph
 			if(sorted != null)
 				sorted.Add(sortKey(item), item);
 		}
+
+		/// <summary>
+		/// Allows subclasses to remove items from the internal list.
+		/// </summary>
+		/// <param name="item">The item to remove</param>
+		internal void Remove(TItem item)
+		{
+			list.Remove(GetName(item));
+
+			if (sorted != null)
+				sorted.Remove(sortKey(item));
+		}
 	}
 }
