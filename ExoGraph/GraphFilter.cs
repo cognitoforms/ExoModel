@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ExoGraph
 {
@@ -14,9 +15,9 @@ namespace ExoGraph
 		#region Fields
 
 		GraphInstance root;
-		Dictionary<GraphPath, ICollection<GraphInstance>> pathGraphs = new Dictionary<GraphPath, ICollection<GraphInstance>>();
-		ICollection<GraphInstance> graph = new HashSet<GraphInstance>();
-		List<GraphPath> pendingChanges = new List<GraphPath>();
+		Dictionary<GraphPath, HashSet<GraphInstance>> pathGraphs = new Dictionary<GraphPath, HashSet<GraphInstance>>();
+		HashSet<GraphInstance> graph = new HashSet<GraphInstance>();
+		HashSet<GraphPath> pendingChanges = new HashSet<GraphPath>();
 
 		#endregion
 
@@ -26,8 +27,8 @@ namespace ExoGraph
 		/// Creates a new graph filter for the specified root object.
 		/// </summary>
 		/// <param name="root"></param>
-		/// <param name="predicates"></param>
-		public GraphFilter(GraphInstance root, params string[] predicates)
+		/// <param name="paths"></param>
+		public GraphFilter(GraphInstance root, string[] paths)
 		{
 			// Store the graph root
 			this.root = root;
@@ -37,10 +38,10 @@ namespace ExoGraph
 			{
 				// Subscribe to paths for each predicate
 				GraphType rootType = root.Type;
-				foreach (string predicate in predicates)
+				foreach (string p in paths)
 				{
 					// Get the path for this predicate
-					GraphPath path = rootType.GetPath(predicate);
+					GraphPath path = rootType.GetPath(p);
 
 					// Skip this predicate if it is already being monitored
 					if (pathGraphs.ContainsKey(path))
@@ -49,11 +50,8 @@ namespace ExoGraph
 					// Subscribe to path change events
 					path.Change += path_PathChanged;
 
-					// Force the graph to load along this path
-					Load(root, path.FirstStep);
-
 					// Get the graph for this path and add the path and graph to the list of paths
-					pathGraphs.Add(path, path.GetGraph(root));
+					pathGraphs.Add(path, path.GetInstances(root));
 				}
 			}
 
@@ -100,46 +98,6 @@ namespace ExoGraph
 		}
 
 		/// <summary>
-		/// Recursively loads a property path in the graph by walking steps.
-		/// </summary>
-		/// <param name="parent"></param>
-		/// <param name="step"></param>
-		void Load(GraphInstance instance, GraphStep step)
-		{
-			// Stop loading if the step is null or represents a value
-			if (step == null || step.Property is GraphValueProperty || !((GraphReferenceProperty)step.Property).DeclaringType.IsInstanceOfType(instance))
-				return;
-
-			// Cast the property to the correct type
-			var reference = (GraphReferenceProperty)step.Property;
-
-			// Recursively load steps for a list of business objects
-			if (reference.IsList)
-			{
-				GraphInstanceList children = instance.GetList(reference);
-				if (children != null)
-				{
-					foreach (GraphInstance child in instance.GetList(reference))
-					{
-						foreach (GraphStep childStep in step.NextSteps)
-							Load(child, childStep);
-					}
-				}
-			}
-
-			// Recursively load steps for a business object
-			else
-			{
-				GraphInstance child = instance.GetReference(reference);
-				if (child != null)
-				{
-					foreach (GraphStep childStep in step.NextSteps)
-						Load(child, childStep);
-				}
-			}
-		}
-
-		/// <summary>
 		/// Updates the graph based on changes to a specific path.
 		/// </summary>
 		/// <param name="sender"></param>
@@ -177,7 +135,7 @@ namespace ExoGraph
 		{
 			// Update the graph for the paths that changed
 			foreach (GraphPath path in pendingChanges)
-				pathGraphs[path] = path.GetGraph(root);
+				pathGraphs[path] = path.GetInstances(root);
 			pendingChanges.Clear();
 
 			// Recombine all of the path graphs
@@ -193,14 +151,10 @@ namespace ExoGraph
 		/// </summary>
 		void CombinePathGraphs()
 		{
-			ICollection<GraphInstance> graph = new HashSet<GraphInstance>();
-			foreach (ICollection<GraphInstance> pathGraph in pathGraphs.Values)
-			{
-				foreach (GraphInstance instance in pathGraph)
-					if (!graph.Contains(instance))
-						graph.Add(instance);
-			}
-			this.graph = graph;
+			if (pathGraphs.Count == 1)
+				this.graph = pathGraphs.Values.First();
+			else
+				this.graph = pathGraphs.Values.Aggregate(new HashSet<GraphInstance>(), (combined, path) => { combined.UnionWith(path); return combined; });
 		}
 
 		#endregion
@@ -215,7 +169,7 @@ namespace ExoGraph
 
 		#endregion
 
-		#region IEnumerable<Vertex> Members
+		#region IEnumerable<GraphInstance> Members
 
 		IEnumerator<GraphInstance> IEnumerable<GraphInstance>.GetEnumerator()
 		{

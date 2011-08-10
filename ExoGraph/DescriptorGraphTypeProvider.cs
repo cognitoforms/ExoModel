@@ -6,6 +6,14 @@ using System.ComponentModel;
 
 namespace ExoGraph
 {
+	/// <summary>
+	/// Implementation of <see cref="DynamicGraphTypeProvider"/> that uses <see cref="ICustomTypeDescriptor"/>
+	/// implementations to expose dynamic characteristics of a concrete instance.  This type provider should be used
+	/// in cases where classes already implement <see cref="ICustomTypeDescriptor"/> to exposes dynamic properties 
+	/// and it is preferred to leverage the existing implementation instead of explicitly implementing 
+	/// <see cref="DynamicGraphTypeProvider"/>.
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
 	public class DescriptorGraphTypeProvider<T> : DynamicGraphTypeProvider<ICustomTypeDescriptor, PropertyDescriptor>
 		where T : class, ICustomTypeDescriptor
 	{
@@ -79,6 +87,11 @@ namespace ExoGraph
 			Type itemType;
 			GraphContext.Current.GetGraphType<T>().TryGetListItemType(property.PropertyType, out itemType);
 			return itemType != null;
+		}
+
+		protected override bool IsReadOnly(PropertyDescriptor property)
+		{
+			return property.IsReadOnly;
 		}
 
 		protected override GraphType GetReferenceType(PropertyDescriptor property)

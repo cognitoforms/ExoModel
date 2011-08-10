@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace ExoGraph
 {
@@ -13,6 +14,12 @@ namespace ExoGraph
 	/// </remarks>
 	public class GraphPath : IDisposable
 	{
+		#region Fields
+
+		EventHandler<GraphPathChangeEvent> change;
+
+		#endregion
+
 		#region Properties
 
 		/// <summary>
@@ -26,18 +33,62 @@ namespace ExoGraph
 		public GraphType RootType { get; private set; }
 
 		/// <summary>
-		/// The first <see cref="Step"/> along the path.
+		/// The first <see cref="Step"/>s along the path.
 		/// </summary>
-		public GraphStep FirstStep { get; private set; }
+		public GraphStepList FirstSteps { get; private set; }
 
 		/// <summary>
 		/// Event that is raised when any property along the path is changed.
 		/// </summary>
-		public event EventHandler<GraphPathChangeEvent> Change;
+		public event EventHandler<GraphPathChangeEvent> Change
+		{
+			add
+			{
+				// Subscribe to path changes if this is the first change event subscription
+				if (change == null || change.GetInvocationList().Length == 0)
+					Subscribe(FirstSteps);
+
+				change += value;
+			}
+			remove
+			{
+				change -= value;
+
+				// Unsubscribe from path changes if this was the last change event subscription
+				if (change != null && change.GetInvocationList().Length == 0)
+					Unsubscribe(FirstSteps);
+			}
+		}
 
 		#endregion
 
 		#region Methods
+
+		/// <summary>
+		/// Recursively subscribes to path changes.
+		/// </summary>
+		/// <param name="steps"></param>
+		static void Subscribe(GraphStepList steps)
+		{
+			foreach (var step in steps)
+			{
+				step.Property.Observers.Add(step);
+				Subscribe(step.NextSteps);
+			}
+		}
+
+		/// <summary>
+		/// Recursively unsubscribes to path changes.
+		/// </summary>
+		/// <param name="steps"></param>
+		static void Unsubscribe(GraphStepList steps)
+		{
+			foreach (var step in steps)
+			{
+				step.Property.Observers.Remove(step);
+				Unsubscribe(step.NextSteps);
+			}
+		}
 
 		/// <summary>
 		/// Creates a new <see cref="GraphPath"/> instance for the specified root <see cref="GraphType"/>
@@ -48,104 +99,155 @@ namespace ExoGraph
 		internal static GraphPath CreatePath(GraphType rootType, string path)
 		{
 			// Create the new path
-			GraphPath newPath = new GraphPath();
+			GraphPath newPath = new GraphPath()
+			{
+				RootType = rootType
+			};
 
-			// Recursively build the step hierarchy for the path
-			List<GraphStep> steps = GetSteps(newPath, rootType, new List<string>(path.Split('.')), 0);
+			// Create a temporary root step
+			var root = new GraphStep(newPath);
+
+			// Parse the instance path
+			var match = pathParser.Match(path);
+			if (match == null)
+				throw new ArgumentException("The specified path, '" + path + "', is not valid.");
+
+			var steps = new List<GraphStep>() { root };
+			var stack = new Stack<List<GraphStep>>();
+			foreach (var token in match.Groups[1].Captures.Cast<Capture>().Select(c => c.Value))
+			{
+				switch (token[0])
+				{
+					case '{':
+						stack.Push(steps);
+						break;
+					case '}':
+						steps = stack.Pop();
+						break;
+					case ',':
+						steps = stack.Peek();
+						break;
+					case '.':
+						break;
+					case '<':
+						var filter = rootType.Context.GetGraphType(token.Substring(1, token.Length - 2));
+						foreach (var step in steps)
+						{
+							if (step.Property is GraphReferenceProperty &&
+								(((GraphReferenceProperty)step.Property).PropertyType == filter ||
+								((GraphReferenceProperty)step.Property).PropertyType.IsSubType(filter)))
+								step.Filter = filter;
+							else
+								RemoveStep(step);
+						}
+						break;
+					default:
+
+						// Get the property name for the next step
+						var propertyName = token.Trim();
+						if (propertyName == "")
+							continue;
+
+						// Track the next steps
+						var nextSteps = new List<GraphStep>();
+
+						// Process each of the current steps
+						foreach (var step in steps)
+						{
+							// Ensure the current step is a valid reference property
+							if (step.Property != null && step.Property is GraphValueProperty)
+								throw new ArgumentException("Property '" + step.Property.Name + "' is a value property and cannot have child properties specified.");
+
+							// Get the type of the current step
+							var currentType = step.Property != null ? ((GraphReferenceProperty)step.Property).PropertyType : step.Path.RootType;
+							if (step.Filter != null)
+							{
+								if (step.Filter != currentType && !currentType.IsSubType(step.Filter))
+									throw new ArgumentException("Filter type '" + step.Filter.Name + "' is not a valid subtype of '" + currentType.Name + "'.");
+								currentType = step.Filter;
+							}
+
+							// Process the current and all subtypes, honoring any specified type filters
+							foreach (var type in GetTypeFamily(currentType))
+							{
+								// Get the current property
+								var property = type.Properties[propertyName];
+
+								// Ensure the property is valid
+								if (property == null || property.IsStatic || (property.DeclaringType != type && type != currentType && currentType.Properties[propertyName] != null))
+									continue;
+
+								var nextStep = step.NextSteps.Where(s => s.Property == property).FirstOrDefault();
+								if (nextStep == null)
+								{
+									nextStep = new GraphStep(newPath) { Property = property, PreviousStep = step.Property != null ? step : null };
+									step.NextSteps.Add(nextStep);
+								}
+								nextSteps.Add(nextStep);
+							}
+
+							// Remove steps that do not lead to the end of the path
+							RemoveStep(step);
+						}
+
+						// Immediately exit if no steps were found matching the requested path
+						if (nextSteps.Count == 0)
+							return null;
+
+						steps = nextSteps;
+						break;
+				}
+			}
+
+			// Throw an exception if there are unmatched property group delimiters
+			if (stack.Count > 0)
+				throw new ArgumentException("Unclosed '{' in path: " + path, "path");
 
 			// Return null if the path was not valid
-			if (steps == null)
+			if (!root.NextSteps.Any())
 				return null;
 
-			// Initialize and return the new path
+			// Otherwise, finish initializing and return the new path
+			newPath.FirstSteps = root.NextSteps;
 			newPath.Path = path;
-			newPath.RootType = rootType;
-			newPath.FirstStep = steps[0];
 			return newPath;
 		}
 
 		/// <summary>
-		/// Recursively builds the steps along a property path.
+		/// Safely removes an invalid step from a path.
 		/// </summary>
-		/// <param name="path"></param>
-		/// <param name="graphType"></param>
-		/// <param name="properties"></param>
-		/// <param name="depth"></param>
-		/// <returns></returns>
-		static List<GraphStep> GetSteps(GraphPath path, GraphType graphType, List<string> properties, int depth)
+		/// <param name="step"></param>
+		static void RemoveStep(GraphStep step)
 		{
-			// Create a list of steps to return
-			List<GraphStep> steps = new List<GraphStep>();
-
-			// Get the first property in the path
-			GraphProperty property = graphType.Properties[properties[0]];
-			
-			// Paths are not supported for static properties
-			if (property != null && property.IsStatic)
-				return null;
-
-			// Determine if the property is a reference on the instance type
-			if (property is GraphReferenceProperty)
+			// Remove steps that do not lead to the end of the path
+			if (step.Property != null && !step.NextSteps.Any())
 			{
-				GraphStep step = new GraphStep(path);
-				step.Property = property;
-
-				// Find child steps if this is not the end of the path
-				if (properties.Count > 1)
+				var previousStep = step;
+				while (previousStep != null && !previousStep.NextSteps.Any())
 				{
-					// Remove the first property from the beginning of the list
-					properties.RemoveAt(0);
-
-					// Recursively get the next steps for the current step
-					step.NextSteps = GetSteps(path, ((GraphReferenceProperty)property).PropertyType, properties, depth);
-					
-					// Return null if the child steps could not be found
-					if (step.NextSteps == null)
-						return null;
-
-					if (step.NextSteps.Count > 0)
-					{
-						foreach (GraphStep childStep in step.NextSteps)
-							childStep.PreviousStep = step;
-						steps.Add(step);
-					}
-
-					// Add the first property back to the beginning of the list
-					properties.Insert(0, property.Name);
-				}
-
-				// Otherwise this is an reference at the end of the path
-				else
-				{
-					step.NextSteps = new List<GraphStep>();
-					steps.Add(step);
+					previousStep.NextSteps.Remove(previousStep);
+					previousStep = previousStep.PreviousStep;
 				}
 			}
-
-			// Determine if the property is a value on the instance type
-			else if (property is GraphValueProperty)
-			{
-				GraphStep step = new GraphStep(path);
-				step.Property = property;
-				step.NextSteps = new List<GraphStep>();
-				steps.Add(step);
-			}
-
-			// Determine if the property is a value or reference on child types
-			else
-			{
-				// Recursively process child instance types
-				foreach (GraphType childGraphType in graphType.SubTypes)
-					steps.AddRange(GetSteps(path, childGraphType, properties, depth + 1));
-
-				// If steps were not found during recursion, return null
-				if (steps.Count == 0 && depth == 0)
-					return null;
-			}
-
-			// Return the steps
-			return steps;
 		}
+
+		/// <summary>
+		/// Recursively get all types in the type family of the specified type.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		static IEnumerable<GraphType> GetTypeFamily(GraphType type)
+		{
+			yield return type;
+			foreach (var subType in type.SubTypes)
+				foreach (var descendentType in GetTypeFamily(subType))
+					yield return descendentType;
+		}
+
+		/// <summary>
+		/// Parses query paths into tokens for processing
+		/// </summary>
+		static Regex pathParser = new Regex(@"^([a-zA-Z0-9_]+|[{}.,]|\s|(\<[a-zA-Z0-9_.]+\>))*$", RegexOptions.Compiled);
 
 		/// <summary>
 		/// Notify path subscribers that the path has changed.
@@ -153,8 +255,8 @@ namespace ExoGraph
 		/// <param name="instance"></param>
 		internal void Notify(GraphInstance instance)
 		{
-			if (Change != null)
-				Change(this, new GraphPathChangeEvent(instance, this));
+			if (change != null)
+				change(this, new GraphPathChangeEvent(instance, this));
 		}
 
 		/// <summary>
@@ -162,130 +264,30 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="root"></param>
 		/// <returns></returns>
-		public ICollection<GraphInstance> GetGraph(GraphInstance root)
+		public HashSet<GraphInstance> GetInstances(GraphInstance root)
 		{
-			HashSet<GraphInstance> graph = new HashSet<GraphInstance>();
-			graph.Add(root);
-			AddToGraph(root, FirstStep, graph);
+			var graph = new HashSet<GraphInstance>();
+			GetInstances(root, FirstSteps, graph);
 			return graph;
 		}
 
 		/// <summary>
-		/// Recursively walks path steps to add instances to the graph.
+		/// Recursively loads a path in the graph by walking steps.
 		/// </summary>
 		/// <param name="instance"></param>
 		/// <param name="step"></param>
 		/// <param name="graph"></param>
-		static void AddToGraph(GraphInstance instance, GraphStep step, HashSet<GraphInstance> graph)
+		void GetInstances(GraphInstance instance, GraphStepList steps, HashSet<GraphInstance> graph)
 		{
-			// Exit immediately if the current step is a value
-			if (step.Property is GraphValueProperty)
-				return;
+			// Add the instance to the graph
+			graph.Add(instance);
 
-			// Recursively process child references
-			foreach (GraphReference reference in instance.GetOutReferences((GraphReferenceProperty)step.Property))
+			// Process each child step
+			foreach (var step in steps)
 			{
-				// Add the instance to the graph if it has not already been added
-				if (!graph.Contains(reference.Out))
-					graph.Add(reference.Out);
-
-				// Process next steps down the path
-				foreach (GraphStep nextStep in step.NextSteps)
-					AddToGraph(reference.Out, nextStep, graph);
-			}
-		}
-
-		/// <summary>
-		/// Gets all siblings of the specified value instance based on the hierarchy represented by the path.
-		/// </summary>
-		/// <param name="value"></param>
-		/// <returns></returns>
-		/// <remarks>
-		/// For example, assuming a path defined as A.B.C, an instance of C would be passed in
-		/// and a list of C instances would be returned that share a common A root along a direct
-		/// path from A to B to C.
-		/// </remarks>
-		internal IDictionary<GraphInstance, GraphInstance> GetSiblings(GraphInstance value)
-		{
-			// Create a dictionary of siblings
-			IDictionary<GraphInstance, GraphInstance> siblings = new Dictionary<GraphInstance, GraphInstance>();
-
-			// Load the list of roots for the value instance (likely 0 to 1)
-			List<GraphInstance> roots = new List<GraphInstance>();
-			List<GraphStep> lastSteps = new List<GraphStep>();
-			LoadLastSteps(FirstStep, lastSteps);
-			foreach (GraphStep lastStep in lastSteps)
-				LoadRoots(value, lastStep, roots);
-
-			// Populate the dictionary with siblings
-			foreach (GraphInstance root in roots)
-				AddToSiblings(root, FirstStep, siblings);
-
-			// Return the dictionary of siblings
-			return siblings;
-		}
-
-		/// <summary>
-		/// Recursively loads the last steps for the current path.
-		/// </summary>
-		/// <param name="value"></param>
-		/// <param name="step"></param>
-		/// <param name="roots"></param>
-		static void LoadLastSteps(GraphStep step, IList<GraphStep> lastSteps)
-		{
-			if (step.NextSteps.Count == 0)
-				lastSteps.Add(step);
-			else
-			{
-				foreach (GraphStep nextStep in step.NextSteps)
-					LoadLastSteps(nextStep, lastSteps);
-			}
-		}
-
-		/// <summary>
-		/// Recursively loads the roots starting with the last step of the current path.
-		/// </summary>
-		/// <param name="value"></param>
-		/// <param name="step"></param>
-		/// <param name="roots"></param>
-		static void LoadRoots(GraphInstance instance, GraphStep step, IList<GraphInstance> roots)
-		{
-			foreach (GraphReference reference in instance.GetInReferences((GraphReferenceProperty)step.Property))
-			{
-				if (step.PreviousStep == null)
-					roots.Add(reference.In);
-				else
-					LoadRoots(reference.In, step.PreviousStep, roots);
-			}
-		}
-
-		/// <summary>
-		/// Recursively walks path steps to add instances to the graph.
-		/// </summary>
-		/// <param name="instance"></param>
-		/// <param name="step"></param>
-		/// <param name="graph"></param>
-		static void AddToSiblings(GraphInstance instance, GraphStep step, IDictionary<GraphInstance, GraphInstance> siblings)
-		{
-			// Exit immediately if the current step is a value
-			if (step.Property is GraphValueProperty)
-				return;
-
-			// Recursively process child references
-			foreach (GraphReference reference in instance.GetOutReferences((GraphReferenceProperty)step.Property))
-			{
-				// Add the instance to the graph if it has not already been added and this is the last step
-				if (step.NextSteps.Count == 0)
-				{
-					if (!siblings.ContainsKey(reference.Out))
-						siblings.Add(reference.Out, reference.Out);
-				}
-				else
-				{
-					// Process next steps down the path
-					foreach (GraphStep nextStep in step.NextSteps)
-						AddToSiblings(reference.Out, nextStep, siblings);
-				}
+				// Process each instance
+				foreach (var child in step.GetInstances(instance))
+					GetInstances(child, step.NextSteps, graph);
 			}
 		}
 
@@ -304,17 +306,8 @@ namespace ExoGraph
 
 		public void Dispose()
 		{
-			FirstStep.Dispose();
-		}
-
-		void DisposeStep(GraphStep step)
-		{
-			if (step.NextSteps != null)
-			{
-				foreach (GraphStep nextStep in step.NextSteps)
-					DisposeStep(nextStep);
-			}
-			step.Dispose();
+			// Unsubscribe all steps along the path
+			Unsubscribe(FirstSteps);
 		}
 
 		#endregion

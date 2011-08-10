@@ -1,15 +1,14 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 
 namespace ExoGraph
 {
-	public class GraphStep : IDisposable
+	public class GraphStep
 	{
 		#region Fields
 
-		GraphPath path;
-		GraphStep previousStep;
-		IList<GraphStep> nextSteps;
+		GraphStepList nextSteps;
 		GraphProperty property;
 
 		#endregion
@@ -18,57 +17,23 @@ namespace ExoGraph
 
 		internal GraphStep(GraphPath path)
 		{
-			this.path = path;
+			this.Path = path;
+			this.NextSteps = new GraphStepList();
 		}
 
 		#endregion
 
 		#region Properties
 
-		public GraphPath Path
-		{
-			get
-			{
-				return path;
-			}
-		}
+		public GraphPath Path { get; private set; }
 
-		public GraphStep PreviousStep
-		{
-			get
-			{
-				return previousStep;
-			}
-			internal set
-			{
-				previousStep = value;
-			}
-		}
+		public GraphStep PreviousStep { get; internal set; }
 
-		public GraphProperty Property
-		{
-			get
-			{
-				return property;
-			}
-			internal set
-			{
-				property = value;
-				property.Observers.Add(this);
-			}
-		}
+		public GraphProperty Property { get; internal set; }
 
-		public IList<GraphStep> NextSteps
-		{
-			get
-			{
-				return nextSteps;
-			}
-			internal set
-			{
-				nextSteps = value;
-			}
-		}
+		public GraphType Filter { get; internal set; }
+
+		public GraphStepList NextSteps { get; private set; }
 
 		#endregion
 
@@ -90,6 +55,10 @@ namespace ExoGraph
 		/// <param name="instance"></param>
 		internal void Notify(GraphInstance instance)
 		{
+			// Exit immediately if the instance is not valid for the current step filter
+			if (Filter != null && !Filter.IsInstanceOfType(instance))
+				return;
+
 			// Keep walking if there are more steps
 			if (PreviousStep != null)
 			{
@@ -102,24 +71,56 @@ namespace ExoGraph
 		}
 
 		/// <summary>
-		/// Returns the name of the property the step represents.
+		/// Enumerates over the set of instances represented by the current step.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns></returns>
+		public IEnumerable<GraphInstance> GetInstances(GraphInstance instance)
+		{
+			// Stop loading if the step is null or represents a value
+			if (Property is GraphValueProperty || !((GraphReferenceProperty)Property).DeclaringType.IsInstanceOfType(instance))
+				yield break;
+
+			// Cast the property to the correct type
+			var reference = (GraphReferenceProperty)Property;
+
+			// Return each instance exposed by a list property
+			if (reference.IsList)
+			{
+				GraphInstanceList children = instance.GetList(reference);
+				if (children != null)
+				{
+					foreach (GraphInstance child in instance.GetList(reference))
+					{
+						if (Filter == null || Filter.IsInstanceOfType(child))
+							yield return child;
+					}
+				}
+			}
+
+			// Return the instance exposed by a reference property
+			else
+			{
+				GraphInstance child = instance.GetReference(reference);
+				if (child != null && (Filter == null || Filter.IsInstanceOfType(child)))
+					yield return child;
+			}
+		}
+
+		/// <summary>
+		/// Returns the name of the property and all child steps.
 		/// </summary>
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return property.Name;
-		}
-
-		#endregion
-
-		#region IDisposable Members
-
-		/// <summary>
-		/// Unsubscribe to graph changes.
-		/// </summary>
-		public void Dispose()
-		{
-			Property.Observers.Remove(this);
+			if (Property == null)
+				return "?";
+			else if (NextSteps == null || NextSteps.Count == 0)
+				return Property.Name + "<" + (Filter == null ? Property.DeclaringType.Name : Filter.Name) + ">";
+			else if (NextSteps.Count == 1)
+				return Property.Name + "<" + (Filter == null ? Property.DeclaringType.Name : Filter.Name) + ">" + "." + NextSteps.First();
+			else
+				return Property.Name + "<" + (Filter == null ? Property.DeclaringType.Name : Filter.Name) + ">" + "{" + NextSteps.Aggregate("", (p, s) => p.Length > 0 ? p + "," + s : s.ToString()) + "}";
 		}
 
 		#endregion

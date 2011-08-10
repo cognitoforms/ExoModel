@@ -20,26 +20,38 @@ namespace ExoGraph
 
 		protected override bool OnNotify()
 		{
-			// Perform special processing if this is the first time the property has been accessed
-			if (IsFirstAccess)
+			var context = Instance.Type.Context;
+
+			// Abort if property get notifications have been suspended
+			if (context.IsPropertyBeingAccessed(Instance, Property))
+				return false;
+
+			try
 			{
-				// Abort if property get notifications have been suspended
-				if (Instance.Type.Context.IsPropertyBeingAccessed(Instance, Property))
-					return false;
+				// Prevent gets from recursively raising get notifications
+				context.AddPendingPropertyGet(Instance, Property);
 
-				// Notify the instance that it is being accessed
-				Instance.OnAccess();
+				// Perform special processing if this is the first time the property has been accessed
+				if (IsFirstAccess)
+				{
+					// Notify the instance that it is being accessed
+					Instance.OnAccess();
 
-				// Raise property get notifications
-				RaisePropertyGet();
+					// Raise property get notifications
+					RaisePropertyGet();
 
-				// Perform special initialization if this is the first time the property has been accessed
-				Instance.OnFirstAccess(Property);
+					// Perform special initialization if this is the first time the property has been accessed
+					Instance.OnFirstAccess(Property);
+				}
+
+				// Otherwise, just raise property get notifications
+				else
+					RaisePropertyGet();
 			}
-
-			// Otherwise, just raise property get notifications
-			else
-				RaisePropertyGet();
+			finally
+			{
+				context.RemovePendingPropertyGet(Instance, Property);
+			}
 
 			// Indicate that the notification should be raised by the context
 			return true;

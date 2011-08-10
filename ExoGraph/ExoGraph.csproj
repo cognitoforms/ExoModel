@@ -79,6 +79,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GraphStepList.cs" />
     <Compile Include="DynamicGraphTypeProvider.cs" />
     <Compile Include="DescriptorGraphTypeProvider.cs" />
     <Compile Include="GraphTypeAttribute.cs" />

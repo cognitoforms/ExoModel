@@ -7,6 +7,7 @@ using System.Xml.Schema;
 using System;
 using System.ComponentModel;
 using System.Collections.Specialized;
+using System.Linq;
 
 namespace ExoGraph
 {
@@ -400,7 +401,7 @@ namespace ExoGraph
 
 			// Notify the reference property that this reference has been established if not currently loading
 			if (!isLoading)
-				property.OnChange(this);
+				property.NotifyPathChange(this);
 		}
 
 		/// <summary>
@@ -424,7 +425,7 @@ namespace ExoGraph
 				references.Remove(reference);
 
 			// Notify the reference property that this reference has been removed
-			reference.Property.OnChange(this);
+			reference.Property.NotifyPathChange(this);
 		}
 
 		/// <summary>
@@ -474,34 +475,24 @@ namespace ExoGraph
 			// If the property is a reference property, establish edges
 			if (property is GraphReferenceProperty)
 			{
-				try
+				GraphReferenceProperty refProp = (GraphReferenceProperty)property;
+				if (refProp.IsList)
 				{
-					// Prevent gets on reference properties from raising get notifications
-					Type.Context.AddPendingPropertyGet(this, property);
+					// Add references for all of the items in the list
+					foreach (GraphInstance reference in GetList(refProp))
+						AddReference(refProp, reference, true);
 
-					GraphReferenceProperty refProp = (GraphReferenceProperty)property;
-					if (refProp.IsList)
-					{
-						// Add references for all of the items in the list
-						foreach (GraphInstance reference in GetList(refProp))
-							AddReference(refProp, reference, true);
-
-						// Allow the context to subscribe to list change notifications
-						IList list = Type.ConvertToList(refProp, this[property.Name]);
-						if (list != null)
-							Type.OnStartTrackingList(this, (GraphReferenceProperty)property, list);
-					}
-					else
-					{
-						// Add a reference if the property is not null
-						GraphInstance reference = GetReference(refProp);
-						if (reference != null)
-							AddReference(refProp, reference, true);
-					}
+					// Allow the context to subscribe to list change notifications
+					IList list = Type.ConvertToList(refProp, this[property.Name]);
+					if (list != null)
+						Type.OnStartTrackingList(this, (GraphReferenceProperty)property, list);
 				}
-				finally
+				else
 				{
-					Type.Context.RemovePendingPropertyGet(this, property);
+					// Add a reference if the property is not null
+					GraphInstance reference = GetReference(refProp);
+					if (reference != null)
+						AddReference(refProp, reference, true);
 				}
 			}
 
@@ -517,6 +508,80 @@ namespace ExoGraph
 		internal bool HasBeenAccessed(GraphProperty property)
 		{
 			return hasBeenAccessed[property.Index];
+		}
+		
+		public Cloner Clone(string path)
+		{
+			return new Cloner(this, path);
+		}
+
+		/// <summary>
+		/// Copies the property values of the current instance to the specified clone instance,
+		/// using the mapping to look up the correct instance to include for list and reference properties.
+		/// </summary>
+		/// <param name="clone"></param>
+		/// <param name="mapping"></param>
+		void CloneProperties(GraphInstance clone, IDictionary<GraphInstance, GraphInstance> mapping, Dictionary<Type, object> overrides)
+		{
+			// Copy all property data for read-write properties
+			foreach (var property in Type.Properties.Where(p => !p.IsReadOnly))
+			{
+				// Value
+				if (property is GraphValueProperty)
+					clone.SetValue((GraphValueProperty)property, GetValue((GraphValueProperty)property));
+				else
+				{
+					GraphInstance cloneInstance;
+					var reference = (GraphReferenceProperty)property;
+					
+					// List
+					if (reference.IsList)
+					{
+						var toList = clone.GetList(reference);
+						foreach (var instance in GetList(reference))
+							toList.Add(mapping.TryGetValue(instance, out cloneInstance) ? cloneInstance : instance);
+					}
+
+					// Reference
+					else
+					{
+						var instance = GetReference(reference);
+						if (instance != null)
+							clone.SetReference(reference, mapping.TryGetValue(instance, out cloneInstance) ? cloneInstance : instance);
+						else
+							clone.SetReference(reference, null);
+					}
+				}
+			}
+
+			// Determine if there is a clone override to perform
+			foreach (Type type in overrides.Keys)
+			{
+				if (type.IsInstanceOfType(clone.Instance))
+					typeof(Action<,>).MakeGenericType(type, type).GetMethod("Invoke").Invoke(overrides[type], new object[] { this.Instance, clone.Instance });
+			}
+		}
+
+		/// <summary>
+		/// Recursively clones the current instance based on the specified graph steps,
+		/// storing the clones in the specified mapping dictionary.
+		/// </summary>
+		/// <param name="steps"></param>
+		/// <param name="mapping"></param>
+		void CloneInstance(GraphStepList steps, IDictionary<GraphInstance, GraphInstance> mapping)
+		{
+			// See if the instance has already been cloned
+			if (mapping.ContainsKey(this))
+				return;
+
+		    // Create the new clone instance
+		    GraphInstance clone = Type.Create();
+			mapping.Add(this, clone);
+
+		    // Recursively clone child instances
+			foreach (var step in steps)
+				foreach (var instance in step.GetInstances(this))
+					instance.CloneInstance(step.NextSteps, mapping);
 		}
 
 		/// <summary>
@@ -780,6 +845,46 @@ namespace ExoGraph
 		{
 			In,
 			Out
+		}
+
+		#endregion
+
+		#region Cloner
+
+		public class Cloner
+		{
+			GraphInstance instance;
+			GraphPath path;
+			Dictionary<Type, object> overrides = new Dictionary<Type, object>();
+
+			internal Cloner(GraphInstance instance, string path)
+			{
+				this.instance = instance;
+				this.path = instance.Type.GetPath(path);
+			}
+
+			public Cloner Override<TType>(Action<TType, TType> fixup)
+			{
+				overrides.Add(typeof(TType), fixup);
+				return this;
+			}
+
+			public GraphInstance Invoke()
+			{
+				using (new GraphEventScope())
+				{
+					// Clone instances
+					var clones = new Dictionary<GraphInstance, GraphInstance>();
+					instance.CloneInstance(path.FirstSteps, clones);
+
+					// Clone properties
+					foreach (var clone in clones)
+						clone.Key.CloneProperties(clone.Value, clones, overrides);
+
+					// Return the root cloned instance
+					return clones[instance];
+				}
+			}
 		}
 
 		#endregion

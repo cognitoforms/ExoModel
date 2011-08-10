@@ -13,12 +13,13 @@ namespace ExoGraph
 	{
 		#region Constructors
 
-		internal GraphProperty(GraphType declaringType, string name, bool isStatic, bool isList, Attribute[] attributes)
+		internal GraphProperty(GraphType declaringType, string name, bool isStatic, bool isList, bool isReadOnly, Attribute[] attributes)
 		{
 			this.DeclaringType = declaringType;
 			this.Name = name;
 			this.IsStatic = isStatic;
 			this.IsList = isList;
+			this.IsReadOnly = isReadOnly;
 			this.Attributes = attributes;
 			this.Observers = new List<GraphStep>();
 		}
@@ -36,6 +37,8 @@ namespace ExoGraph
 
 		public bool IsList { get; private set; }
 
+		public bool IsReadOnly { get; private set; }
+
 		public Attribute[] Attributes { get; private set; }
 
 		public GraphType DeclaringType { get; private set; }
@@ -51,7 +54,7 @@ namespace ExoGraph
 			instance.Type.OnPropertyChanged(instance, this, oldValue, newValue);
 		}
 
-		internal void OnChange(GraphInstance instance)
+		public void NotifyPathChange(GraphInstance instance)
 		{
 			// Attempt to walk up the path to the root for each observer
 			foreach (GraphStep observer in Observers)

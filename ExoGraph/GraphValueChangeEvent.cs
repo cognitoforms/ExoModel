@@ -100,7 +100,7 @@ namespace ExoGraph
 		/// </summary>
 		protected override bool OnNotify()
 		{
-			property.OnChange(Instance);
+			property.NotifyPathChange(Instance);
 
 			// Raise value change on all types in the inheritance hierarchy
 			for (GraphType type = Instance.Type; type != null; type = type.BaseType)
