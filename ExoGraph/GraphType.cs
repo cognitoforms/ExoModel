@@ -8,7 +8,7 @@ using System.Reflection;
 namespace ExoGraph
 {
 	/// <summary>
-	/// Represents a specific type in a graph hierarchy.
+	/// Abstract base class for classes that represent a specific type in a graph hierarchy.
 	/// </summary>
 	[DataContract]
 	[Serializable]
@@ -29,6 +29,14 @@ namespace ExoGraph
 
 		#region Contructors
 
+		/// <summary>
+		/// Initializes the <see cref="GraphType"/> when called by concrete subclasses.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <param name="qualifiedName"></param>
+		/// <param name="baseType"></param>
+		/// <param name="scope"></param>
+		/// <param name="attributes"></param>
 		public GraphType(string name, string qualifiedName, GraphType baseType, string scope, Attribute[] attributes)
 		{
 			this.Name = name;
@@ -404,6 +412,7 @@ namespace ExoGraph
 		public bool TryGetPath(string path, out GraphPath graphPath)
 		{
 			// First see if the path has already been created for this instance type
+			path = path.Replace(" ", "");
 			graphPath = Paths[path];
 			if (graphPath != null)
 				return true;
@@ -780,6 +789,7 @@ namespace ExoGraph
 		#endregion
 
 		#region UnknownGraphType
+
 	   [Serializable]
 		class UnknownGraphType : GraphType
 		{
