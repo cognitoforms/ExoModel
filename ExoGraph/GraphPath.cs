@@ -114,8 +114,10 @@ namespace ExoGraph
 
 			var steps = new List<GraphStep>() { root };
 			var stack = new Stack<List<GraphStep>>();
-			foreach (var token in match.Groups[1].Captures.Cast<Capture>().Select(c => c.Value))
+			var tokens = match.Groups[1].Captures.Cast<Capture>().Select(c => c.Value).ToArray();
+			for (int i = 0; i < tokens.Length; i++)
 			{
+				var token = tokens[i];
 				switch (token[0])
 				{
 					case '{':
@@ -177,10 +179,16 @@ namespace ExoGraph
 								if (property == null || property.IsStatic || (property.DeclaringType != type && type != currentType && currentType.Properties[propertyName] != null))
 									continue;
 
-								var nextStep = step.NextSteps.Where(s => s.Property == property).FirstOrDefault();
+								// Look ahead to see if this step is filtered
+								filter = i < tokens.Length - 1 && tokens[i + 1].StartsWith("<") ?
+									rootType.Context.GetGraphType(tokens[i + 1].Substring(1, tokens[i + 1].Length - 2)) :
+									null;
+
+								// See if the step already exists for this property and filter or needs to be created
+								var nextStep = step.NextSteps.Where(s => s.Property == property && s.Filter == filter).FirstOrDefault();
 								if (nextStep == null)
 								{
-									nextStep = new GraphStep(newPath) { Property = property, PreviousStep = step.Property != null ? step : null };
+									nextStep = new GraphStep(newPath) { Property = property, Filter = filter, PreviousStep = step.Property != null ? step : null };
 									step.NextSteps.Add(nextStep);
 								}
 								nextSteps.Add(nextStep);

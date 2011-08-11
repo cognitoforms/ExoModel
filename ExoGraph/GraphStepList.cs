@@ -22,7 +22,7 @@ namespace ExoGraph
 
 		protected override string GetName(GraphStep item)
 		{
-			return item.ToString();
+			return item.Property.Name + "<" + (item.Filter != null ? item.Filter.Name : item.Property.DeclaringType.Name) + ">";
 		}
 	}
 }
