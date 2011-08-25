@@ -170,7 +170,7 @@ namespace ExoGraph
 							}
 
 							// Process the current and all subtypes, honoring any specified type filters
-							foreach (var type in GetTypeFamily(currentType))
+							foreach (var type in currentType.GetDescendentsInclusive())
 							{
 								// Get the current property
 								var property = type.Properties[propertyName];
@@ -237,19 +237,6 @@ namespace ExoGraph
 					previousStep = previousStep.PreviousStep;
 				}
 			}
-		}
-
-		/// <summary>
-		/// Recursively get all types in the type family of the specified type.
-		/// </summary>
-		/// <param name="type"></param>
-		/// <returns></returns>
-		static IEnumerable<GraphType> GetTypeFamily(GraphType type)
-		{
-			yield return type;
-			foreach (var subType in type.SubTypes)
-				foreach (var descendentType in GetTypeFamily(subType))
-					yield return descendentType;
 		}
 
 		/// <summary>

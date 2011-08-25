@@ -427,6 +427,29 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Returns the current type and all ancestor base types.
+		/// </summary>
+		/// <returns></returns>
+		public IEnumerable<GraphType> GetAncestorsInclusive()
+		{
+			for (GraphType type = this; type != null; type = type.BaseType)
+				yield return type;
+		}
+
+		/// <summary>
+		/// Returns the current type and all descendent sub types.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public IEnumerable<GraphType> GetDescendentsInclusive()
+		{
+			yield return this;
+			foreach (var subType in SubTypes)
+				foreach (var descendentType in subType.GetDescendentsInclusive())
+					yield return descendentType;
+		}
+
+		/// <summary>
 		/// Indicates whether the specified <see cref="GraphInstance"/> is either of the current type
 		/// or of a sub type of the current type.
 		/// </summary>
