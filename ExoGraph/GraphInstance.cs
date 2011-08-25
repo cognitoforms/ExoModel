@@ -510,9 +510,39 @@ namespace ExoGraph
 			return hasBeenAccessed[property.Index];
 		}
 		
-		public Cloner Clone(string path)
+		/// <summary>
+		/// Returns a cloner for copying a graph rooted at this <see cref="GraphInstance"/>
+		/// </summary>
+		/// <param name="paths">Represents a set of graph paths for which new instances will be created. Properties not
+		/// included in these paths will be copied by reference.</param>
+		/// <returns></returns>
+		public Cloner Clone(params string[] paths)
 		{
-			return new Cloner(this, path);
+			return new Cloner(this, paths);
+		}
+
+		/// <summary>
+		/// Returns a cloner for copying a graph rooted at this <see cref="GraphInstance"/>
+		/// </summary>
+		/// <param name="paths">Represents a set of graph paths for which new instances will be created. Properties not
+		/// included in these paths will be copied by reference.</param>
+		/// <returns></returns>
+		public Cloner Clone(IEnumerable<string> paths)
+		{
+			return new Cloner(this, paths);
+		}
+
+		/// <summary>
+		/// Returns a cloner for copying a graph rooted at this <see cref="GraphInstance"/>, accepting
+		/// an existing copy of this <see cref="GraphInstance"/>
+		/// </summary>
+		/// <param name="destination">A pre-existing copy of this <see cref="GraphInstance"/></param>
+		/// <param name="paths">Represents a set of graph paths for which new instances will be created. Properties not
+		/// included in these paths will be copied by reference.</param>
+		/// <returns></returns>
+		public Cloner CloneInto(GraphInstance destination, params string[] paths)
+		{
+			return new Cloner(this, destination, paths);
 		}
 
 		/// <summary>
@@ -521,10 +551,10 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="clone"></param>
 		/// <param name="mapping"></param>
-		void CloneProperties(GraphInstance clone, IDictionary<GraphInstance, GraphInstance> mapping, Dictionary<Type, object> overrides)
+		void CloneProperties(GraphInstance clone, IDictionary<GraphInstance, GraphInstance> mapping, List<Cloner.FilterInfo> filters, Dictionary<Type, object> overrides)
 		{
 			// Copy all property data for read-write properties
-			foreach (var property in Type.Properties.Where(p => !p.IsReadOnly))
+			foreach (var property in Type.Properties.Where(p => !p.IsReadOnly && !p.IsStatic))
 			{
 				// Value
 				if (property is GraphValueProperty)
@@ -539,14 +569,15 @@ namespace ExoGraph
 					{
 						var toList = clone.GetList(reference);
 						foreach (var instance in GetList(reference))
-							toList.Add(mapping.TryGetValue(instance, out cloneInstance) ? cloneInstance : instance);
+							if(filters.All(f => f.Allows(property, this.Instance, instance.Instance)))
+								toList.Add(mapping.TryGetValue(instance, out cloneInstance) ? cloneInstance : instance);
 					}
 
 					// Reference
 					else
 					{
 						var instance = GetReference(reference);
-						if (instance != null)
+						if (instance != null && filters.All(f => f.Allows(property, this.Instance, instance.Instance)))
 							clone.SetReference(reference, mapping.TryGetValue(instance, out cloneInstance) ? cloneInstance : instance);
 						else
 							clone.SetReference(reference, null);
@@ -568,20 +599,23 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="steps"></param>
 		/// <param name="mapping"></param>
-		void CloneInstance(GraphStepList steps, IDictionary<GraphInstance, GraphInstance> mapping)
+		void CloneInstance(GraphStepList steps, IDictionary<GraphInstance, GraphInstance> mapping, List<Cloner.FilterInfo> filters, List<Cloner.WhereInfo> wheres)
 		{
-			// See if the instance has already been cloned
-			if (mapping.ContainsKey(this))
-				return;
-
-		    // Create the new clone instance
-		    GraphInstance clone = Type.Create();
-			mapping.Add(this, clone);
+			// if instance has not been cloned, clone it
+			if (!mapping.ContainsKey(this))
+			{
+				// Create the new clone instance
+				GraphInstance clone = Type.Create();
+				mapping.Add(this, clone);
+			}
 
 		    // Recursively clone child instances
 			foreach (var step in steps)
 				foreach (var instance in step.GetInstances(this))
-					instance.CloneInstance(step.NextSteps, mapping);
+				{
+					if (filters.All(f => f.Allows(step.Property, this, instance)) && wheres.All(w => w.Allows(step, this, instance)))
+						instance.CloneInstance(step.NextSteps, mapping, filters, wheres);
+				}
 		}
 
 		/// <summary>
@@ -854,35 +888,149 @@ namespace ExoGraph
 		public class Cloner
 		{
 			GraphInstance instance;
-			GraphPath path;
+			GraphInstance destination;
+			List<GraphPath> paths = new List<GraphPath>();
 			Dictionary<Type, object> overrides = new Dictionary<Type, object>();
+			List<FilterInfo> filters = new List<FilterInfo>();
+			List<WhereInfo> wheres = new List<WhereInfo>();
 
-			internal Cloner(GraphInstance instance, string path)
+			internal Cloner(GraphInstance instance, IEnumerable<string> paths)
+				: this(instance, null, paths)
 			{
-				this.instance = instance;
-				this.path = instance.Type.GetPath(path);
 			}
 
+			internal Cloner(GraphInstance instance, GraphInstance destination, IEnumerable<string> paths)
+			{
+				this.instance = instance;
+				this.destination = destination;
+				this.paths.AddRange(paths.Select(p => instance.Type.GetPath(p)));
+			}
+
+			/// <summary>
+			/// Includes additional paths used to instantiate new objects
+			/// </summary>
+			public Cloner Clone(params string[] paths)
+			{
+				return Clone(paths);
+			}
+
+			/// <summary>
+			/// Includes additional paths used to instantiate new objects
+			/// </summary>
+			public Cloner Clone(IEnumerable<string> paths)
+			{
+				this.paths.AddRange(paths.Select(p => instance.Type.GetPath(p)));
+				return this;
+			}
+
+			/// <summary>
+			/// Allows for additional operations to be performed on a copied
+			/// object of type <typeparam name="TType" />.
+			/// <param name="fixup" /> will be executed after all properties
+			/// have been populated on the copy.
+			/// </summary>
 			public Cloner Override<TType>(Action<TType, TType> fixup)
 			{
 				overrides.Add(typeof(TType), fixup);
 				return this;
 			}
 
+			/// <summary>
+			/// Conditionally determine whether to instantiate a new object
+			/// when copying a <typeparamref name="TValue"/>, given the specific
+			/// <see cref="GraphStep"/>, original instance (<typeparamref name="TType"/>),
+			/// and original value (<typeparamref name="TValue"/>) of the 
+			/// property or list member.
+			/// </summary>
+			/// <typeparam name="TType">Declaring type of property to copy</typeparam>
+			/// <typeparam name="TValue">Property type of property to copy</typeparam>
+			/// <param name="where">returns true when a new instance of <typeparamref name="TValue"/>
+			/// should be instantiated.</param>
+			public Cloner Where<TType, TValue>(Func<GraphStep, TType, TValue, bool> where)
+			{
+				wheres.Add(new WhereInfo<TType, TValue> { When = where });
+				return this;
+			}
+
+			/// <summary>
+			/// Conditionally determine whether to copy a value, given the specific
+			/// <see cref="GraphProperty"/>, original instance (<typeparamref name="TType"/>),
+			/// and original value (<typeparamref name="TValue"/>) of the 
+			/// property or list member.  Filtered values will neither be used to instantiate new objects
+			/// nor be copied as references on the new graph.
+			/// </summary>
+			/// <typeparam name="TType">Declaring type of property to copy</typeparam>
+			/// <typeparam name="TValue">Property type of property to copy</typeparam>
+			/// <param name="filter">returns true when the value of <typeparamref name="TValue"/>
+			/// should be considered for the cloning process.</param>
+			/// <returns></returns>
+			public Cloner Filter<TType, TValue>(Func<GraphProperty, TType, TValue, bool> filter)
+			{
+				filters.Add(new FilterInfo<TType, TValue> { When = filter });
+				return this;
+			}
+
+			/// <summary>
+			/// Begins the cloning process and returns the copied <see cref="GraphInstance"/>
+			/// of the original <see cref="GraphInstance"/>
+			/// </summary>
+			/// <returns></returns>
 			public GraphInstance Invoke()
 			{
 				using (new GraphEventScope())
 				{
 					// Clone instances
 					var clones = new Dictionary<GraphInstance, GraphInstance>();
-					instance.CloneInstance(path.FirstSteps, clones);
+
+					if (destination != null)
+						clones.Add(instance, destination);
+
+					paths.ForEach(p => instance.CloneInstance(p.FirstSteps, clones, filters, wheres));
 
 					// Clone properties
 					foreach (var clone in clones)
-						clone.Key.CloneProperties(clone.Value, clones, overrides);
+						clone.Key.CloneProperties(clone.Value, clones, filters, overrides);
 
 					// Return the root cloned instance
 					return clones[instance];
+				}
+			}
+
+			internal abstract class WhereInfo
+			{
+				internal abstract bool Allows(GraphStep step, object item, object value);
+			}
+
+			class WhereInfo<TType, TValue> : WhereInfo
+			{
+				internal Func<GraphStep, TType, TValue, bool> When { get; set; }
+
+				internal override bool Allows(GraphStep step, object instance, object value)
+				{
+					if (instance is TType && value is TValue)
+						return When(step, (TType)instance, (TValue)value);
+
+					// where doesn't even apply
+					return true;
+				}
+			}
+
+			internal abstract class FilterInfo
+			{
+				internal abstract bool Allows(GraphProperty property, object item, object value);
+			}
+
+			class FilterInfo<TType, TValue> : FilterInfo
+			{
+				internal Func<GraphProperty, TType, TValue, bool> When { get; set; }
+
+				internal override bool Allows(GraphProperty property, object instance, object value)
+				{
+					if (instance is TType && value is TValue)
+						return When(property, (TType)instance, (TValue)value);
+
+					// filter doesn't even apply
+					return true;
 				}
 			}
 		}
