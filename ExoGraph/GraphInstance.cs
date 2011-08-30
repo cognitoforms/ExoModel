@@ -505,7 +505,7 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="property"></param>
 		/// <returns></returns>
-		internal bool HasBeenAccessed(GraphProperty property)
+		public bool HasBeenAccessed(GraphProperty property)
 		{
 			return hasBeenAccessed[property.Index];
 		}
