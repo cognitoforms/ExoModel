@@ -363,7 +363,15 @@ namespace ExoGraph.EntityFramework
 
 			protected override void SaveInstance(GraphInstance graphInstance)
 			{
-				GetObjectContext().SaveChanges();
+				try
+				{
+					GetObjectContext().SaveChanges();
+				}
+				catch (Exception ex)
+				{
+					IEnumerable<System.Data.Entity.Validation.DbEntityValidationResult> errors = ((System.Data.Entity.Validation.DbEntityValidationException)ex).EntityValidationErrors;
+					throw;
+				}
 			}
 
 			/// <summary>
