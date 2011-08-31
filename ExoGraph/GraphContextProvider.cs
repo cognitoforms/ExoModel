@@ -13,11 +13,7 @@ namespace ExoGraph
 	/// </summary>
 	public class GraphContextProvider : IGraphContextProvider
 	{
-		static HashSet<GraphContext> pool = new HashSet<GraphContext>();
-
-		static int inUse = 0;
-
-		int minContexts = 0;
+		HashSet<GraphContext> pool = new HashSet<GraphContext>();
 
 		[ThreadStatic]
 		Storage context;
@@ -50,19 +46,16 @@ namespace ExoGraph
 								Context = pool.First();
 								Context.Reset();
 								pool.Remove(Context);
-								inUse++;
 							}
 							else
 							{
 								OnCreateContext();
-								inUse++;
 							}
 						}
 					}
 					else
 					{
 						OnCreateContext();
-						inUse++;
 					}
 				}
 				return GetStorage().Context;
@@ -80,9 +73,10 @@ namespace ExoGraph
 		/// <returns>True if the context was added to the pool, false if the context was already present.</returns>
 		public static bool AddToPool(GraphContext context)
 		{
-			lock (pool)
+			var provider = (GraphContextProvider)GraphContext.Provider;
+			lock (provider.pool)
 			{
-				return pool.Add(context);
+				return provider.pool.Add(context);
 			}
 		}
 
@@ -91,9 +85,10 @@ namespace ExoGraph
 		/// </summary>
 		public static void FlushPool()
 		{
-			lock (pool)
+			var provider = (GraphContextProvider)GraphContext.Provider;
+			lock (provider.pool)
 			{
-				pool.Clear();
+				provider.pool.Clear();
 			}
 		}
 
@@ -101,21 +96,12 @@ namespace ExoGraph
 		/// Specifies the minimum number of contexts that should
 		/// be available in the pool or in use.
 		/// </summary>
-		public int MinContexts
+		public void EnsureContexts(int count)
 		{
-			get
+			for (int i = 0, difference = count - (pool.Count); i < difference; i++)
 			{
-				return minContexts;
-			}
-			set
-			{
-				minContexts = value;
-
-				for (int i = 0, difference = minContexts - (pool.Count + inUse); i < difference; i++)
-				{
-					OnCreateContext();
-					AddToPool(GetStorage().Context);
-				}
+				OnCreateContext();
+				AddToPool(GetStorage().Context);
 			}
 		}
 
@@ -239,7 +225,6 @@ namespace ExoGraph
 				if (storage != null)
 				{
 					AddToPool(storage.Context);
-					inUse--;
 					storage.Context = null;
 				}
 			}
