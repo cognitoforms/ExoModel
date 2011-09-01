@@ -117,6 +117,28 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Condenses adjacent change events that do not affect the final state of the overall transaction.
+		/// </summary>
+		public void Condense()
+		{
+			// Merge events
+			int i = events.Count - 1;
+			while (i > 0)
+			{
+				// Remove mergable events
+				if (events[i - 1].Merge(events[i]))
+					events.RemoveAt(i);
+
+				// Decrement
+				i--;
+
+				// Remove invalid events
+				if (!events[i].IsValid)
+					events.RemoveAt(i--);
+			}
+		}
+
+		/// <summary>
 		/// Allows multiple <see cref="GraphTransaction"/> instances to be applied in sequence, or "chained",
 		/// by propogating information about newly created instances from one transaction to the next.
 		/// </summary>

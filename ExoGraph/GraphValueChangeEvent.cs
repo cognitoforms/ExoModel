@@ -96,6 +96,17 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Indicates whether the current event is valid and represents a real change to the model.
+		/// </summary>
+		internal virtual bool IsValid
+		{
+			get
+			{
+				return (oldValue == null ^ newValue == null) || (oldValue != null && !oldValue.Equals(newValue));
+			}
+		}
+
+		/// <summary>
 		/// Notify subscribers that the property value has changed.
 		/// </summary>
 		protected override bool OnNotify()
@@ -113,6 +124,21 @@ namespace ExoGraph
 			}
 
 			// Indicate that the notification should be raised by the context
+			return true;
+		}
+
+		/// <summary>
+		/// Merges a <see cref="GraphValueChangeEvent"/> into the current event.
+		/// </summary>
+		/// <param name="e"></param>
+		/// <returns></returns>
+		protected override bool OnMerge(GraphEvent e)
+		{
+			// Ensure the events are for the same value property
+			if (((GraphValueChangeEvent)e).Property != Property)
+				return false;
+
+			newValue = ((GraphValueChangeEvent)e).newValue;
 			return true;
 		}
 

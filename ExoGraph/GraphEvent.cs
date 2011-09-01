@@ -98,5 +98,31 @@ namespace ExoGraph
 		{
 			return instance.Instance == null ? transaction.GetInstance(instance.Type, instance.Id) : instance;
 		}
+
+		/// <summary>
+		/// Attempts to merge two graph events into a single event.
+		/// </summary>
+		/// <param name="e"></param>
+		/// <returns></returns>
+		internal bool Merge(GraphEvent e)
+		{
+			return Instance == e.Instance && GetType() == e.GetType() && OnMerge(e);
+		}
+
+		protected virtual bool OnMerge(GraphEvent e)
+		{
+			return false;
+		}
+
+		/// <summary>
+		/// Indicates whether the current event is valid and represents a real change to the model.
+		/// </summary>
+		internal virtual bool IsValid
+		{
+			get
+			{
+				return true;
+			}
+		}
 	}
 }
