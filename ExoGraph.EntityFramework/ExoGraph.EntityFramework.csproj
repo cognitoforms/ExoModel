@@ -73,7 +73,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Infrastructure\DataModel.tt" />
-    <None Include="Infrastructure\DataModel.tt" />
     <None Include="NuGet\ExoGraph.EntityFramework.nuspec">
       <SubType>Designer</SubType>
     </None>
@@ -84,6 +83,11 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="NuGet\lib\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Dependencies\Afterthought.Amender.exe" />
+    <Content Include="Dependencies\Afterthought.dll" />
+    <Content Include="Dependencies\Afterthought.pdb" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
