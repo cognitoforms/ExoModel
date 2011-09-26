@@ -89,6 +89,11 @@ namespace ExoGraph
 			return itemType != null;
 		}
 
+		protected override bool IsStatic(PropertyDescriptor property)
+		{
+			return false;
+		}
+
 		protected override bool IsReadOnly(PropertyDescriptor property)
 		{
 			return property.IsReadOnly;

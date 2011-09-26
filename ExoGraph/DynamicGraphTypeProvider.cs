@@ -199,6 +199,8 @@ namespace ExoGraph
 
 		protected abstract bool IsList(TPropertySource property);
 
+		protected abstract bool IsStatic(TPropertySource property);
+
 		protected abstract bool IsReadOnly(TPropertySource property);
 
 		protected abstract GraphType GetReferenceType(TPropertySource property);
@@ -259,6 +261,9 @@ namespace ExoGraph
 					// Determine if the property is a list
 					var isList = provider.IsList(property);
 
+					// Determine if the property is a static property.
+					var isStatic = provider.IsStatic(property);
+
 					// Determine if the property is read only
 					var isReadOnly = provider.IsReadOnly(property);
 
@@ -272,12 +277,12 @@ namespace ExoGraph
 					if (referenceType == null)
 						AddProperty(
 							new DynamicValueProperty(
-								this, property, name, provider.GetValueType(property), provider.GetValueConverter(property), isList, isReadOnly, attributes)
+								this, property, name, isStatic, provider.GetValueType(property), provider.GetValueConverter(property), isList, isReadOnly, attributes)
 						);
 					else
 						AddProperty(
 							new DynamicReferenceProperty(
-								this, property, name, referenceType, isList, isReadOnly, attributes)
+								this, property, name, isStatic, referenceType, isList, isReadOnly, attributes)
 						);
 
 				}
@@ -337,8 +342,8 @@ namespace ExoGraph
 			[Serializable]
 			class DynamicValueProperty : GraphValueProperty
 			{
-				internal DynamicValueProperty(DynamicGraphType declaringType, TPropertySource property, string name, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, Attribute[] attributes)
-					: base(declaringType, name, false, propertyType, converter, isList, isReadOnly, attributes)
+				internal DynamicValueProperty(DynamicGraphType declaringType, TPropertySource property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, Attribute[] attributes)
+					: base(declaringType, name, isStatic, propertyType, converter, isList, isReadOnly, attributes)
 				{
 					this.PropertySource = property;
 				}
@@ -372,8 +377,8 @@ namespace ExoGraph
 			[Serializable]
 			class DynamicReferenceProperty : GraphReferenceProperty
 			{
-				internal DynamicReferenceProperty(DynamicGraphType declaringType, TPropertySource property, string name, GraphType propertyType, bool isList, bool isReadOnly, Attribute[] attributes)
-					: base(declaringType, name, false, propertyType, isList, isReadOnly, attributes)
+				internal DynamicReferenceProperty(DynamicGraphType declaringType, TPropertySource property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, Attribute[] attributes)
+					: base(declaringType, name, isStatic, propertyType, isList, isReadOnly, attributes)
 				{
 					this.PropertySource = property;
 				}
@@ -384,7 +389,9 @@ namespace ExoGraph
 
 				protected internal override object GetValue(object instance)
 				{
-					DeclaringType.GetGraphInstance(instance).OnPropertyGet(this);
+					if (!IsStatic)
+						DeclaringType.GetGraphInstance(instance).OnPropertyGet(this);
+
 					return DeclaringType.Provider.GetPropertyValue(instance, PropertySource);
 				}
 
@@ -392,7 +399,7 @@ namespace ExoGraph
 				{
 					object originalValue = DeclaringType.Provider.GetPropertyValue(instance, PropertySource);
 
-					if ((originalValue == null ^ value == null) || (originalValue != null && !originalValue.Equals(value)))
+					if (!IsStatic && (originalValue == null ^ value == null) || (originalValue != null && !originalValue.Equals(value)))
 					{
 						DeclaringType.Provider.SetPropertyValue(instance, PropertySource, value);
 						OnPropertyChanged(DeclaringType.GetGraphInstance(instance), originalValue, value);
