@@ -19,7 +19,7 @@ namespace ExoGraph
 		[DataMember(Name = "changes")]
 		List<GraphEvent> events = new List<GraphEvent>();
 
-		bool isActive = true;
+		private bool isActive = true;
 
 		GraphTransaction()
 		{
@@ -71,6 +71,11 @@ namespace ExoGraph
 					context = GraphContext.Current;
 				return context;
 			}
+		}
+
+		public bool IsActive
+		{
+			get { return isActive; }
 		}
 
 		void RegisterNewInstance(GraphInstance instance)
@@ -158,7 +163,7 @@ namespace ExoGraph
 		/// <returns></returns>
 		public GraphTransaction Append()
 		{
-			if (isActive)
+			if (IsActive)
 				throw new InvalidOperationException("Append cannot be called on active transactions.");
 
 			isActive = true;
@@ -249,7 +254,7 @@ namespace ExoGraph
 
 		void IDisposable.Dispose()
 		{
-			if (isActive)
+			if (IsActive)
 				Rollback();
 		}
 
@@ -322,7 +327,7 @@ namespace ExoGraph
 				throw new InvalidOperationException("Cannot combine GraphTransactions that are associated with different GraphContexts");
 
 			// Verify than none of the transactions are still active
-			if (transactions.Any(t => t.isActive))
+			if (transactions.Any(t => t.IsActive))
 				throw new InvalidOperationException("Cannot combine GraphTransactions that are still active");
 
 			// Create a new transaction and combine the information from the specified transactions
