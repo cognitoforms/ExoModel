@@ -6,13 +6,6 @@ namespace ExoGraph
 {
 	public class GraphStep
 	{
-		#region Fields
-
-		GraphStepList nextSteps;
-		GraphProperty property;
-
-		#endregion
-
 		#region Constructors
 
 		internal GraphStep(GraphPath path)
@@ -38,15 +31,6 @@ namespace ExoGraph
 		#endregion
 
 		#region Methods
-
-		/// <summary>
-		/// Adds a step to the list of next steps.
-		/// </summary>
-		/// <param name="step">The step to add</param>
-		internal void AddNextStep(GraphStep step)
-		{
-			nextSteps.Add(step);
-		}
 
 		/// <summary>
 		/// Recursively walks up the path the current step is a member of until the
