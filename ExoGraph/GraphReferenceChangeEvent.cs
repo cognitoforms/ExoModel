@@ -95,7 +95,7 @@ namespace ExoGraph
 		/// <summary>
 		/// Indicates whether the current event is valid and represents a real change to the model.
 		/// </summary>
-		internal virtual bool IsValid
+		internal override bool IsValid
 		{
 			get
 			{
