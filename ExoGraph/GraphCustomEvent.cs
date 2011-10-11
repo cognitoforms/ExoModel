@@ -1,18 +1,27 @@
 ﻿namespace ExoGraph
 {
 	/// <summary>
-	/// Represents the creation of a graph instance.
+	/// Represents the raising of a custom domain event.
 	/// </summary>
 	public class GraphCustomEvent<TEvent> : GraphEvent
 	{
 		TEvent customEvent;
 
+		/// <summary>
+		/// Creates a new <see cref="GraphCustomEvent"/> for the specified instance
+		/// and concrete event object payload.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="customEvent"></param>
 		public GraphCustomEvent(GraphInstance instance, TEvent customEvent)
 			: base(instance)
 		{
 			this.customEvent = customEvent;
 		}
 
+		/// <summary>
+		/// The payload for the event being raised.
+		/// </summary>
 		public TEvent CustomEvent
 		{
 			get
@@ -21,6 +30,10 @@
 			}
 		}
 
+		/// <summary>
+		/// Notifies subscribers that this custom event has been raised.
+		/// </summary>
+		/// <returns></returns>
 		protected override bool OnNotify()
 		{
 			Instance.Type.RaiseEvent(this);
@@ -28,36 +41,5 @@
 			// Indicate that the notification should be raised by the context
 			return true;
 		}
-
-		#region Transacted
-
-		internal class Transacted<TEvent> : GraphCustomEvent<TEvent>, ITransactedGraphEvent
-			where TEvent : ITransactedGraphEvent
-		{
-			internal Transacted(GraphInstance instance, TEvent customEvent)
-				: base(instance, customEvent)
-			{ }
-
-			#region ITransactedGraphEvent Members
-
-			void ITransactedGraphEvent.Perform(GraphTransaction transaction)
-			{
-				CustomEvent.Perform(transaction);
-			}
-
-			void ITransactedGraphEvent.Commit(GraphTransaction transaction)
-			{
-				CustomEvent.Commit(transaction);
-			}
-
-			void ITransactedGraphEvent.Rollback(GraphTransaction transaction)
-			{
-				CustomEvent.Rollback(transaction);
-			}
-
-			#endregion
-		}
-
-		#endregion
 	}
 }
