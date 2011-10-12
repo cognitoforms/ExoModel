@@ -86,6 +86,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Dependencies\Afterthought.Amender.exe" />
+    <Content Include="Dependencies\Afterthought.Amender.pdb" />
     <Content Include="Dependencies\Afterthought.dll" />
     <Content Include="Dependencies\Afterthought.pdb" />
   </ItemGroup>
