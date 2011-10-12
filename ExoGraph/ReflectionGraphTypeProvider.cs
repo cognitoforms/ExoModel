@@ -38,7 +38,7 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="types">The types to create graph types from</param>
 		public ReflectionGraphTypeProvider(string @namespace, params Assembly[] assemblies)
-			: this("", 
+			: this(@namespace, 
 				assemblies
 				.SelectMany(a => a.GetTypes())
 				.Where(t => typeof(IGraphInstance).IsAssignableFrom(t) || t.GetCustomAttributes(typeof(GraphTypeAttribute), true).Any()), null)
