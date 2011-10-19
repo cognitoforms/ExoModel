@@ -41,7 +41,7 @@ namespace ExoGraph
 			: this(@namespace, 
 				assemblies
 				.SelectMany(a => a.GetTypes())
-				.Where(t => typeof(IGraphInstance).IsAssignableFrom(t) || t.GetCustomAttributes(typeof(GraphTypeAttribute), true).Any()), null)
+				.Where(t => typeof(IGraphInstance).IsAssignableFrom(t)), null)
 		{ }
 
 		/// <summary>

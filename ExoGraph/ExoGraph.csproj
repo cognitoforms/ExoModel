@@ -82,7 +82,6 @@
     <Compile Include="GraphStepList.cs" />
     <Compile Include="DynamicGraphTypeProvider.cs" />
     <Compile Include="DescriptorGraphTypeProvider.cs" />
-    <Compile Include="GraphTypeAttribute.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="GraphMethod.cs" />
     <Compile Include="GraphMethodList.cs" />
