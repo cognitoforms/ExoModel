@@ -124,5 +124,15 @@ namespace ExoGraph
 				return true;
 			}
 		}
+
+		/// <summary>
+		/// Reset instance and graph event id after replay.
+		/// </summary>
+		/// <param name="orginalId"></param>
+		protected void RevertToOriginalId(string orginalId)
+		{
+			Instance.Id = orginalId;
+			id = orginalId;
+		}
 	}
 }

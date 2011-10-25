@@ -64,7 +64,7 @@ namespace ExoGraph
 					Instance = Instance.Type.Create();
 
 					// Set the id of the new instance to the id of the original surrogate
-					Instance.Id = id;
+					RevertToOriginalId(id);
 					
 					// Force the new instance to initialize
 					Instance.OnAccess();
