@@ -484,7 +484,7 @@ namespace ExoGraph
 
 					// Allow the context to subscribe to list change notifications
 					IList list = Type.ConvertToList(refProp, this[property.Name]);
-					if (list != null)
+					if (list != null && !(refProp.PropertyType.IsCached(list)))
 						Type.OnStartTrackingList(this, (GraphReferenceProperty)property, list);
 				}
 				else

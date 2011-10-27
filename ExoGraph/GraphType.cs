@@ -693,16 +693,23 @@ namespace ExoGraph
 					if (oldValue != null)
 					{
 						var oldList = ConvertToList(reference, oldValue);
-						OnListChanged(instance, reference, null, oldList);
-						OnStopTrackingList(instance, reference, oldList);
+
+						if (!reference.PropertyType.IsCached(oldList))
+						{
+							OnListChanged(instance, reference, null, oldList);
+							OnStopTrackingList(instance, reference, oldList);
+						}
 					}
 
 					// Then notify the context that the items in the new list have been added
 					if (newValue != null)
 					{
 						var newList = ConvertToList(reference, newValue);
-						OnListChanged(instance, reference, newList, null);
-						OnStartTrackingList(instance, reference, newList);
+						if (!reference.PropertyType.IsCached(newList))
+						{
+							OnListChanged(instance, reference, newList, null);
+							OnStartTrackingList(instance, reference, newList);
+						}
 					}
 				}
 
