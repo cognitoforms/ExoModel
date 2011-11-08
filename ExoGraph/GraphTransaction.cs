@@ -186,8 +186,8 @@ namespace ExoGraph
 				// Perform previous changes
 				Perform();
 
-				// Begin tracking new changes
-				using (GraphTransaction newChanges = GraphContext.Current.BeginTransaction())
+				// Return the new changes that occurred while applying the previous changes
+				return GraphContext.Current.Transaction((newChanges) =>
 				{
 					// Propogate the new instance cache forward to the new transaction
 					if (newInstances != null)
@@ -197,7 +197,7 @@ namespace ExoGraph
 					}
 
 					// Allow graph subscribers to be notified of the previous changes
-					((IDisposable) eventScope).Dispose();
+					((IDisposable)eventScope).Dispose();
 
 					// Clear the reference to the event scope to ensure it is not disposed twice
 					eventScope = null;
@@ -208,10 +208,7 @@ namespace ExoGraph
 
 					// Commit the transaction
 					newChanges.Commit();
-
-					// Return the new changes that occurred while applying the previous changes
-					return newChanges;
-				}
+				});
 			}
 			finally
 			{
@@ -331,8 +328,8 @@ namespace ExoGraph
 				throw new InvalidOperationException("Cannot combine GraphTransactions that are still active");
 
 			// Create a new transaction and combine the information from the specified transactions
-			GraphTransaction newTransaction;
-			using (newTransaction = first.Context.BeginTransaction())
+			// Return the combined transactions
+			return first.Context.Transaction((newTransaction) =>
 			{
 				foreach (var transaction in transactions)
 				{
@@ -340,7 +337,7 @@ namespace ExoGraph
 					if (transaction.newInstances != null)
 					{
 						if (newTransaction.newInstances == null)
-						newTransaction.newInstances = new Dictionary<string, GraphInstance>();
+							newTransaction.newInstances = new Dictionary<string, GraphInstance>();
 
 						foreach (var entry in transaction.newInstances)
 							newTransaction.newInstances.Add(entry.Key, entry.Value);
@@ -351,10 +348,68 @@ namespace ExoGraph
 				}
 
 				newTransaction.Commit();
-			}
-
-			// Return the combined transactions
-			return newTransaction;
+			});
 		}
 	}
+
+	#region AdditionalDisposalException
+
+	public static class IDisposableExtension
+	{
+		public static void CaptureDisposalException<TDisposable>(this TDisposable disposable, Action<TDisposable> action)
+			where TDisposable : IDisposable
+		{
+			try
+			{
+				action(disposable);
+			}
+			catch (Exception actionException)
+			{
+				try
+				{
+					disposable.Dispose();
+				}
+				catch (Exception disposalException)
+				{
+					throw new AdditionalDisposalException(disposalException, actionException);
+				}
+
+				throw;
+			}
+			disposable.Dispose();
+		}
+	}
+
+	/// <summary>
+	/// A subclass of exception that can be used to capture both an original exception, and
+	/// an exception occuring during IDisposable.Dispose
+	/// </summary>
+	public class AdditionalDisposalException : Exception
+	{
+		private static readonly string defaultMessage = "An exception occurred while disposing.";
+
+		public AdditionalDisposalException(string message, Exception disposalException, Exception originalException)
+			: base (message, originalException)
+		{
+			this.DisposalException = disposalException;
+			this.OriginalException = originalException;
+		}
+
+		public AdditionalDisposalException(Exception disposalException, Exception originalException)
+			: this(defaultMessage, disposalException, originalException)
+		{
+		}
+
+		/// <summary>
+		/// An exception that occurred during disposal
+		/// </summary>
+		public Exception DisposalException { get; private set; }
+
+		/// <summary>
+		/// An exception that occured with caused the disposal
+		/// </summary>
+		public Exception OriginalException { get; private set; }
+	}
+
+	#endregion
 }

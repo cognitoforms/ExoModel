@@ -169,6 +169,19 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="context"></param>
+		/// <param name="action"></param>
+		/// <returns></returns>
+		public GraphTransaction Transaction(Action<GraphTransaction> action)
+		{
+			GraphTransaction transaction = BeginTransaction();
+			transaction.CaptureDisposalException(action);
+			return transaction;
+		}
+
+		/// <summary>
 		/// Called by each <see cref="GraphEvent"/> to notify the context that a graph event has occurred.
 		/// </summary>
 		/// <param name="graphEvent"></param>
