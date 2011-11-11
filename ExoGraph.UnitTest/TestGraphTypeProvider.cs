@@ -14,7 +14,7 @@ namespace ExoGraph.UnitTest
 	{
 		Dictionary<Type, List<TestEntity>> entities = new Dictionary<Type, List<TestEntity>>();
 
-		internal TestGraphTypeProvider()
+		public TestGraphTypeProvider()
 			: this(Assembly.GetExecutingAssembly())
 		{ }
 

@@ -53,11 +53,11 @@ namespace ExoGraph.UnitTest
 		[TestMethod()]
 		public virtual void SaveTest()
 		{
-			GraphInstance userInstance;
+			GraphInstance userInstance = null;
 			GraphSaveEvent saveEvent = null;
 
 			// Start a transaction to track identity changes that occur 
-			using (var transaction = GraphContext.Current.BeginTransaction())
+			new GraphTransaction().Record(() =>
 			{
 				// Create a new user
 				TUser user = CreateNewUser();
@@ -73,10 +73,7 @@ namespace ExoGraph.UnitTest
 
 				// Save the new user instance
 				saveEvent = Perform<GraphSaveEvent>(() => userInstance.Save()).FirstOrDefault();
-
-				// Commit the transaction to ensure it does not roll back changed to the model
-				transaction.Commit();
-			}
+			});
 
 			// Ensure that the graph instance has been saved correctly
 			Assert.IsFalse(userInstance.IsNew, "New instance was not saved.");
