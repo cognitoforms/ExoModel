@@ -34,7 +34,7 @@ namespace ExoGraph
 			this.root = root;
 
 			// Delay graph notifications while loading the graph
-			using (new GraphEventScope())
+			GraphEventScope.Perform(() =>
 			{
 				// Subscribe to paths for each predicate
 				GraphType rootType = root.Type;
@@ -53,7 +53,7 @@ namespace ExoGraph
 					// Get the graph for this path and add the path and graph to the list of paths
 					pathGraphs.Add(path, path.GetInstances(root));
 				}
-			}
+			});
 
 			// Combine the graphs for each path into a universal graph
 			CombinePathGraphs();

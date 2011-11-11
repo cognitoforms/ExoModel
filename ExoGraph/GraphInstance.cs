@@ -995,7 +995,8 @@ namespace ExoGraph
 			/// <returns></returns>
 			public GraphInstance Invoke()
 			{
-				using (new GraphEventScope())
+				GraphInstance result = null;
+				GraphEventScope.Perform(() =>
 				{
 					// Clone instances
 					var clones = new Dictionary<GraphInstance, GraphInstance>();
@@ -1012,8 +1013,9 @@ namespace ExoGraph
 						clone.Key.CloneProperties(clone.Value, mapUnion, filters, overrides);
 
 					// Return the root cloned instance
-					return clones[instance];
-				}
+					result = clones[instance];
+				});
+				return result;
 			}
 
 			internal abstract class WhereInfo

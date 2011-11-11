@@ -75,11 +75,11 @@ namespace ExoGraph
 		/// </summary>
 		internal void Notify()
 		{
-			using (new GraphEventScope(this))
+			GraphEventScope.Perform(this, () =>
 			{
 				if (OnNotify())
 					instance.Type.Context.Notify(this);
-			}
+			});
 		}
 
 		/// <summary>

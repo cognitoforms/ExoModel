@@ -60,10 +60,10 @@ namespace ExoGraph
 				return;
 
 			// Remove all of the items from the list
-			using (new GraphEventScope())
+			GraphEventScope.Perform(() =>
 			{
 				list.Clear();
-			}
+			});
 		}
 
 		/// <summary>

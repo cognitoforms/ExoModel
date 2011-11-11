@@ -11,7 +11,7 @@ namespace ExoGraph
 	/// to be recorded or rolled back entirely.
 	/// </summary>
 	[DataContract]
-	public class GraphTransaction : IDisposable, IEnumerable<GraphEvent>
+	public class GraphTransaction : IEnumerable<GraphEvent>, IDisposable
 	{
 		Dictionary<string, GraphInstance> newInstances;
 		GraphContext context;
@@ -19,18 +19,7 @@ namespace ExoGraph
 		[DataMember(Name = "changes")]
 		List<GraphEvent> events = new List<GraphEvent>();
 
-		private bool isActive = true;
-
-		GraphTransaction()
-		{
-			isActive = false;
-		}
-
-		internal GraphTransaction(GraphContext context)
-		{
-			this.context = context;
-			context.Event += context_Event;
-		}
+		bool isActive;
 
 		/// <summary>
 		/// Records <see cref="GraphEvent"/> occurences within the current context.
@@ -108,7 +97,7 @@ namespace ExoGraph
 		/// </summary>
 		public void Perform()
 		{
-			using (new GraphEventScope())
+			GraphEventScope.Perform(() =>
 			{
 				int eventCount = events.Count;
 				for (int i = 0; i < eventCount; i++)
@@ -118,7 +107,7 @@ namespace ExoGraph
 					if (graphEvent is GraphInitEvent.InitNew)
 						RegisterNewInstance(graphEvent.Instance);
 				}
-			}
+			});
 		}
 
 		/// <summary>
@@ -158,16 +147,77 @@ namespace ExoGraph
 		}
 
 		/// <summary>
-		/// Activates a committed transaction, allowing additional changes to be recorded and appended to the current transaction.
+		/// Begins the current transaction, which will record changes occurring within the scope of work.
 		/// </summary>
-		/// <returns></returns>
-		public GraphTransaction Append()
+		/// <returns>The current transaction</returns>
+		/// <remarks>
+		/// Always use <see cref="Record"/> when recording changes that can be represented in a single block.
+		/// <see cref="Begin"/> registers for context-level events and can leak memory if <see cref="Commit"/>
+		/// or <see cref="Rollback"/> are not subsequently called.
+		/// <see cref="Record"/> does not attempt to roll back changes if an error occurs.
+		/// </remarks>
+		public GraphTransaction Begin()
 		{
-			if (IsActive)
-				throw new InvalidOperationException("Append cannot be called on active transactions.");
+			if (isActive)
+				throw new InvalidOperationException("Cannot begin a transaction that is already active.");
 
 			isActive = true;
 			Context.Event += context_Event;
+
+			return this;
+		}
+
+		/// <summary>
+		/// Commits the current transaction.
+		/// </summary>
+		public void Commit()
+		{
+			isActive = false;
+			Context.Event -= context_Event;
+			GraphEventScope.Perform(() =>
+			{
+				for (int i = events.Count - 1; i >= 0; i--)
+					((ITransactedGraphEvent)events[i]).Commit(this);
+			});
+		}
+
+		/// <summary>
+		/// Rolls back the current transaction by calling <see cref="GraphEvent.Revert"/>
+		/// in reverse order on all graph events that occurred during the transaction.
+		/// </summary>
+		public void Rollback()
+		{
+			isActive = false;
+			Context.Event -= context_Event;
+			GraphEventScope.Perform(() =>
+			{
+				for (int i = events.Count - 1; i >= 0; i--)
+					((ITransactedGraphEvent)events[i]).Rollback(this);
+			});
+		}
+
+		/// <summary>
+		/// Activates a committed transaction, allowing additional changes to be recorded and appended to the current transaction.
+		/// </summary>
+		/// <returns></returns>
+		public GraphTransaction Record(Action operation)
+		{
+			if (isActive)
+				throw new InvalidOperationException("Record cannot be called on active transactions.");
+
+			isActive = true;
+			Context.Event += context_Event;
+			try
+			{
+				operation();
+			}
+			catch
+			{
+				isActive = false;
+				Context.Event -= context_Event;
+				throw;
+			}
+			Commit();
 			return this;
 		}
 
@@ -187,7 +237,8 @@ namespace ExoGraph
 				Perform();
 
 				// Return the new changes that occurred while applying the previous changes
-				return GraphContext.Current.Transaction((newChanges) =>
+				var newChanges = new GraphTransaction();
+				return newChanges.Record(() =>
 				{
 					// Propogate the new instance cache forward to the new transaction
 					if (newInstances != null)
@@ -197,7 +248,7 @@ namespace ExoGraph
 					}
 
 					// Allow graph subscribers to be notified of the previous changes
-					((IDisposable)eventScope).Dispose();
+					eventScope.Exit();
 
 					// Clear the reference to the event scope to ensure it is not disposed twice
 					eventScope = null;
@@ -205,57 +256,22 @@ namespace ExoGraph
 					// Perform the specified operation
 					if (operation != null)
 						operation();
-
-					// Commit the transaction
-					newChanges.Commit();
 				});
 			}
-			finally
+			catch (Exception actionException)
 			{
-				// Make sure the event scope is disposed if an unexpected error occurs
-				if (eventScope != null)
-					((IDisposable)eventScope).Dispose();
+				try
+				{
+					if (eventScope != null)
+						eventScope.Exit();
+				}
+				catch (Exception disposalException)
+				{
+					throw new GraphEventScope.ScopeException(disposalException, actionException);
+				}
+				throw;
 			}
 		}
-
-		/// <summary>
-		/// Commits the current transaction.
-		/// </summary>
-		public void Commit()
-		{
-			isActive = false;
-			Context.Event -= context_Event;
-			using (new GraphEventScope())
-			{
-				for (int i = events.Count - 1; i >= 0; i--)
-					((ITransactedGraphEvent)events[i]).Commit(this);
-			}
-		}
-
-		/// <summary>
-		/// Rolls back the current transaction by calling <see cref="GraphEvent.Revert"/>
-		/// in reverse order on all graph events that occurred during the transaction.
-		/// </summary>
-		public void Rollback()
-		{
-			isActive = false;
-			Context.Event -= context_Event;
-			using (new GraphEventScope())
-			{
-				for (int i = events.Count - 1; i >= 0; i--)
-					((ITransactedGraphEvent)events[i]).Rollback(this);
-			}
-		}
-
-		#region IDisposable Members
-
-		void IDisposable.Dispose()
-		{
-			if (IsActive)
-				Rollback();
-		}
-
-		#endregion
 
 		#region IEnumerable<GraphEvent> Members
 
@@ -271,6 +287,16 @@ namespace ExoGraph
 		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
 		{
 			return ((IEnumerable<GraphEvent>)this).GetEnumerator();
+		}
+
+		#endregion
+
+		#region IDisposable Members
+
+		void IDisposable.Dispose()
+		{
+			if (IsActive)
+				Rollback();
 		}
 
 		#endregion
@@ -329,87 +355,23 @@ namespace ExoGraph
 
 			// Create a new transaction and combine the information from the specified transactions
 			// Return the combined transactions
-			return first.Context.Transaction((newTransaction) =>
+			var newTransaction = new GraphTransaction();
+			foreach (var transaction in transactions)
 			{
-				foreach (var transaction in transactions)
+				// Copy new instances
+				if (transaction.newInstances != null)
 				{
-					// Copy new instances
-					if (transaction.newInstances != null)
-					{
-						if (newTransaction.newInstances == null)
-							newTransaction.newInstances = new Dictionary<string, GraphInstance>();
+					if (newTransaction.newInstances == null)
+						newTransaction.newInstances = new Dictionary<string, GraphInstance>();
 
-						foreach (var entry in transaction.newInstances)
-							newTransaction.newInstances.Add(entry.Key, entry.Value);
-					}
-
-					// Copy events
-					newTransaction.events.AddRange(transaction.events);
+					foreach (var entry in transaction.newInstances)
+						newTransaction.newInstances.Add(entry.Key, entry.Value);
 				}
 
-				newTransaction.Commit();
-			});
-		}
-	}
-
-	#region AdditionalDisposalException
-
-	public static class IDisposableExtension
-	{
-		public static void CaptureDisposalException<TDisposable>(this TDisposable disposable, Action<TDisposable> action)
-			where TDisposable : IDisposable
-		{
-			try
-			{
-				action(disposable);
+				// Copy events
+				newTransaction.events.AddRange(transaction.events);
 			}
-			catch (Exception actionException)
-			{
-				try
-				{
-					disposable.Dispose();
-				}
-				catch (Exception disposalException)
-				{
-					throw new AdditionalDisposalException(disposalException, actionException);
-				}
-
-				throw;
-			}
-			disposable.Dispose();
+			return newTransaction;
 		}
 	}
-
-	/// <summary>
-	/// A subclass of exception that can be used to capture both an original exception, and
-	/// an exception occuring during IDisposable.Dispose
-	/// </summary>
-	public class AdditionalDisposalException : Exception
-	{
-		private static readonly string defaultMessage = "An exception occurred while disposing.";
-
-		public AdditionalDisposalException(string message, Exception disposalException, Exception originalException)
-			: base (message, originalException)
-		{
-			this.DisposalException = disposalException;
-			this.OriginalException = originalException;
-		}
-
-		public AdditionalDisposalException(Exception disposalException, Exception originalException)
-			: this(defaultMessage, disposalException, originalException)
-		{
-		}
-
-		/// <summary>
-		/// An exception that occurred during disposal
-		/// </summary>
-		public Exception DisposalException { get; private set; }
-
-		/// <summary>
-		/// An exception that occured with caused the disposal
-		/// </summary>
-		public Exception OriginalException { get; private set; }
-	}
-
-	#endregion
 }

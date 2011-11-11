@@ -152,36 +152,6 @@ namespace ExoGraph
 		#region Graph Instance Methods
 
 		/// <summary>
-		/// Begins a transaction within the current graph context.
-		/// </summary>
-		/// <returns>The transaction instance</returns>
-		/// <remarks>
-		/// The transaction subscribes to graph events and should be used inside a using block
-		/// to ensure that the subscriptions are eventually released.
-		/// <see cref="GraphTransaction.Commit"/> must be called to ensure the transaction is not rolled back.
-		/// <see cref="Rollback"/> may be called at any time to force the transaction to roll back.
-		/// After <see cref="Commit"/> or <see cref="Rollback"/> occurs, further graph events
-		/// will not be tracked by the transaction.
-		/// </remarks>
-		public GraphTransaction BeginTransaction()
-		{
-			return new GraphTransaction(this);
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="context"></param>
-		/// <param name="action"></param>
-		/// <returns></returns>
-		public GraphTransaction Transaction(Action<GraphTransaction> action)
-		{
-			GraphTransaction transaction = BeginTransaction();
-			transaction.CaptureDisposalException(action);
-			return transaction;
-		}
-
-		/// <summary>
 		/// Called by each <see cref="GraphEvent"/> to notify the context that a graph event has occurred.
 		/// </summary>
 		/// <param name="graphEvent"></param>

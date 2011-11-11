@@ -205,7 +205,7 @@ namespace ExoGraph
 		{
 			Prepare(transaction);
 
-			using (new GraphEventScope())
+			GraphEventScope.Perform(() =>
 			{
 				GraphContext context = Instance.Type.Context;
 				GraphInstanceList list = Instance.GetList(Property);
@@ -220,7 +220,7 @@ namespace ExoGraph
 					foreach (GraphInstance item in removed)
 						list.Remove(item);
 				}
-			}
+			});
 		}
 
 		void ITransactedGraphEvent.Commit(GraphTransaction transaction)
@@ -230,7 +230,7 @@ namespace ExoGraph
 		{
 			Prepare(transaction);
 
-			using (new GraphEventScope())
+			GraphEventScope.Perform(() =>
 			{
 				GraphContext context = Instance.Type.Context;
 				GraphInstanceList list = Instance.GetList(Property);
@@ -245,7 +245,7 @@ namespace ExoGraph
 					foreach (GraphInstance item in removed)
 						list.Add(item);
 				}
-			}
+			});
 		}
 
 		#endregion
