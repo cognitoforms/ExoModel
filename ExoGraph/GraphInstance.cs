@@ -893,6 +893,7 @@ namespace ExoGraph
 			Dictionary<Type, object> overrides = new Dictionary<Type, object>();
 			List<FilterInfo> filters = new List<FilterInfo>();
 			List<WhereInfo> wheres = new List<WhereInfo>();
+			Dictionary<GraphInstance, GraphInstance> maps = new Dictionary<GraphInstance,GraphInstance>();
 
 			internal Cloner(GraphInstance instance, IEnumerable<string> paths)
 				: this(instance, null, paths)
@@ -911,7 +912,7 @@ namespace ExoGraph
 			/// </summary>
 			public Cloner Clone(params string[] paths)
 			{
-				return Clone(paths);
+				return Clone(paths.AsEnumerable<string>());
 			}
 
 			/// <summary>
@@ -971,6 +972,23 @@ namespace ExoGraph
 			}
 
 			/// <summary>
+			/// Adds a mapping between a source <see cref="GraphInstance"/> and a destination
+			/// <see cref="GraphInstance"/>.
+			/// 
+			/// If paths provided to the cloner cause <paramref name="from"/> to have been cloned then
+			/// the cloned <see cref="GraphInstance"/> will be copied, and not the <paramref name="to"/>
+			/// that may have been provided here.
+			/// </summary>
+			/// <param name="from">A <see cref="GraphInstance"/> in the source graph.</param>
+			/// <param name="to">The <see cref="GraphInstance"/> that will be copied instead.</param>
+			/// <returns></returns>
+			public Cloner Map(GraphInstance from, GraphInstance to)
+			{
+				maps.Add(from, to);
+				return this;
+			}
+
+			/// <summary>
 			/// Begins the cloning process and returns the copied <see cref="GraphInstance"/>
 			/// of the original <see cref="GraphInstance"/>
 			/// </summary>
@@ -987,9 +1005,11 @@ namespace ExoGraph
 
 					paths.ForEach(p => instance.CloneInstance(p.FirstSteps, clones, filters, wheres));
 
+					var mapUnion = clones.Union(maps.Where(m => !clones.Keys.Contains(m.Key))).ToDictionary(p => p.Key, p => p.Value);
+
 					// Clone properties
 					foreach (var clone in clones)
-						clone.Key.CloneProperties(clone.Value, clones, filters, overrides);
+						clone.Key.CloneProperties(clone.Value, mapUnion, filters, overrides);
 
 					// Return the root cloned instance
 					return clones[instance];
