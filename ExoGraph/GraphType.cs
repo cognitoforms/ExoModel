@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Collections;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace ExoGraph
 {

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System;
 using System.Runtime.Serialization;
+using System.Text.RegularExpressions;
 
 namespace ExoGraph
 {
@@ -11,6 +12,12 @@ namespace ExoGraph
 	[DataContract]
 	public abstract class GraphProperty : ISerializable
 	{
+		#region Fields
+
+		static Regex labelRegex = new Regex(@"(^[a-z]+|[A-Z]{2,}(?=[A-Z][a-z]|$)|[A-Z][a-z]*)", RegexOptions.Singleline | RegexOptions.Compiled);
+
+		#endregion
+
 		#region Constructors
 
 		internal GraphProperty(GraphType declaringType, string name, bool isStatic, bool isList, bool isReadOnly, Attribute[] attributes)
@@ -30,6 +37,14 @@ namespace ExoGraph
 
 		[DataMember(Name = "name")]
 		public string Name { get; private set; }
+
+		public string Label
+		{
+			get
+			{
+				return GetLabel();
+			}
+		}
 
 		public int Index { get; internal set; }
 
@@ -114,6 +129,15 @@ namespace ExoGraph
 		/// <param name="instance"></param>
 		/// <param name="value"></param>
 		protected internal abstract void SetValue(object instance, object value);
+
+		/// <summary>
+		/// Determines the appropriate label for use in a user interface to display for the property.
+		/// </summary>
+		/// <returns></returns>
+		protected virtual string GetLabel()
+		{
+			return labelRegex.Replace(Name, " $1").Substring(1);
+		}
 
 		#endregion
 
