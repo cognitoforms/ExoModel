@@ -152,10 +152,8 @@ namespace ExoGraph.EntityFramework
 			var context = GetObjectContext();
 			var type = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(((EntityGraphType)declaringType).UnderlyingType.FullName, DataSpace.CSpace);
 			NavigationProperty navProp;
-			if (type.NavigationProperties.TryGetValue(name, false, out navProp))
-				return new EntityReferenceProperty(declaringType, navProp, property, name, isStatic, propertyType, isList, isReadOnly, attributes);
-			else
-				return base.CreateReferenceProperty(declaringType, property, name, isStatic, propertyType, isList, isReadOnly, attributes);
+			type.NavigationProperties.TryGetValue(name, false, out navProp);
+			return new EntityReferenceProperty(declaringType, navProp, property, name, isStatic, propertyType, isList, isReadOnly, attributes);
 		}
 
 		/// <summary>
@@ -179,7 +177,7 @@ namespace ExoGraph.EntityFramework
 			// Fetch any attributes associated with a buddy-class
 			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
 
-			return base.CreateValueProperty(declaringType, property, name, isStatic, propertyType, converter, isList, isReadOnly, attributes);
+			return new EntityValueProperty(declaringType, property, name, isStatic, propertyType, converter, isList, isReadOnly, attributes);
 		}
 
 		#region Storage
@@ -443,6 +441,31 @@ namespace ExoGraph.EntityFramework
 		}
 		#endregion
 
+		#region EntityValueProperty
+
+		/// <summary>
+		/// Subclass of <see cref="ReflectionReferenceProperty"/> specific to entity models.
+		/// </summary>
+		internal class EntityValueProperty : ReflectionValueProperty
+		{
+			internal EntityValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, Attribute[] attributes)
+				: base(declaringType, property, name, isStatic, propertyType, converter, isList, isReadOnly, attributes)
+			{}
+
+			/// <summary>
+			/// Determines the appropriate label for use in a user interface to display for the property.
+			/// </summary>
+			/// <param name="property"></param>
+			/// <returns></returns>
+			string GetLabel(GraphProperty property)
+			{
+				DisplayAttribute displayAttribute = property.GetAttributes<DisplayAttribute>().FirstOrDefault();
+				return displayAttribute != null ? displayAttribute.GetName() : base.GetLabel();
+			}
+		}
+
+		#endregion
+
 		#region EntityReferenceProperty
 
 		/// <summary>
@@ -453,13 +476,24 @@ namespace ExoGraph.EntityFramework
 			internal EntityReferenceProperty(GraphType declaringType, NavigationProperty navProp, PropertyInfo property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, Attribute[] attributes)
 				: base(declaringType, property, name, isStatic, propertyType, isList, isReadOnly, attributes)
 			{
-				RelationshipName = navProp.RelationshipType.Name;
-				TargetRoleName = navProp.ToEndMember.Name;
+				RelationshipName = navProp != null ? navProp.RelationshipType.Name : null;
+				TargetRoleName = navProp != null ? navProp.ToEndMember.Name : null;
 			}
 
 			internal string RelationshipName { get; private set; }
 
 			internal string TargetRoleName { get; private set; }
+
+			/// <summary>
+			/// Determines the appropriate label for use in a user interface to display for the property.
+			/// </summary>
+			/// <param name="property"></param>
+			/// <returns></returns>
+			protected override string GetLabel()
+			{
+				DisplayAttribute displayAttribute = GetAttributes<DisplayAttribute>().FirstOrDefault();
+				return displayAttribute != null ? displayAttribute.GetName() : base.GetLabel();
+			}
 		}
 
 		#endregion
