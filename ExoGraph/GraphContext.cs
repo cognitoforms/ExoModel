@@ -49,12 +49,6 @@ namespace ExoGraph
 		/// List of graph types that have been initialized
 		/// </summary>
 		IList<GraphType> initialized = new List<GraphType>();
-
-		/// <summary>
-		/// List of properties that are being accessed for the first time.
-		/// </summary>
-		List<KeyValuePair<GraphInstance, GraphProperty>> pendingGetProperties = new List<KeyValuePair<GraphInstance, GraphProperty>>();
-
 		#endregion
 
 		#region Constructors
@@ -168,38 +162,6 @@ namespace ExoGraph
 		internal string GenerateId()
 		{
 			return "?" + ++nextId;
-		}
-
-		/// <summary>
-		/// Notify that a property is being accessed for the first time.
-		/// </summary>
-		/// <param name="instance"></param>
-		/// <param name="property"></param>
-		internal void AddPendingPropertyGet(GraphInstance instance, GraphProperty property)
-		{
-			pendingGetProperties.Add(new KeyValuePair<GraphInstance, GraphProperty>(instance, property));
-		}
-
-		/// <summary>
-		/// Notify that a property was accessed for the first time.
-		/// </summary>
-		/// <param name="instance"></param>
-		/// <param name="property"></param>
-		internal void RemovePendingPropertyGet(GraphInstance instance, GraphProperty property)
-		{
-			pendingGetProperties.Remove(new KeyValuePair<GraphInstance, GraphProperty>(instance, property));
-		}
-
-		/// <summary>
-		/// Indicates that the given property is being accessed for the first time on the given graph instance,
-		/// so property get events should be temporarily suspended.
-		/// </summary>
-		/// <param name="instance"></param>
-		/// <param name="property"></param>
-		/// <returns></returns>
-		internal bool IsPropertyBeingAccessed(GraphInstance instance, GraphProperty property)
-		{
-			return pendingGetProperties.Count > 0 && pendingGetProperties.Contains(new KeyValuePair<GraphInstance, GraphProperty>(instance, property));
 		}
 
 		/// <summary>

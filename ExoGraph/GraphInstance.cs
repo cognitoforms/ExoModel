@@ -36,9 +36,9 @@ namespace ExoGraph
 		[NonSerialized]
 		object extension;
 
-		bool[] hasBeenAccessed;
+		BitArray hasBeenAccessed;
+		BitArray isBeingAccessed;
 		bool isInitialized;
-		bool isCached;
 
 		static GraphReference[] noReferences = new GraphReference[0];
 
@@ -68,7 +68,8 @@ namespace ExoGraph
 		{
 			this.id = id;
 			this.type = type;
-			this.hasBeenAccessed = new bool[type.Properties.Count];
+			this.hasBeenAccessed = new BitArray(type.Properties.Count);
+			this.isBeingAccessed = new BitArray(type.Properties.Count);
 		}
 
 		#endregion
@@ -171,7 +172,7 @@ namespace ExoGraph
 			{
 				if (outReferences == null)
 				{
-					if (isCached)
+					if (IsCached)
 						return new Dictionary<GraphReferenceProperty, ReferenceSet>();
 					else
 						outReferences = new Dictionary<GraphReferenceProperty, ReferenceSet>();
@@ -187,7 +188,7 @@ namespace ExoGraph
 			{
 				if(inReferences == null)
 				{
-					if (isCached)
+					if (IsCached)
 						return new Dictionary<GraphReferenceProperty, ReferenceSet>();
 					else
 						inReferences = new Dictionary<GraphReferenceProperty, ReferenceSet>();
@@ -245,6 +246,18 @@ namespace ExoGraph
 			}
 		}
 
+		/// <summary>
+		/// True if this object is shared across threads
+		/// </summary>
+		public bool IsCached { get; private set; }
+
+		/// <summary>
+		/// Gets an object that be used by Monitor to synchronize multi-threaded access
+		/// </summary>
+		public IDisposable Lock()
+		{
+			return Type.GetLock(Instance);
+		}
 		#endregion
 
 		#region Methods
@@ -443,9 +456,10 @@ namespace ExoGraph
 				if (type == GraphType.Unknown)
 				{
 					GraphType knownType = GraphContext.Current.GetGraphType(instance);
-					hasBeenAccessed = new bool[knownType.PropertyCount];
-					isCached = knownType.IsCached(instance);
-					if (isCached)
+					hasBeenAccessed = new BitArray(knownType.PropertyCount);
+					isBeingAccessed = new BitArray(knownType.PropertyCount);
+					IsCached = knownType.IsCached(instance);
+					if (IsCached)
 					{
 						inReferences = null;
 						outReferences = null;
@@ -509,7 +523,27 @@ namespace ExoGraph
 		{
 			return hasBeenAccessed[property.Index];
 		}
-		
+
+		/// <summary>
+		/// Notify that a property is being accessed for the first time.
+		/// </summary>
+		/// <param name="property"></param>
+		internal void SetIsPropertyBeingAccessed(GraphProperty property, bool value)
+		{
+			isBeingAccessed[property.Index] = value;
+		}
+
+		/// <summary>
+		/// Indicates that the given property is being accessed for the first time on the given graph instance,
+		/// so property get events should be temporarily suspended.
+		/// </summary>
+		/// <param name="property"></param>
+		/// <returns></returns>
+		internal bool IsPropertyBeingAccessed(GraphProperty property)
+		{
+			return isBeingAccessed[property.Index];
+		}
+
 		/// <summary>
 		/// Returns a cloner for copying a graph rooted at this <see cref="GraphInstance"/>
 		/// </summary>

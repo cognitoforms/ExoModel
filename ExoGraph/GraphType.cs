@@ -784,6 +784,16 @@ namespace ExoGraph
 			return false;
 		}
 
+		/// <summary>
+		/// Acquires a lock that can be used to synchronize multi-threaded access.  Its safe to assume
+		/// that IsCached(instance) is true.
+		/// </summary>
+		/// <returns></returns>
+		protected internal virtual IDisposable GetLock(object instance)
+		{
+			throw new InvalidOperationException(this.GetType() + " must implement GetLock() if IsCached() is overridden");
+		}
+
 		#endregion
 
 		#region ISerializable Members

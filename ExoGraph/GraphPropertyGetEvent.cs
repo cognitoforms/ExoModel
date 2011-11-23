@@ -1,4 +1,6 @@
 ﻿using System.Runtime.Serialization;
+using System.Threading;
+using System;
 namespace ExoGraph
 {
 	/// <summary>
@@ -11,7 +13,6 @@ namespace ExoGraph
 			: base(instance)
 		{
 			this.Property = property;
-			this.IsFirstAccess = !Instance.HasBeenAccessed(property);
 		}
 
 		public GraphProperty Property { get; private set; }
@@ -20,41 +21,49 @@ namespace ExoGraph
 
 		protected override bool OnNotify()
 		{
-			var context = Instance.Type.Context;
-
-			// Abort if property get notifications have been suspended
-			if (context.IsPropertyBeingAccessed(Instance, Property))
-				return false;
-
-			try
+			// Lock cached objects before notifying to prevent multithreaded rule execution
+			using(Instance.IsCached ? Instance.Lock() : null)
 			{
-				// Prevent gets from recursively raising get notifications
-				context.AddPendingPropertyGet(Instance, Property);
+				// Determine first access after lock has been acquired to ensure
+				// that no more than one event will be treated as first access.
+				this.IsFirstAccess = !Instance.HasBeenAccessed(Property);
+	
+				var context = Instance.Type.Context;
 
-				// Perform special processing if this is the first time the property has been accessed
-				if (IsFirstAccess)
+				// Abort if property get notifications have been suspended
+				if (Instance.IsPropertyBeingAccessed(Property))
+					return false;
+
+				try
 				{
-					// Notify the instance that it is being accessed
-					Instance.OnAccess();
+					// Prevent gets from recursively raising get notifications
+					Instance.SetIsPropertyBeingAccessed(Property, true);
 
-					// Raise property get notifications
-					RaisePropertyGet();
+					// Perform special processing if this is the first time the property has been accessed
+					if (IsFirstAccess)
+					{
+						// Notify the instance that it is being accessed
+						Instance.OnAccess();
 
-					// Perform special initialization if this is the first time the property has been accessed
-					Instance.OnFirstAccess(Property);
+						// Raise property get notifications
+						RaisePropertyGet();
+
+						// Perform special initialization if this is the first time the property has been accessed
+						Instance.OnFirstAccess(Property);
+					}
+
+					// Otherwise, just raise property get notifications
+					else
+						RaisePropertyGet();
+				}
+				finally
+				{
+					Instance.SetIsPropertyBeingAccessed(Property, false);
 				}
 
-				// Otherwise, just raise property get notifications
-				else
-					RaisePropertyGet();
+				// Indicate that the notification should be raised by the context
+				return true;
 			}
-			finally
-			{
-				context.RemovePendingPropertyGet(Instance, Property);
-			}
-
-			// Indicate that the notification should be raised by the context
-			return true;
 		}
 
 		/// <summary>
