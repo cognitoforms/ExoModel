@@ -77,15 +77,15 @@ namespace ExoGraph
 		{
 			GraphEventScope.Perform(this, () =>
 			{
-				if (OnNotify())
-					instance.Type.Context.Notify(this);
+				instance.Type.Context.Notify(this);
+				OnNotify();
 			});
 		}
 
 		/// <summary>
 		/// Allows subclasses to perform event specific notification logic.
 		/// </summary>
-		protected abstract bool OnNotify();
+		protected abstract void OnNotify();
 
 		/// <summary>
 		/// Verifies that the specified <see cref="GraphInstance"/> refers to a valid real instance

@@ -11,10 +11,8 @@ namespace ExoGraph
 			: base(instance)
 		{ }
 
-		protected override bool OnNotify()
+		protected override void OnNotify()
 		{
-			// Indicate that the notification should be raised by the context
-			return true;
 		}
 
 		public override string ToString()

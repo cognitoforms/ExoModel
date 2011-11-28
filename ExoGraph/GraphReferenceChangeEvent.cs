@@ -103,7 +103,7 @@ namespace ExoGraph
 			}
 		}
 
-		protected override bool OnNotify()
+		protected override void OnNotify()
 		{
 			if (OldValue != null)
 				Instance.RemoveReference(Instance.GetOutReference(property, OldValue));
@@ -120,9 +120,6 @@ namespace ExoGraph
 				if (type == Property.DeclaringType)
 					break;
 			}
-
-			// Indicate that the notification should be raised by the context
-			return true;
 		}
 
 		/// <summary>

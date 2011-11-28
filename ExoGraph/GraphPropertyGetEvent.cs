@@ -19,7 +19,7 @@ namespace ExoGraph
 
 		public bool IsFirstAccess { get; private set; }
 
-		protected override bool OnNotify()
+		protected override void OnNotify()
 		{
 			// Lock cached objects before notifying to prevent multithreaded rule execution
 			using(Instance.IsCached ? Instance.Lock() : null)
@@ -32,7 +32,7 @@ namespace ExoGraph
 
 				// Abort if property get notifications have been suspended
 				if (Instance.IsPropertyBeingAccessed(Property))
-					return false;
+					return;
 
 				try
 				{
@@ -60,9 +60,6 @@ namespace ExoGraph
 				{
 					Instance.SetIsPropertyBeingAccessed(Property, false);
 				}
-
-				// Indicate that the notification should be raised by the context
-				return true;
 			}
 		}
 

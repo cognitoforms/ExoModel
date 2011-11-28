@@ -117,7 +117,7 @@ namespace ExoGraph
 			}
 		}
 
-		protected override bool OnNotify()
+		protected override void OnNotify()
 		{
 			foreach (GraphInstance ri in removed)
 				Instance.RemoveReference(Instance.GetOutReference(Property, ri));
@@ -134,9 +134,6 @@ namespace ExoGraph
 				if (type == Property.DeclaringType)
 					break;
 			}
-
-			// Indicate that the notification should be raised by the context
-			return true;
 		}
 
 		/// <summary>

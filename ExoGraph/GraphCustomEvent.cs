@@ -34,12 +34,9 @@
 		/// Notifies subscribers that this custom event has been raised.
 		/// </summary>
 		/// <returns></returns>
-		protected override bool OnNotify()
+		protected override void OnNotify()
 		{
 			Instance.Type.RaiseEvent(this);
-
-			// Indicate that the notification should be raised by the context
-			return true;
 		}
 	}
 }
