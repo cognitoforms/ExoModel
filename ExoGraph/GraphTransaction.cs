@@ -196,17 +196,40 @@ namespace ExoGraph
 			});
 		}
 
+
+		/// <summary>
+		/// Pauses the transaction and executes the action so that its changes are not recorded to the current transaction.
+		/// </summary>
+		/// <returns></returns>
+		public GraphTransaction Exclude(Action operation)
+		{
+			if (!isActive)
+				throw new InvalidOperationException("Cannot pause a transaction that is inactive.");
+
+			isActive = false;
+			Context.Event -= context_Event;
+
+			try
+			{
+				operation();
+			}
+			catch
+			{
+				isActive = true;
+				Context.Event += context_Event;
+				throw;
+			}
+			Begin();
+			return this;
+		}
+
 		/// <summary>
 		/// Activates a committed transaction, allowing additional changes to be recorded and appended to the current transaction.
 		/// </summary>
 		/// <returns></returns>
 		public GraphTransaction Record(Action operation)
 		{
-			if (isActive)
-				throw new InvalidOperationException("Record cannot be called on active transactions.");
-
-			isActive = true;
-			Context.Event += context_Event;
+			Begin();
 			try
 			{
 				operation();
