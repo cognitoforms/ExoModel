@@ -602,6 +602,8 @@ namespace ExoGraph
 					if (reference.IsList)
 					{
 						var toList = clone.GetList(reference);
+						toList.Clear(); //Ensures the list is empty before cloning in case it is auto-populated through another means.
+						
 						foreach (var instance in GetList(reference))
 							if(filters.All(f => f.Allows(property, this.Instance, instance.Instance)))
 								toList.Add(mapping.TryGetValue(instance, out cloneInstance) ? cloneInstance : instance);
