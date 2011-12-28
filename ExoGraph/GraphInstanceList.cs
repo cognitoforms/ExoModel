@@ -28,7 +28,7 @@ namespace ExoGraph
 
 		#region Methods
 
-		IList GetList()
+		internal IList GetList()
 		{
 			return property.DeclaringType.ConvertToList(property, property.GetValue(owner == null ? null : owner.Instance));
 		}

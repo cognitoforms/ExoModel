@@ -590,34 +590,16 @@ namespace ExoGraph
 			// Copy all property data for read-write properties
 			foreach (var property in Type.Properties.Where(p => !p.IsReadOnly && !p.IsStatic))
 			{
-				// Value
 				if (property is GraphValueProperty)
-					clone.SetValue((GraphValueProperty)property, GetValue((GraphValueProperty)property));
+					CloneValueProperty(clone, filters, (GraphValueProperty)property);
 				else
 				{
-					GraphInstance cloneInstance;
-					var reference = (GraphReferenceProperty)property;
-					
-					// List
-					if (reference.IsList)
-					{
-						var toList = clone.GetList(reference);
-						toList.Clear(); //Ensures the list is empty before cloning in case it is auto-populated through another means.
-						
-						foreach (var instance in GetList(reference))
-							if(filters.All(f => f.Allows(property, this.Instance, instance.Instance)))
-								toList.Add(mapping.TryGetValue(instance, out cloneInstance) ? cloneInstance : instance);
-					}
+					var referenceProperty = (GraphReferenceProperty)property;
 
-					// Reference
+					if (referenceProperty.IsList)
+						CloneGraphInstanceList(clone, mapping, filters, referenceProperty);
 					else
-					{
-						var instance = GetReference(reference);
-						if (instance != null && filters.All(f => f.Allows(property, this.Instance, instance.Instance)))
-							clone.SetReference(reference, mapping.TryGetValue(instance, out cloneInstance) ? cloneInstance : instance);
-						else
-							clone.SetReference(reference, null);
-					}
+						CloneGraphInstance(clone, mapping, filters, referenceProperty);
 				}
 			}
 
@@ -629,6 +611,43 @@ namespace ExoGraph
 			}
 		}
 
+		private void CloneValueProperty(GraphInstance clone, List<Cloner.FilterInfo> filters, GraphValueProperty property)
+		{
+			object value = GetValue(property);
+
+			if (!filters.All(f => f.Allows(property, this.Instance, value)))
+				return;
+
+			clone.SetValue(property, value);
+		}
+
+		private void CloneGraphInstanceList(GraphInstance clone, IDictionary<GraphInstance, GraphInstance> mapping, List<Cloner.FilterInfo> filters, GraphReferenceProperty property)
+		{
+			GraphInstanceList instanceList = GetList(property);
+
+			if (!filters.All(f => f.Allows(property, this.Instance, instanceList.GetList())))
+				return;	
+
+			GraphInstance cloneInstance;
+			var toList = clone.GetList(property);
+			toList.Clear(); //Ensures the list is empty before cloning in case it is auto-populated through another means.
+
+			foreach (var instance in instanceList)
+				if (filters.All(f => f.Allows(property, this.Instance, instance.Instance)))
+					toList.Add(mapping.TryGetValue(instance, out cloneInstance) ? cloneInstance : instance);
+		}
+		
+		private void CloneGraphInstance(GraphInstance clone, IDictionary<GraphInstance, GraphInstance> mapping, List<Cloner.FilterInfo> filters, GraphReferenceProperty property)
+		{
+			GraphInstance cloneInstance;
+			var instance = GetReference(property);
+
+			if (instance != null && filters.All(f => f.Allows(property, this.Instance, instance.Instance)))
+				clone.SetReference(property, mapping.TryGetValue(instance, out cloneInstance) ? cloneInstance : instance);
+			else
+				clone.SetReference(property, null);
+		}
+		
 		/// <summary>
 		/// Recursively clones the current instance based on the specified graph steps,
 		/// storing the clones in the specified mapping dictionary.
