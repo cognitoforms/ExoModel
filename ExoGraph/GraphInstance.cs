@@ -654,7 +654,7 @@ namespace ExoGraph
 		/// </summary>
 		/// <param name="steps"></param>
 		/// <param name="mapping"></param>
-		void CloneInstance(GraphStepList steps, IDictionary<GraphInstance, GraphInstance> mapping, List<Cloner.FilterInfo> filters, List<Cloner.WhereInfo> wheres)
+		void CloneInstance(IEnumerable<GraphStep> steps, IDictionary<GraphInstance, GraphInstance> mapping, List<Cloner.FilterInfo> filters, List<Cloner.WhereInfo> wheres, List<Cloner.PathFuncInfo> pathFuncs)
 		{
 			// if instance has not been cloned, clone it
 			if (!mapping.ContainsKey(this))
@@ -663,13 +663,14 @@ namespace ExoGraph
 				GraphInstance clone = Type.Create();
 				mapping.Add(this, clone);
 			}
-
+			
 		    // Recursively clone child instances
 			foreach (var step in steps)
 				foreach (var instance in step.GetInstances(this))
 				{
-					if (filters.All(f => f.Allows(step.Property, this, instance)) && wheres.All(w => w.Allows(step, this, instance)))
-						instance.CloneInstance(step.NextSteps, mapping, filters, wheres);
+					if (filters.All(f => f.Allows(step.Property, this.Instance, instance.Instance)) && wheres.All(w => w.Allows(step, this.Instance, instance.Instance)))
+						instance.CloneInstance(step.NextSteps.Union(pathFuncs.SelectMany(pf => pf.GetPaths(step, instance.Instance)).SelectMany(p => instance.Type.GetPath(p).FirstSteps)),
+							mapping, filters, wheres, pathFuncs);
 				}
 		}
 
@@ -948,6 +949,7 @@ namespace ExoGraph
 			Dictionary<Type, object> overrides = new Dictionary<Type, object>();
 			List<FilterInfo> filters = new List<FilterInfo>();
 			List<WhereInfo> wheres = new List<WhereInfo>();
+			List<PathFuncInfo> pathFuncs = new List<PathFuncInfo>();
 			Dictionary<GraphInstance, GraphInstance> maps = new Dictionary<GraphInstance,GraphInstance>();
 
 			internal Cloner(GraphInstance instance, IEnumerable<string> paths)
@@ -976,6 +978,19 @@ namespace ExoGraph
 			public Cloner Clone(IEnumerable<string> paths)
 			{
 				this.paths.AddRange(paths.Select(p => instance.Type.GetPath(p)));
+				return this;
+			}
+
+			/// <summary>
+			/// Specify delegate that will return a list of paths rooted at an instance
+			/// of type <typeparamref name="TType"/> that will be used to instantiate
+			/// new objects.  Usefull for specifying additional paths for dynamic types
+			/// that may be encountered some distance from the root <see cref="GraphInstance"/>
+			/// of this <see cref="Cloner"/>.
+			/// </summary>
+			public Cloner Clone<TType>(Func<GraphStep, TType, IEnumerable<string>> pathFunc)
+			{
+				pathFuncs.Add(new PathFuncInfo<TType> { PathFunc = pathFunc });
 				return this;
 			}
 
@@ -1059,7 +1074,7 @@ namespace ExoGraph
 					if (destination != null)
 						clones.Add(instance, destination);
 
-					paths.ForEach(p => instance.CloneInstance(p.FirstSteps, clones, filters, wheres));
+					paths.ForEach(p => instance.CloneInstance(p.FirstSteps, clones, filters, wheres, pathFuncs));
 
 					var mapUnion = clones.Union(maps.Where(m => !clones.Keys.Contains(m.Key))).ToDictionary(p => p.Key, p => p.Value);
 
@@ -1108,6 +1123,23 @@ namespace ExoGraph
 
 					// filter doesn't even apply
 					return true;
+				}
+			}
+
+			internal abstract class PathFuncInfo
+			{
+				internal abstract IEnumerable<string> GetPaths(GraphStep step, object instance);
+			}
+
+			class PathFuncInfo<TType> : PathFuncInfo
+			{
+				internal Func<GraphStep, TType, IEnumerable<string>> PathFunc { get; set; }
+
+				internal override IEnumerable<string> GetPaths(GraphStep step, object instance)
+				{
+					if (instance is TType)
+						foreach (string path in PathFunc(step,(TType)instance))
+							yield return path;
 				}
 			}
 		}
