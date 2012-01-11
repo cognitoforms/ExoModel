@@ -44,12 +44,7 @@ namespace ExoGraph
 			this.QualifiedName = qualifiedName;
 			this.Scope = scope;
 			this.attributes = attributes;
-
-			if (baseType != null)
-			{
-				this.BaseType = baseType;
-				baseType.SubTypes.Add(this);
-			}
+			this.BaseType = baseType;
 
 			// Initialize list properties
 			this.SubTypes = new GraphTypeList();
@@ -184,6 +179,10 @@ namespace ExoGraph
 			// Fire after-initialization logic
 			foreach (var initializer in initializers)
 				initializer();
+
+			// Add to base type after all other initialization is complete
+			if (BaseType != null)
+				BaseType.SubTypes.Add(this);
 		}
 
 		/// <summary>
