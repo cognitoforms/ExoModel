@@ -99,6 +99,11 @@ namespace ExoGraph
 			return property.IsReadOnly;
 		}
 
+		protected override bool IsPersisted(PropertyDescriptor property)
+		{
+			return true;
+		}
+
 		protected override GraphType GetReferenceType(PropertyDescriptor property)
 		{
 			Type itemType;

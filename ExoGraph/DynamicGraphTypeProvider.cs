@@ -203,6 +203,8 @@ namespace ExoGraph
 
 		protected abstract bool IsReadOnly(TPropertySource property);
 
+		protected abstract bool IsPersisted(TPropertySource property);
+
 		protected abstract GraphType GetReferenceType(TPropertySource property);
 
 		protected abstract TypeConverter GetValueConverter(TPropertySource property);
@@ -267,6 +269,9 @@ namespace ExoGraph
 					// Determine if the property is read only
 					var isReadOnly = provider.IsReadOnly(property);
 
+					// Determine if the property is persisted
+					var isPersisted = provider.IsPersisted(property);
+
 					// Get the attributes for the property
 					var attributes = provider.GetPropertyAttributes(property);
 
@@ -277,12 +282,12 @@ namespace ExoGraph
 					if (referenceType == null)
 						AddProperty(
 							new DynamicValueProperty(
-								this, property, name, isStatic, provider.GetValueType(property), provider.GetValueConverter(property), isList, isReadOnly, attributes)
+								this, property, name, isStatic, provider.GetValueType(property), provider.GetValueConverter(property), isList, isReadOnly, isPersisted, attributes)
 						);
 					else
 						AddProperty(
 							new DynamicReferenceProperty(
-								this, property, name, isStatic, referenceType, isList, isReadOnly, attributes)
+								this, property, name, isStatic, referenceType, isList, isReadOnly, isPersisted, attributes)
 						);
 
 				}
@@ -322,9 +327,24 @@ namespace ExoGraph
 					return BaseType.GetInstance(id);
 			}
 
-			protected internal override void DeleteInstance(GraphInstance graphInstance)
+			protected internal override bool GetIsDeleted(object instance)
 			{
-				BaseType.DeleteInstance(graphInstance);
+				return BaseType.GetIsDeleted(instance);
+			}
+
+			protected internal override bool GetIsModified(object instance)
+			{
+				return BaseType.GetIsModified(instance);
+			}
+
+			protected internal override bool GetIsPendingDelete(object instance)
+			{
+				return BaseType.GetIsPendingDelete(instance);
+			}
+
+			protected internal override void SetIsPendingDelete(object instance, bool isPendingDelete)
+			{
+				BaseType.SetIsPendingDelete(instance, isPendingDelete);
 			}
 
 			protected internal override void OnStartTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
@@ -342,8 +362,8 @@ namespace ExoGraph
 			[Serializable]
 			class DynamicValueProperty : GraphValueProperty
 			{
-				internal DynamicValueProperty(DynamicGraphType declaringType, TPropertySource property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, Attribute[] attributes)
-					: base(declaringType, name, isStatic, propertyType, converter, isList, isReadOnly, attributes)
+				internal DynamicValueProperty(DynamicGraphType declaringType, TPropertySource property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+					: base(declaringType, name, isStatic, propertyType, converter, isList, isReadOnly, isPersisted,attributes)
 				{
 					this.PropertySource = property;
 				}
@@ -377,8 +397,8 @@ namespace ExoGraph
 			[Serializable]
 			class DynamicReferenceProperty : GraphReferenceProperty
 			{
-				internal DynamicReferenceProperty(DynamicGraphType declaringType, TPropertySource property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, Attribute[] attributes)
-					: base(declaringType, name, isStatic, propertyType, isList, isReadOnly, attributes)
+				internal DynamicReferenceProperty(DynamicGraphType declaringType, TPropertySource property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+					: base(declaringType, name, isStatic, propertyType, isList, isReadOnly, isPersisted,attributes)
 				{
 					this.PropertySource = property;
 				}

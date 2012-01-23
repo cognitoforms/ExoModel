@@ -1,15 +1,13 @@
-﻿using System.Runtime.Serialization;
+﻿using System;
 using System.Collections.Generic;
+
 namespace ExoGraph
 {
 	/// <summary>
 	/// Represents the creation of a new or existing graph instance.
 	/// </summary>
-	[DataContract(Name = "Save")]
 	public class GraphSaveEvent : GraphEvent, ITransactedGraphEvent
 	{
-		List<IdChange> idChanges;
-
 		public GraphSaveEvent(GraphInstance instance)
 			: base(instance)
 		{ }
@@ -24,74 +22,23 @@ namespace ExoGraph
 			return "Saved " + Instance;
 		}
 
-		internal void AddIdChange(GraphType type, string oldId, string newId)
-		{
-			if (idChanges == null)
-				idChanges = new List<IdChange>();
-			idChanges.Add(new IdChange(type, oldId, newId));
-		}
+		public IEnumerable<GraphInstance> Added { get; internal set; }
 
-		[DataMember(Name = "idChanges", Order = 2)]
-		public IEnumerable<IdChange> IdChanges
-		{
-			get
-			{
-				return idChanges;
-			}
-			set
-			{
-				// Client is not allowed to dictate id changes, but
-				// the empty setter must exist or serialization will fail.
-			}
-		}
+		public IEnumerable<GraphInstance> Modified { get; internal set; }
+
+		public IEnumerable<GraphInstance> Deleted { get; internal set; }
 
 		#region ITransactedGraphEvent Members
 
 		public void Perform(GraphTransaction transaction)
 		{
+			Instance = EnsureInstance(transaction, Instance);
 			Instance.Save();
 		}
 
-		public void Commit(GraphTransaction transaction)
-		{ }
-
 		public void Rollback(GraphTransaction transaction)
-		{ }
-
-		#endregion
-
-		#region IdChange
-
-		[DataContract]
-		public class IdChange
 		{
-			internal IdChange(GraphType type, string oldId, string newId)
-			{
-				this.Type = type;
-				this.OldId = oldId;
-				this.NewId = newId;
-			}
-
-			public GraphType Type { get; private set; }
-
-			[DataMember(Name = "type", Order = 1)]
-			string TypeName
-			{
-				get
-				{
-					return Type.Name;
-				}
-				set
-				{
-					Type = GraphContext.Current.GetGraphType(value);
-				}
-			}
-
-			[DataMember(Name = "oldId", Order = 2)]
-			public string OldId { get; private set; }
-
-			[DataMember(Name = "newId", Order = 3)]
-			public string NewId { get; private set; }
+			throw new NotSupportedException("Rollback is not supported by the GraphSaveEvent.");
 		}
 
 		#endregion

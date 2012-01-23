@@ -1,36 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
 
 namespace ExoGraph
 {
 	/// <summary>
 	/// Base class for classes that represent specific events with an object graph.
 	/// </summary>
-	[DataContract]
-	[KnownType(typeof(GraphSaveEvent))]
-	[KnownType(typeof(GraphInitEvent))]
-	[KnownType(typeof(GraphInitEvent.InitNew))]
-	[KnownType(typeof(GraphInitEvent.InitExisting))]
-	[KnownType(typeof(GraphDeleteEvent))]
-	[KnownType(typeof(GraphPropertyGetEvent))]
-	[KnownType(typeof(GraphValueChangeEvent))]
-	[KnownType(typeof(GraphReferenceChangeEvent))]
-	[KnownType(typeof(GraphListChangeEvent))]
 	public abstract class GraphEvent : EventArgs
 	{
 		string id;
 		GraphInstance instance;
-
-		/// <summary>
-		/// Creates a new <see cref="GraphEvent"/> for the specified <see cref="GraphType"/> and id.
-		/// </summary>
-		/// <param name="id"></param>
-		/// <param name="type"></param>
-		internal GraphEvent(GraphType type, string id)
-		{
-			this.Instance = new GraphInstance(type, id);
-		}
 
 		/// <summary>
 		/// Creates a new <see cref="GraphEvent"/> for the specified <see cref="GraphInstance"/>.
@@ -123,16 +101,6 @@ namespace ExoGraph
 			{
 				return true;
 			}
-		}
-
-		/// <summary>
-		/// Reset instance and graph event id after replay.
-		/// </summary>
-		/// <param name="orginalId"></param>
-		protected void RevertToOriginalId(string orginalId)
-		{
-			Instance.Id = orginalId;
-			id = orginalId;
 		}
 	}
 }

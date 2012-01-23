@@ -10,8 +10,8 @@ namespace ExoGraph
 	{
 		#region Constructors
 
-		protected internal GraphValueProperty(GraphType declaringType, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, Attribute[] attributes)
-			: base(declaringType, name, isStatic, isList, isReadOnly, attributes)
+		protected internal GraphValueProperty(GraphType declaringType, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+			: base(declaringType, name, isStatic, isList, isReadOnly, isPersisted,attributes)
 		{
 			this.PropertyType = propertyType;
 			this.Converter = converter;

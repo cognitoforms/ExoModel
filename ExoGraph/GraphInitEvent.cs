@@ -1,20 +1,12 @@
-﻿using System.Runtime.Serialization;
-namespace ExoGraph
+﻿namespace ExoGraph
 {
 	/// <summary>
 	/// Represents the creation of a new or existing graph instance.
 	/// </summary>
-	[DataContract(Name = "Init")]
-	[KnownType(typeof(GraphInitEvent.InitNew))]
-	[KnownType(typeof(GraphInitEvent.InitExisting))]
 	public abstract class GraphInitEvent : GraphEvent
 	{
 		internal GraphInitEvent(GraphInstance instance)
 			: base(instance)
-		{ }
-
-		internal GraphInitEvent(GraphType type, string id)
-			: base(type, id)
 		{ }
 
 		protected override void OnNotify()
@@ -33,15 +25,10 @@ namespace ExoGraph
 		/// <summary>
 		/// Represents the creation of a new <see cref="GraphInstance"/>.
 		/// </summary>
-		[DataContract(Name = "InitNew")]
 		public class InitNew : GraphInitEvent, ITransactedGraphEvent
 		{
 			public InitNew(GraphInstance instance)
 				: base(instance)
-			{ }
-
-			public InitNew(GraphType type, string id)
-				: base(type, id)
 			{ }
 
 			#region ITransactedGraphEvent Members
@@ -61,18 +48,13 @@ namespace ExoGraph
 					Instance = Instance.Type.Create();
 
 					// Set the id of the new instance to the id of the original surrogate
-					RevertToOriginalId(id);
+					Instance.Id = id;
+					Instance = Instance;
 					
 					// Force the new instance to initialize
 					Instance.OnAccess();
 				}
 			}
-
-			/// <summary>
-			/// 
-			/// </summary>
-			void ITransactedGraphEvent.Commit(GraphTransaction transaction)
-			{ }
 
 			/// <summary>
 			/// Deletes and removes the reference to the <see cref="GraphInstance"/> associated with
@@ -86,7 +68,7 @@ namespace ExoGraph
 				if (Instance.Instance != null)
 				{
 					// Delete the current instance
-					Instance.Delete();
+					Instance.IsPendingDelete = true;
 
 					// Create a new proxy reference to the instance
 					Instance = new GraphInstance(Instance.Type, Instance.Id);
@@ -103,7 +85,6 @@ namespace ExoGraph
 		/// <summary>
 		/// Represents the creation of an existing <see cref="GraphInstance"/>.
 		/// </summary>
-		[DataContract(Name = "InitExisting")]
 		public class InitExisting : GraphInitEvent
 		{
 			public InitExisting(GraphInstance instance)

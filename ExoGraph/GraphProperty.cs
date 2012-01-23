@@ -20,13 +20,14 @@ namespace ExoGraph
 
 		#region Constructors
 
-		internal GraphProperty(GraphType declaringType, string name, bool isStatic, bool isList, bool isReadOnly, Attribute[] attributes)
+		internal GraphProperty(GraphType declaringType, string name, bool isStatic, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
 			this.DeclaringType = declaringType;
 			this.Name = name;
 			this.IsStatic = isStatic;
 			this.IsList = isList;
 			this.IsReadOnly = isReadOnly;
+			this.IsPersisted = isPersisted;
 			this.Attributes = attributes;
 			this.Observers = new List<GraphStep>();
 		}
@@ -53,6 +54,8 @@ namespace ExoGraph
 		public bool IsList { get; private set; }
 
 		public bool IsReadOnly { get; private set; }
+
+		public bool IsPersisted { get; private set; }
 
 		public Attribute[] Attributes { get; private set; }
 

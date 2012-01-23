@@ -7,8 +7,6 @@ namespace ExoGraph
 	{
 		void Perform(GraphTransaction transaction);
 
-		void Commit(GraphTransaction transaction);
-
 		void Rollback(GraphTransaction transaction);
 	}
 }

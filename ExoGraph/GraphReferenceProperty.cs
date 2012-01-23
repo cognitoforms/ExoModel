@@ -10,8 +10,8 @@ namespace ExoGraph
 	{
 		#region Constructors
 
-		protected internal GraphReferenceProperty(GraphType declaringType, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, Attribute[] attributes)
-			: base(declaringType, name, isStatic, isList, isReadOnly, attributes)
+		protected internal GraphReferenceProperty(GraphType declaringType, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+			: base(declaringType, name, isStatic, isList, isReadOnly, isPersisted, attributes)
 		{
 			this.PropertyType = propertyType;
 		}

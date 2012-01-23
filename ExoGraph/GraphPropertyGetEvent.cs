@@ -1,12 +1,8 @@
-﻿using System.Runtime.Serialization;
-using System.Threading;
-using System;
-namespace ExoGraph
+﻿namespace ExoGraph
 {
 	/// <summary>
 	/// Represents the retrieval of a property in the graph.
 	/// </summary>
-	[DataContract]
 	public class GraphPropertyGetEvent : GraphEvent
 	{
 		internal GraphPropertyGetEvent(GraphInstance instance, GraphProperty property)
@@ -21,7 +17,7 @@ namespace ExoGraph
 
 		protected override void OnNotify()
 		{
-			// Lock cached objects before notifying to prevent multithreaded rule execution
+			// Lock cached objects before notifying to prevent multi-threaded rule execution
 			using(Instance.IsCached ? Instance.Lock() : null)
 			{
 				// Determine first access after lock has been acquired to ensure

@@ -60,7 +60,7 @@ namespace ExoGraph
 
 		#region Properties
 
-		public GraphContext Context { get; private set;  }
+		public GraphContext Context { get; private set; }
 
 		public string Name { get; private set; }
 
@@ -93,6 +93,7 @@ namespace ExoGraph
 		#region Events
 
 		public event EventHandler<GraphInitEvent> Init;
+		public event EventHandler<GraphDeleteEvent> Delete;
 		public event EventHandler<GraphPropertyGetEvent> PropertyGet;
 		public event EventHandler<GraphReferenceChangeEvent> ReferenceChange;
 		public event EventHandler<GraphValueChangeEvent> ValueChange;
@@ -240,6 +241,12 @@ namespace ExoGraph
 				Init(this, initEvent);
 		}
 
+		internal void RaiseDelete(GraphDeleteEvent deleteEvent)
+		{
+			if (Delete != null)
+				Delete(this, deleteEvent);
+		}
+
 		internal void RaisePropertyGet(GraphPropertyGetEvent propertyGetEvent)
 		{
 			if (PropertyGet != null)
@@ -332,7 +339,7 @@ namespace ExoGraph
 		{
 			object currentHandler;
 			if (customEvents.TryGetValue(typeof(TEvent), out currentHandler))
-				((CustomEvent<TEvent>) currentHandler)(customEvent.Instance, customEvent.CustomEvent);
+				((CustomEvent<TEvent>)currentHandler)(customEvent.Instance, customEvent.CustomEvent);
 			else if (this.BaseType != null)
 				this.BaseType.RaiseEvent<TEvent>(customEvent);
 		}
@@ -665,7 +672,7 @@ namespace ExoGraph
 		/// <param name="list"></param>
 		/// <returns></returns>
 		protected internal abstract IList ConvertToList(GraphReferenceProperty property, object list);
-	
+
 		protected internal virtual void OnStartTrackingList(GraphInstance instance, GraphReferenceProperty property, IList list)
 		{
 		}
@@ -683,7 +690,7 @@ namespace ExoGraph
 			// Check to see what type of property was changed
 			if (property is GraphReferenceProperty)
 			{
-				GraphReferenceProperty reference = (GraphReferenceProperty) property;
+				GraphReferenceProperty reference = (GraphReferenceProperty)property;
 
 				// Changes to list properties should call OnListChanged. However, some implementations
 				// may allow setting lists, so this case must be handled appropriately.
@@ -716,7 +723,7 @@ namespace ExoGraph
 				// Notify subscribers that a reference property has changed
 				else
 					new GraphReferenceChangeEvent(
-						instance, (GraphReferenceProperty) property,
+						instance, (GraphReferenceProperty)property,
 						oldValue == null ? null : GetGraphInstance(oldValue),
 						newValue == null ? null : GetGraphInstance(newValue)
 					).Notify();
@@ -724,12 +731,12 @@ namespace ExoGraph
 
 			// Otherwise, notify subscribers that a value property has changed
 			else
-				new GraphValueChangeEvent(instance, (GraphValueProperty) property, oldValue, newValue).Notify();
+				new GraphValueChangeEvent(instance, (GraphValueProperty)property, oldValue, newValue).Notify();
 		}
 
 		protected void OnListChanged(GraphInstance instance, string property, IEnumerable added, IEnumerable removed)
 		{
-			OnListChanged(instance, (GraphReferenceProperty) instance.Type.Properties[property], added, removed);
+			OnListChanged(instance, (GraphReferenceProperty)instance.Type.Properties[property], added, removed);
 		}
 
 		protected void OnListChanged(GraphInstance instance, GraphReferenceProperty property, IEnumerable added, IEnumerable removed)
@@ -759,18 +766,71 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Called by subclasses to notify the context that an instance's pending deletion status has changed.
+		/// </summary>
+		/// <param name="instance"></param>
+		protected internal void OnPendingDelete(GraphInstance instance)
+		{
+			new GraphDeleteEvent(instance, instance.IsPendingDelete).Notify();
+		}
+
+		/// <summary>
 		/// Saves changes to the specified instance and related instances in the graph.
 		/// </summary>
 		/// <param name="graphInstance"></param>
 		protected internal abstract void SaveInstance(GraphInstance graphInstance);
-	
+
+		/// <summary>
+		/// Gets the <see cref="GraphInstance"/> associated with the specified real instance.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns></returns>
 		public abstract GraphInstance GetGraphInstance(object instance);
-		
+
+		/// <summary>
+		/// Gets the unique string identifier of an existing instance, or null for new instances.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns></returns>
 		protected internal abstract string GetId(object instance);
-		
+
+		/// <summary>
+		/// Gets the existing instance with the specified string identifier.
+		/// </summary>
+		/// <param name="id"></param>
+		/// <returns></returns>
 		protected internal abstract object GetInstance(string id);
 
-		protected internal abstract void DeleteInstance(GraphInstance graphInstance);
+		/// <summary>
+		/// Gets the underlying modification status of the specified instance,
+		/// indicating whether the instance has pending changes that have not been
+		/// persisted.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns>True if the instance is new, pending delete, or has unpersisted changes, otherwise false.</returns>
+		protected internal abstract bool GetIsModified(object instance);
+
+		/// <summary>
+		/// Gets the deletion status of the specified instance indicating whether
+		/// the instance has been permanently deleted.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns></returns>
+		protected internal abstract bool GetIsDeleted(object instance);
+
+		/// <summary>
+		/// Indicates whether the specified instance is pending deletion.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns></returns>
+		protected internal abstract bool GetIsPendingDelete(object instance);
+
+		/// <summary>
+		/// Sets whether the specified instance is pending deletion.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="isPendingDelete"></param>
+		protected internal abstract void SetIsPendingDelete(object instance, bool isPendingDelete);
 
 		/// <summary>
 		/// Indicates whether the specified instance is cached and should be prevented from maintaining 
@@ -822,7 +882,7 @@ namespace ExoGraph
 			#region IObjectReference Members
 			public object GetRealObject(StreamingContext context)
 			{
-				 return typeName == "ExoGraph.GraphType.Unknown" ? GraphType.Unknown : GraphContext.Current.GetGraphType(typeName);
+				return typeName == "ExoGraph.GraphType.Unknown" ? GraphType.Unknown : GraphContext.Current.GetGraphType(typeName);
 			}
 			#endregion
 		}
@@ -830,11 +890,17 @@ namespace ExoGraph
 
 		#region UnknownGraphType
 
-	   [Serializable]
+		/// <summary>
+		/// Private class representing a graph type that has not been determined, which is necessary when
+		/// initializing graph instances without forcing the type of the instance to be determined before
+		/// the underlying instance is fully constructed.  This is a marker type that should never be returned
+		/// or accessed by external code.
+		/// </summary>
+		[Serializable]
 		class UnknownGraphType : GraphType
 		{
 			internal UnknownGraphType()
-			   : base("ExoGraph.GraphType.Unknown", "ExoGraph.GraphType.Unknown", null, "Unknown", new Attribute[] { })
+				: base("ExoGraph.GraphType.Unknown", "ExoGraph.GraphType.Unknown", null, "Unknown", new Attribute[] { })
 			{ }
 
 			protected internal override void OnInit()
@@ -867,7 +933,22 @@ namespace ExoGraph
 				throw new NotSupportedException();
 			}
 
-			protected internal override void DeleteInstance(GraphInstance graphInstance)
+			protected internal override bool GetIsDeleted(object instance)
+			{
+				throw new NotSupportedException();
+			}
+
+			protected internal override bool GetIsModified(object instance)
+			{
+				throw new NotSupportedException();
+			}
+
+			protected internal override bool GetIsPendingDelete(object instance)
+			{
+				throw new NotSupportedException();
+			}
+
+			protected internal override void SetIsPendingDelete(object instance, bool isPendingDelete)
 			{
 				throw new NotSupportedException();
 			}

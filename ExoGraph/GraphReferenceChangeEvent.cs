@@ -1,96 +1,35 @@
-﻿using System.Runtime.Serialization;
-namespace ExoGraph
+﻿namespace ExoGraph
 {
 	/// <summary>
 	/// Represents a change to an reference property in the graph.
 	/// </summary>
-	[DataContract(Name = "ReferenceChange")]
 	public class GraphReferenceChangeEvent : GraphEvent, ITransactedGraphEvent
 	{
-		GraphReferenceProperty property;
-		GraphInstance oldValue;
-		GraphInstance newValue;
-		string oldValueId;
-		string newValueId;
-
 		public GraphReferenceChangeEvent(GraphInstance instance, GraphReferenceProperty property, GraphInstance oldValue, GraphInstance newValue)
 			: base(instance)
 		{
-			this.property = property;
+			this.Property = property;
 			this.OldValue = oldValue;
+			this.OldValueId = (oldValue != null) ? oldValue.Id : null;
 			this.NewValue = newValue;
+			this.NewValueId = (newValue != null) ? newValue.Id : null;
 		}
 
-		public GraphReferenceProperty Property
-		{
-			get
-			{
-				return property;
-			}
-		}
-
-		[DataMember(Name = "property", Order = 2)]
-		string PropertyName
-		{
-			get
-			{
-				return property.Name;
-			}
-			set
-			{
-				property = Instance.Type.OutReferences[value];
-			}
-		}
-
-		[DataMember(Name = "oldValue", Order = 3)]
-		public GraphInstance OldValue
-		{
-			get
-			{
-				return oldValue;
-			}
-			private set
-			{
-				oldValue = value;
-				oldValueId = (value != null) ? value.Id : null;
-			}
-		}
+		public GraphReferenceProperty Property { get; private set; }
+		
+		public GraphInstance OldValue { get; private set; }
 
 		/// <summary>
 		/// Gets the id of the old value at the moment the event occurred, which may be different than the current id of the old value.
 		/// </summary>
-		public string OldValueId
-		{
-			get
-			{
-				return oldValueId;
-			}
-		}
+		public string OldValueId { get; private set; }
 
-		[DataMember(Name = "newValue", Order = 4)]
-		public GraphInstance NewValue
-		{
-			get
-			{
-				return newValue;
-			}
-			private set
-			{
-				newValue = value;
-				newValueId = (value != null) ? value.Id : null;
-			}
-		}
+		public GraphInstance NewValue { get; private set; }
 
 		/// <summary>
 		/// Gets the id of the new value at the moment the event occurred, which may be different than the current id of the new value.
 		/// </summary>
-		public string NewValueId
-		{
-			get
-			{
-				return newValueId;
-			}
-		}
+		public string NewValueId { get; private set; }
 
 		/// <summary>
 		/// Indicates whether the current event is valid and represents a real change to the model.
@@ -99,17 +38,17 @@ namespace ExoGraph
 		{
 			get
 			{
-				return (oldValue == null ^ newValue == null) || (oldValue != null && !oldValue.Equals(newValue));
+				return (OldValue == null ^ NewValue == null) || (OldValue != null && !OldValue.Equals(NewValue));
 			}
 		}
 
 		protected override void OnNotify()
 		{
 			if (OldValue != null)
-				Instance.RemoveReference(Instance.GetOutReference(property, OldValue));
+				Instance.RemoveReference(Instance.GetOutReference(Property, OldValue));
 
 			if (NewValue != null)
-				Instance.AddReference(property, NewValue, false);
+				Instance.AddReference(Property, NewValue, false);
 
 			// Raise reference change on all types in the inheritance hierarchy
 			for (GraphType type = Instance.Type; type != null; type = type.BaseType)
@@ -133,8 +72,8 @@ namespace ExoGraph
 			if (((GraphReferenceChangeEvent)e).Property != Property)
 				return false;
 
-			newValue = ((GraphReferenceChangeEvent)e).newValue;
-			newValueId = ((GraphReferenceChangeEvent)e).newValueId;
+			NewValue = ((GraphReferenceChangeEvent)e).NewValue;
+			NewValueId = ((GraphReferenceChangeEvent)e).NewValueId;
 			return true;
 		}
 
@@ -160,9 +99,6 @@ namespace ExoGraph
 
 			Property.SetValue(Instance.Instance, NewValue == null ? null : NewValue.Instance);
 		}
-
-		void ITransactedGraphEvent.Commit(GraphTransaction transaction)
-		{ }
 
 		/// <summary>
 		/// Sets the reference property back to the old value.

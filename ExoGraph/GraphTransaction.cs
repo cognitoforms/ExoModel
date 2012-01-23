@@ -10,16 +10,12 @@ namespace ExoGraph
 	/// Tracks all <see cref="GraphEvent"/> occurrences within a context and allows changes
 	/// to be recorded or rolled back entirely.
 	/// </summary>
-	[DataContract]
 	public class GraphTransaction : IEnumerable<GraphEvent>, IDisposable
 	{
 		Dictionary<string, GraphInstance> newInstances;
 		GraphContext context;
 
-		[DataMember(Name = "changes")]
 		List<GraphEvent> events = new List<GraphEvent>();
-
-		bool isActive;
 
 		/// <summary>
 		/// Records <see cref="GraphEvent"/> occurences within the current context.
@@ -36,15 +32,43 @@ namespace ExoGraph
 					RegisterNewInstance(e.Instance);
 
 				// Populate save events with ids that have changed during the transaction
-				if (e is GraphSaveEvent && newInstances != null)
+				if (e is GraphSaveEvent)
 				{
-					GraphSaveEvent saveEvent = (GraphSaveEvent)e;
-					foreach (KeyValuePair<string, GraphInstance> instance in newInstances)
+					HashSet<GraphInstance> added = new HashSet<GraphInstance>();
+					HashSet<GraphInstance> modified = new HashSet<GraphInstance>();
+					HashSet<GraphInstance> deleted = new HashSet<GraphInstance>();
+					
+					for (var transaction = this; transaction != null; transaction = transaction.PreviousTransaction)
 					{
-						string oldId = instance.Key.Substring(instance.Key.IndexOf("|") + 1);
-						if (oldId != instance.Value.Id)
-							saveEvent.AddIdChange(instance.Value.Type, oldId, instance.Value.Id);
+						// Process the transaction log in reverse order, searching for instances 
+						// that were persisted by the save event
+						for (var i = transaction.events.Count - 1; i >= 0; i--)
+						{
+							var evt = transaction.events[i];
+
+							// Stop processing if a previous save event is encountered
+							if (evt is GraphSaveEvent)
+								goto UpdateSave;
+
+							// Deleted
+							if (evt.Instance.IsDeleted)
+								deleted.Add(evt.Instance);
+
+							// Added
+							else if (evt is GraphInitEvent.InitNew && !evt.Instance.IsNew)
+								added.Add(evt.Instance);
+
+							// Modified
+							else if (!evt.Instance.IsNew && !evt.Instance.IsModified)
+								modified.Add(evt.Instance);
+								
+						}
 					}
+
+		UpdateSave: GraphSaveEvent saveEvent = (GraphSaveEvent)e;
+					saveEvent.Added = added.ToArray();
+					saveEvent.Deleted = deleted.ToArray();
+					saveEvent.Modified = modified.Except(saveEvent.Added).Except(saveEvent.Deleted).ToArray();
 				}
 
 				// Add the transacted event to the list of events for the transaction
@@ -62,10 +86,9 @@ namespace ExoGraph
 			}
 		}
 
-		public bool IsActive
-		{
-			get { return isActive; }
-		}
+		public bool IsActive { get; private set; }
+
+		public GraphTransaction PreviousTransaction { get; private set; }
 
 		void RegisterNewInstance(GraphInstance instance)
 		{
@@ -136,7 +159,7 @@ namespace ExoGraph
 		/// Allows multiple <see cref="GraphTransaction"/> instances to be applied in sequence, or "chained",
 		/// by propogating information about newly created instances from one transaction to the next.
 		/// </summary>
-		public void Chain(GraphTransaction nextTransaction)
+		public GraphTransaction Chain(GraphTransaction nextTransaction)
 		{
 			// Propogate the new instance cache forward to the next transaction
 			if (newInstances != null)
@@ -144,6 +167,12 @@ namespace ExoGraph
 				foreach (GraphInstance instance in newInstances.Values)
 					nextTransaction.RegisterNewInstance(instance);
 			}
+
+			// Link the next transaction to the previous transaction
+			nextTransaction.PreviousTransaction = this;
+
+			// Return the next transaction
+			return nextTransaction;
 		}
 
 		/// <summary>
@@ -158,10 +187,10 @@ namespace ExoGraph
 		/// </remarks>
 		public GraphTransaction Begin()
 		{
-			if (isActive)
+			if (IsActive)
 				throw new InvalidOperationException("Cannot begin a transaction that is already active.");
 
-			isActive = true;
+			IsActive = true;
 			Context.Event += context_Event;
 
 			return this;
@@ -172,13 +201,8 @@ namespace ExoGraph
 		/// </summary>
 		public void Commit()
 		{
-			isActive = false;
+			IsActive = false;
 			Context.Event -= context_Event;
-			GraphEventScope.Perform(() =>
-			{
-				for (int i = events.Count - 1; i >= 0; i--)
-					((ITransactedGraphEvent)events[i]).Commit(this);
-			});
 		}
 
 		/// <summary>
@@ -187,7 +211,7 @@ namespace ExoGraph
 		/// </summary>
 		public void Rollback()
 		{
-			isActive = false;
+			IsActive = false;
 			Context.Event -= context_Event;
 			GraphEventScope.Perform(() =>
 			{
@@ -203,10 +227,10 @@ namespace ExoGraph
 		/// <returns></returns>
 		public GraphTransaction Exclude(Action operation)
 		{
-			if (!isActive)
+			if (!IsActive)
 				throw new InvalidOperationException("Cannot pause a transaction that is inactive.");
 
-			isActive = false;
+			IsActive = false;
 			Context.Event -= context_Event;
 
 			try
@@ -215,7 +239,7 @@ namespace ExoGraph
 			}
 			catch
 			{
-				isActive = true;
+				IsActive = true;
 				Context.Event += context_Event;
 				throw;
 			}
@@ -236,7 +260,7 @@ namespace ExoGraph
 			}
 			catch
 			{
-				isActive = false;
+				IsActive = false;
 				Context.Event -= context_Event;
 				throw;
 			}
@@ -260,16 +284,8 @@ namespace ExoGraph
 				Perform();
 
 				// Return the new changes that occurred while applying the previous changes
-				var newChanges = new GraphTransaction();
-				return newChanges.Record(() =>
+				return Chain(new GraphTransaction()).Record(() =>
 				{
-					// Propogate the new instance cache forward to the new transaction
-					if (newInstances != null)
-					{
-						foreach (GraphInstance instance in newInstances.Values)
-							newChanges.RegisterNewInstance(instance);
-					}
-
 					// Allow graph subscribers to be notified of the previous changes
 					eventScope.Exit();
 

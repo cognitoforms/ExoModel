@@ -1,100 +1,33 @@
-﻿using System.Runtime.Serialization;
-using System;
-using System.ServiceModel.Dispatcher;
-namespace ExoGraph
+﻿namespace ExoGraph
 {
 	/// <summary>
 	/// Represents a change to a value property in the graph.
 	/// </summary>
-	[DataContract(Name = "ValueChange")]
 	public class GraphValueChangeEvent : GraphEvent, ITransactedGraphEvent
 	{
-		// Cache a converter to serialize and deserialize JSON data
-		static JsonQueryStringConverter jsonConverter = new JsonQueryStringConverter();
-	
-		GraphValueProperty property;
-		object oldValue;
-		object newValue;
-
 		public GraphValueChangeEvent(GraphInstance instance, GraphValueProperty property, object oldValue, object newValue)
 			: base(instance)
 		{
-			this.property = property;
+			this.Property = property;
 
 			if (property.AutoConvert)
 			{
-				this.oldValue = oldValue == null ? null : property.Converter.ConvertTo(oldValue, typeof(object));
-				this.newValue = newValue == null ? null : property.Converter.ConvertTo(newValue, typeof(object));
+				this.OldValue = oldValue == null ? null : property.Converter.ConvertTo(oldValue, typeof(object));
+				this.NewValue = newValue == null ? null : property.Converter.ConvertTo(newValue, typeof(object));
 			}
 			else
 			{
-				this.oldValue = oldValue;
-				this.newValue = newValue;
+				this.OldValue = oldValue;
+				this.NewValue = newValue;
 			}
 		}
 
-		public GraphValueProperty Property
-		{
-			get
-			{
-				return property;
-			}
-		}
+		public GraphValueProperty Property { get; private set; }
 
-		[DataMember(Name = "property", Order = 2)]
-		string PropertyName
-		{
-			get
-			{
-				return property.Name;
-			}
-			set
-			{
-				property = (GraphValueProperty)Instance.Type.Properties[value];
-			}
-		}
-
-		[DataMember(Name = "oldValue", Order = 3)]
-		public object OldValue
-		{
-			get
-			{
-				return oldValue;
-			}
-			private set
-			{
-				if (Property.PropertyType.IsAssignableFrom(typeof(DateTime)) && value is string)
-				{
-					// Must perform custom date deserialization here since this property is not strongly typed.
-					string serializedDate = ((string)value).Replace("/Date(", "\"\\/Date(").Replace(")/", ")\\/\"");
-					oldValue = jsonConverter.ConvertStringToValue(serializedDate, typeof(DateTime));
-				}
-				else
-					oldValue = value;
-			}
-		}
-
-
-		[DataMember(Name = "newValue", Order = 4)]
-		public object NewValue
-		{
-			get
-			{
-				return newValue;
-			}
-			private set
-			{
-				if (Property.PropertyType.IsAssignableFrom(typeof(DateTime)) && value is string)
-				{
-					// Must perform custom date deserialization here since this property is not strongly typed.
-					string serializedDate = ((string)value).Replace("/Date(", "\"\\/Date(").Replace(")/", ")\\/\"");
-					newValue = jsonConverter.ConvertStringToValue(serializedDate, typeof(DateTime));
-				}
-				else
-					newValue = value;
-			}
-		}
-
+		public object OldValue { get; private set; }
+	
+		public object NewValue { get; private set; }
+		
 		/// <summary>
 		/// Indicates whether the current event is valid and represents a real change to the model.
 		/// </summary>
@@ -102,7 +35,7 @@ namespace ExoGraph
 		{
 			get
 			{
-				return (oldValue == null ^ newValue == null) || (oldValue != null && !oldValue.Equals(newValue));
+				return (OldValue == null ^ NewValue == null) || (OldValue != null && !OldValue.Equals(NewValue));
 			}
 		}
 
@@ -111,7 +44,7 @@ namespace ExoGraph
 		/// </summary>
 		protected override void OnNotify()
 		{
-			property.NotifyPathChange(Instance);
+			Property.NotifyPathChange(Instance);
 
 			// Raise value change on all types in the inheritance hierarchy
 			for (GraphType type = Instance.Type; type != null; type = type.BaseType)
@@ -135,7 +68,7 @@ namespace ExoGraph
 			if (((GraphValueChangeEvent)e).Property != Property)
 				return false;
 
-			newValue = ((GraphValueChangeEvent)e).newValue;
+			NewValue = ((GraphValueChangeEvent)e).NewValue;
 			return true;
 		}
 
@@ -155,9 +88,6 @@ namespace ExoGraph
 			Instance = EnsureInstance(transaction, Instance);
 			Instance.SetValue(Property, NewValue);
 		}
-
-		void ITransactedGraphEvent.Commit(GraphTransaction transaction)
-		{ }
 
 		/// <summary>
 		/// Restores the property to the old value.

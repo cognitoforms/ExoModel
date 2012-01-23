@@ -156,6 +156,44 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Indicates whether the instance has pending changes that have not been persisted.
+		/// </summary>
+		public bool IsModified
+		{
+			get
+			{
+				return Type.GetIsModified(instance);
+			}
+		}
+
+		/// <summary>
+		/// Indicates whether the instance has been marked for deletion.
+		/// </summary>
+		public bool IsPendingDelete
+		{
+			get
+			{
+				return Type.GetIsPendingDelete(instance);
+			}
+			set
+			{
+				if (IsPendingDelete != value)
+					Type.SetIsPendingDelete(instance, value);
+			}
+		}
+
+		/// <summary>
+		/// Indicates whether the instance has been permanently deleted.
+		/// </summary>
+		public bool IsDeleted
+		{
+			get
+			{
+				return Type.GetIsDeleted(instance);
+			}
+		}
+
+		/// <summary>
 		/// The actual graph object instance.
 		/// </summary>
 		public object Instance
@@ -341,6 +379,11 @@ namespace ExoGraph
 		public void OnPropertyChanged(GraphProperty property, object oldValue, object newValue)
 		{
 			Type.OnPropertyChanged(this, property, oldValue, newValue);
+		}
+
+		public void OnPendingDelete()
+		{
+			Type.OnPendingDelete(this);
 		}
 
 		internal IEnumerable<GraphReference> GetInReferences(GraphReferenceProperty property)
@@ -790,14 +833,6 @@ namespace ExoGraph
 		public void Save()
 		{
 			Type.SaveInstance(this);
-		}
-
-		/// <summary>
-		/// Deletes the current <see cref="GraphInstance"/>.
-		/// </summary>
-		public void Delete()
-		{
-			Type.DeleteInstance(this);
 		}
 
 		/// <summary>
