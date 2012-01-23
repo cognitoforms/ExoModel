@@ -78,7 +78,7 @@
 
 		public override string ToString()
 		{
-			return "Retrieved Property " + Instance;
+			return "Retrieved Property " + Instance.Type.Name + "." + Property.Name + " on " + Instance;
 		}
 	}
 }
