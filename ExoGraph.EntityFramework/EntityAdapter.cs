@@ -22,8 +22,10 @@ namespace ExoGraph.EntityFramework
 
 		public static ObjectContext GetObjectContext(IEntityContext context, string property)
 		{
-			// Lazy-load EF 4.1
-			var contextAdapter = Type.GetType("System.Data.Entity.Infrastructure.IObjectContextAdapter, EntityFramework, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089");
+			// Lazy-load EF 4.1 or 4.2
+			var contextAdapter = Type.GetType("System.Data.Entity.Infrastructure.IObjectContextAdapter, EntityFramework, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089");
+			if (contextAdapter == null)
+				contextAdapter = Type.GetType("System.Data.Entity.Infrastructure.IObjectContextAdapter, EntityFramework, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089");
 			if (contextAdapter.IsAssignableFrom(context.GetType()))
 				return (ObjectContext)contextAdapter.GetProperty("ObjectContext").GetValue(context, null);
 			return context as ObjectContext;

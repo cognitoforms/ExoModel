@@ -16,12 +16,14 @@ namespace ExoGraph.EntityFramework
 {
 	public class EntityFrameworkGraphTypeProvider : ReflectionGraphTypeProvider
 	{
+		static MethodInfo entityDeletedEvent = typeof(ObjectStateManager).GetEvent("EntityDeleted", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).GetAddMethod(true);
+
 		public EntityFrameworkGraphTypeProvider(Func<object> createContext)
 			: this("", createContext)
 		{ }
 
 		public EntityFrameworkGraphTypeProvider(string @namespace, Func<object> createContext)
-			: base(@namespace, GetEntityTypes(createContext())) 
+			: base(@namespace, GetEntityTypes(createContext()))
 		{
 			this.CreateContext = createContext;
 		}
@@ -55,9 +57,18 @@ namespace ExoGraph.EntityFramework
 						var graphInstance = GraphContext.Current.GetGraphInstance(firstEntity);
 
 						if (graphInstance != null)
-							((EntityFrameworkGraphTypeProvider.EntityGraphType) graphInstance.Type).RaiseOnSave(graphInstance);
+							((EntityFrameworkGraphTypeProvider.EntityGraphType)graphInstance.Type).RaiseOnSave(graphInstance);
 					}
 				};
+
+				// Raise OnStateManagerChanged when an object is modified
+				entityDeletedEvent.Invoke(storage.Context.ObjectContext.ObjectStateManager,
+					new object[] { new CollectionChangeEventHandler((sender, e) =>
+					{
+						if (e.Action == CollectionChangeAction.Remove)
+							return;
+					}) });
+
 			}
 
 			return storage.Context;
@@ -143,17 +154,20 @@ namespace ExoGraph.EntityFramework
 		/// <param name="isList"></param>
 		/// <param name="attributes"></param>
 		/// <returns></returns>
-		protected override GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, Attribute[] attributes)
+		protected override GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
 			// Fetch any attributes associated with a buddy-class
 			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
+
+			// Mark properties that are not mapped as not persisted
+			isPersisted = !attributes.OfType<NotMappedAttribute>().Any();
 
 			// Determine whether the property represents an actual entity framework navigation property or an custom property
 			var context = GetObjectContext();
 			var type = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(((EntityGraphType)declaringType).UnderlyingType.FullName, DataSpace.CSpace);
 			NavigationProperty navProp;
 			type.NavigationProperties.TryGetValue(name, false, out navProp);
-			return new EntityReferenceProperty(declaringType, navProp, property, name, isStatic, propertyType, isList, isReadOnly, attributes);
+			return new EntityReferenceProperty(declaringType, navProp, property, name, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes);
 		}
 
 		/// <summary>
@@ -168,16 +182,19 @@ namespace ExoGraph.EntityFramework
 		/// <param name="isList"></param>
 		/// <param name="attributes"></param>
 		/// <returns></returns>
-		protected override GraphValueProperty CreateValueProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, Attribute[] attributes)
+		protected override GraphValueProperty CreateValueProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
 			// Do not include entity reference properties in the model
 			if (property.PropertyType.IsSubclassOf(typeof(EntityReference)))
-			    return null;
+				return null;
 
 			// Fetch any attributes associated with a buddy-class
 			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
 
-			return new EntityValueProperty(declaringType, property, name, isStatic, propertyType, converter, isList, isReadOnly, attributes);
+			// Mark properties that are not mapped as not persisted
+			isPersisted = !attributes.OfType<NotMappedAttribute>().Any();
+
+			return new EntityValueProperty(declaringType, property, name, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes);
 		}
 
 		#region Storage
@@ -250,7 +267,7 @@ namespace ExoGraph.EntityFramework
 			protected override void OnInit()
 			{
 				// Fetch the "buddy class", if any
-				var metadataTypeAttribute = this.UnderlyingType.GetCustomAttributes(typeof(MetadataTypeAttribute), false).OfType<MetadataTypeAttribute>().FirstOrDefault();			
+				var metadataTypeAttribute = this.UnderlyingType.GetCustomAttributes(typeof(MetadataTypeAttribute), false).OfType<MetadataTypeAttribute>().FirstOrDefault();
 				if (metadataTypeAttribute != null)
 					BuddyClass = metadataTypeAttribute.MetadataClassType;
 
@@ -312,7 +329,7 @@ namespace ExoGraph.EntityFramework
 							foreach (var instance in e.Removed)
 							{
 								if (instance.GetReference(relatedProperty) == null)
-									instance.Delete();
+									instance.IsPendingDelete = true;
 							}
 						}
 						return;
@@ -340,10 +357,10 @@ namespace ExoGraph.EntityFramework
 				if (list is RelatedEnd)
 				{
 					Type d1 = typeof(CollectionWrapper<>);
-					Type constructed = d1.MakeGenericType(((EntityGraphType) property.PropertyType).UnderlyingType);
+					Type constructed = d1.MakeGenericType(((EntityGraphType)property.PropertyType).UnderlyingType);
 
 					var constructor = constructed.GetConstructors()[0];
-					return (IList) constructor.Invoke(new object[] { list });
+					return (IList)constructor.Invoke(new object[] { list });
 				}
 
 				return base.ConvertToList(property, list);
@@ -380,7 +397,7 @@ namespace ExoGraph.EntityFramework
 			protected override string GetId(object instance)
 			{
 				// Get the entity key
-				var key = instance is IEntityWithKey ? 
+				var key = instance is IEntityWithKey ?
 					((IEntityWithKey)instance).EntityKey :
 					GetObjectContext().ObjectContext.CreateEntityKey(QualifiedEntitySetName, instance);
 
@@ -429,9 +446,71 @@ namespace ExoGraph.EntityFramework
 				return instance;
 			}
 
-			protected override void DeleteInstance(GraphInstance graphInstance)
+			/// <summary>
+			/// Gets the <see cref="EntityState"/> of the specified instance.
+			/// </summary>
+			/// <param name="instance"></param>
+			/// <returns></returns>
+			EntityState GetEntityState(object instance)
 			{
-				GetObjectContext().ObjectContext.DeleteObject(graphInstance.Instance);
+				var changeTracker = ((IGraphEntity)instance).ChangeTracker;
+				return changeTracker == null ? EntityState.Detached : changeTracker.EntityState;
+			}
+
+			/// <summary>
+			/// Indicates whether the specified instance is pending deletion.
+			/// </summary>
+			/// <param name="instance"></param>
+			/// <returns></returns>
+			protected override bool GetIsPendingDelete(object instance)
+			{
+				return GetEntityState(instance).HasFlag(EntityState.Deleted);
+			}
+
+			/// <summary>
+			/// Sets whether the specified instance is pending deletion.
+			/// </summary>
+			/// <param name="instance"></param>
+			/// <param name="isPendingDelete"></param>
+			protected override void SetIsPendingDelete(object instance, bool isPendingDelete)
+			{
+				// Get the object state from the context
+				var state = GetObjectContext().ObjectContext.ObjectStateManager.GetObjectStateEntry(instance);
+
+				// Mark the instance as pending delete
+				if (isPendingDelete)
+					state.ChangeState(EntityState.Deleted);
+
+				// Mark the instance as added if the instance is new and is no longer being marked for deletion
+				else if (GetId(instance) == null)
+					state.ChangeState(EntityState.Added);
+
+				// Otherwise, mark the instance as modified if the instance is existing and is no longer being marked for deletion
+				else
+					state.ChangeState(EntityState.Modified);
+			}
+
+			/// <summary>
+			/// Gets the deletion status of the specified instance indicating whether
+			/// the instance has been permanently deleted.
+			/// </summary>
+			/// <param name="instance"></param>
+			/// <returns></returns>
+			protected override bool GetIsDeleted(object instance)
+			{
+				return GetEntityState(instance).HasFlag(EntityState.Detached);
+			}
+
+			/// <summary>
+			/// Gets the underlying modification status of the specified instance,
+			/// indicating whether the instance has pending changes that have not been
+			/// persisted.
+			/// </summary>
+			/// <param name="instance"></param>
+			/// <returns>True if the instance is new, pending delete, or has unpersisted changes, otherwise false.</returns>
+			protected override bool GetIsModified(object instance)
+			{
+				return !GetEntityState(instance).HasFlag(EntityState.Unchanged);
 			}
 
 			internal void RaiseOnSave(GraphInstance instance)
@@ -448,9 +527,9 @@ namespace ExoGraph.EntityFramework
 		/// </summary>
 		internal class EntityValueProperty : ReflectionValueProperty
 		{
-			internal EntityValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, Attribute[] attributes)
-				: base(declaringType, property, name, isStatic, propertyType, converter, isList, isReadOnly, attributes)
-			{}
+			internal EntityValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+				: base(declaringType, property, name, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
+			{ }
 
 			/// <summary>
 			/// Determines the appropriate label for use in a user interface to display for the property.
@@ -473,8 +552,8 @@ namespace ExoGraph.EntityFramework
 		/// </summary>
 		internal class EntityReferenceProperty : ReflectionReferenceProperty
 		{
-			internal EntityReferenceProperty(GraphType declaringType, NavigationProperty navProp, PropertyInfo property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, Attribute[] attributes)
-				: base(declaringType, property, name, isStatic, propertyType, isList, isReadOnly, attributes)
+			internal EntityReferenceProperty(GraphType declaringType, NavigationProperty navProp, PropertyInfo property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+				: base(declaringType, property, name, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
 			{
 				RelationshipName = navProp != null ? navProp.RelationshipType.Name : null;
 				TargetRoleName = navProp != null ? navProp.ToEndMember.Name : null;
