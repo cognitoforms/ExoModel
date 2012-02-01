@@ -90,11 +90,16 @@ namespace ExoGraph
 
 		public GraphTransaction PreviousTransaction { get; private set; }
 
+		private string GetNewInstanceKey (GraphType graphType, string id)
+		{
+			return graphType.Name + "|" + id;
+		}
+
 		void RegisterNewInstance(GraphInstance instance)
 		{
 			if (newInstances == null)
 				newInstances = new Dictionary<string,GraphInstance>();
-			newInstances[instance.Type.Name + "|" + instance.Id] = instance;
+			newInstances[GetNewInstanceKey(instance.Type, instance.Id)] = instance;
 		}
 
 		/// <summary>
@@ -108,7 +113,7 @@ namespace ExoGraph
 		{
 			// First check to see if this is a new instance that has been cached by the transaction
 			GraphInstance instance;
-			if (newInstances != null && newInstances.TryGetValue(type.Name + "|" + id, out instance))
+			if (newInstances != null && newInstances.TryGetValue(GetNewInstanceKey(type, id), out instance))
 				return instance;
 
 			// Otherwise, assume it is an existing instance
@@ -270,7 +275,7 @@ namespace ExoGraph
 
 		/// <summary>
 		/// Performs a set of previous changes, performs the specified operation, and records new changes that
-		/// occur as a result of the previous changes.
+		/// occur as a result of the previous changes and the specified operation.
 		/// </summary>
 		/// <param name="operation"></param>
 		/// <returns></returns>
