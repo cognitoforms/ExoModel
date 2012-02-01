@@ -111,9 +111,9 @@ namespace ExoGraph
 		/// <param name="propertyType">The <see cref="GraphType"/> of the property</param>
 		/// <param name="isList">Indicates whether the property represents a list of references or a single reference</param>
 		/// <param name="attributes">The attributes assigned to the property</param>
-		protected virtual GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		protected virtual GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
-			return new ReflectionReferenceProperty(declaringType, property, name, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes);
+			return new ReflectionReferenceProperty(declaringType, property, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes);
 		}
 
 		/// <summary>
@@ -124,9 +124,9 @@ namespace ExoGraph
 		/// <param name="propertyType">The <see cref="Type"/> of the property</param>
 		/// <param name="converter">The optional value type converter to use</param>
 		/// <param name="attributes">The attributes assigned to the property</param>
-		protected virtual GraphValueProperty CreateValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		protected virtual GraphValueProperty CreateValueProperty(GraphType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
-			return new ReflectionValueProperty(declaringType, property, name, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes);
+			return new ReflectionValueProperty(declaringType, property, name, label, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes);
 		}
 
 		protected virtual GraphMethod CreateMethod(GraphType declaringType, MethodInfo method, string name, bool isStatic, Attribute[] attributes)
@@ -177,8 +177,11 @@ namespace ExoGraph
 			if (!typeNames.TryGetValue(typeName, out type))
 				return null;
 
+			// Get the default reference format for the type
+			string format = type.GetCustomAttributes(true).OfType<GraphReferenceFormatAttribute>().Select(a => a.Format).FirstOrDefault();
+
 			// Create the new graph type
-			return CreateGraphType(@namespace, type);
+			return CreateGraphType(@namespace, type, format);
 		}
 
 		/// <summary>
@@ -187,7 +190,7 @@ namespace ExoGraph
 		/// <param name="namespace"></param>
 		/// <param name="type"></param>
 		/// <returns></returns>
-		protected abstract ReflectionGraphType CreateGraphType(string @namespace, Type type);
+		protected abstract ReflectionGraphType CreateGraphType(string @namespace, Type type, string format);
 
 		#endregion
 
@@ -199,8 +202,8 @@ namespace ExoGraph
 		[Serializable]
 		public abstract class ReflectionGraphType : GraphType
 		{
-			protected internal ReflectionGraphType(string @namespace, Type type, string scope)
-				: base(@namespace + type.Name, type.AssemblyQualifiedName, GetBaseType(type), scope, type.GetCustomAttributes(false).Cast<Attribute>().ToArray())
+			protected internal ReflectionGraphType(string @namespace, Type type, string scope, string format)
+				: base(@namespace + type.Name, type.AssemblyQualifiedName, GetBaseType(type), scope, format, type.GetCustomAttributes(false).Cast<Attribute>().ToArray())
 			{
 				this.UnderlyingType = type;
 			}
@@ -250,7 +253,8 @@ namespace ExoGraph
 					// Create references based on properties that relate to other instance types
 					else if (provider.supportedTypes.Contains(property.PropertyType))
 					{
-						GraphReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, property.GetGetMethod().IsStatic, Context.GetGraphType(property.PropertyType), false, property.GetSetMethod() == null, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						var format = property.GetCustomAttributes(true).OfType<GraphReferenceFormatAttribute>().Select(a => a.Format).FirstOrDefault();
+						GraphReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, format, property.GetGetMethod().IsStatic, Context.GetGraphType(property.PropertyType), false, property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (reference != null)
 							AddProperty(reference);
 					}
@@ -258,7 +262,8 @@ namespace ExoGraph
 					// Create references based on properties that are lists of other instance types
 					else if (TryGetListItemType(property.PropertyType, out listItemType) && provider.supportedTypes.Contains(listItemType))
 					{
-						GraphReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, property.GetGetMethod().IsStatic, Context.GetGraphType(listItemType), true, false, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						var format = property.GetCustomAttributes(true).OfType<GraphReferenceFormatAttribute>().Select(a => a.Format).FirstOrDefault();
+						GraphReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, format, property.GetGetMethod().IsStatic, Context.GetGraphType(listItemType), true, false, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (reference != null)
 							AddProperty(reference);
 					}
@@ -266,9 +271,9 @@ namespace ExoGraph
 					// Create values for all other properties
 					else
 					{
-						var value = provider.CreateValueProperty(this, property, property.Name, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), TryGetListItemType(property.PropertyType, out listItemType), property.GetSetMethod() == null, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
-
-						if (value != null)
+							var value = provider.CreateValueProperty(this, property, property.Name, null, null, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), TryGetListItemType(property.PropertyType, out listItemType), property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						
+					if (value != null)
 							AddProperty(value);
 					}
 				}
@@ -395,9 +400,9 @@ namespace ExoGraph
 		[Serializable]
 		public class ReflectionValueProperty : GraphValueProperty
 		{
-			protected internal ReflectionValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-				: base(declaringType, name, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
-			{
+				protected internal ReflectionValueProperty(GraphType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+				: base(declaringType, name, label, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
+		{
 				this.PropertyInfo = property;
 			}
 
@@ -431,9 +436,9 @@ namespace ExoGraph
 		[Serializable]
 		public class ReflectionReferenceProperty : GraphReferenceProperty
 		{
-			protected internal ReflectionReferenceProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-				: base(declaringType, name, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
-			{
+				protected internal ReflectionReferenceProperty(GraphType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+				: base(declaringType, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
+		{
 				this.PropertyInfo = property;
 			}
 

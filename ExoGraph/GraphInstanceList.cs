@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections;
+using System.Linq;
 
 namespace ExoGraph
 {
 	/// <summary>
 	/// Exposes an editable list of instances for a specific list property.
 	/// </summary>
-	public class GraphInstanceList : ICollection<GraphInstance>
+	public class GraphInstanceList : ICollection<GraphInstance>, IFormattable
 	{
 		#region Fields
 
@@ -31,6 +32,43 @@ namespace ExoGraph
 		internal IList GetList()
 		{
 			return property.DeclaringType.ConvertToList(property, property.GetValue(owner == null ? null : owner.Instance));
+		}
+
+		/// <summary>
+		/// Gets the string representation of the current list, with each item formatted using the
+		/// specified format, separated by commas.
+		/// </summary>
+		/// <param name="format"></param>
+		/// <returns></returns>
+		public string ToString(string format)
+		{
+			return ((IFormattable)this).ToString(format, null);
+		}
+
+		/// <summary>
+		/// Gets the string representation of the current list, with each item formatted using the
+		/// default property format, separated by commas.
+		/// </summary>
+		/// <returns></returns>
+		public override string ToString()
+		{
+			return ToString(property.Format);
+		}
+
+		#endregion
+
+		#region IFormattable
+
+		/// <summary>
+		/// Gets the string representation of the current list, with each item formatted using the
+		/// specified format, separated by commas.
+		/// </summary>
+		/// <param name="format"></param>
+		/// <param name="formatProvider"></param>
+		/// <returns></returns>
+		string  IFormattable.ToString(string format, IFormatProvider formatProvider)
+		{
+			return this.Aggregate("", (result, i) => result + "," + i);
 		}
 
 		#endregion

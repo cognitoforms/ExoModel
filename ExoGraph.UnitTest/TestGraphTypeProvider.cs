@@ -22,15 +22,15 @@ namespace ExoGraph.UnitTest
 			: base(assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(TestEntity))))
 		{ }
 
-		protected override ReflectionGraphTypeProvider.ReflectionGraphType CreateGraphType(string @namespace, Type type)
+		protected override ReflectionGraphTypeProvider.ReflectionGraphType CreateGraphType(string @namespace, Type type, string format)
 		{
-			return new TestGraphType(@namespace, type);
+			return new TestGraphType(@namespace, type, format);
 		}
 
 		class TestGraphType : ReflectionGraphType
 		{
-			internal TestGraphType(string @namespace, Type type)
-				: base(@namespace, type, null)
+			internal TestGraphType(string @namespace, Type type, string format)
+				: base(@namespace, type, null, format)
 			{ }
 
 			/// <summary>
@@ -108,7 +108,22 @@ namespace ExoGraph.UnitTest
 				}
 			}
 
-			protected override void DeleteInstance(GraphInstance graphInstance)
+			protected override bool GetIsModified(object instance)
+			{
+				throw new NotImplementedException();
+			}
+
+			protected override bool GetIsDeleted(object instance)
+			{
+				throw new NotImplementedException();
+			}
+
+			protected override bool GetIsPendingDelete(object instance)
+			{
+				throw new NotImplementedException();
+			}
+
+			protected override void SetIsPendingDelete(object instance, bool isPendingDelete)
 			{
 				throw new NotImplementedException();
 			}

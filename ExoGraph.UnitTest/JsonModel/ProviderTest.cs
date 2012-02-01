@@ -1,0 +1,21 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.IO;
+
+namespace ExoGraph.UnitTest.JsonModel
+{
+	[TestClass]
+	public class ProviderTest 
+	{
+		[TestMethod]
+		public void LoadTypes()
+		{
+			new JsonGraphTypeProvider()
+				.Load(File.ReadAllText(@"types.js"))
+				.Load(File.ReadAllText(@"instances.js"));
+		}
+	}
+}

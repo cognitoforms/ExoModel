@@ -163,7 +163,7 @@ namespace ExoGraph
 				return null;
 
 			// Return a new dynamic graph type
-			return new DynamicGraphType(typeName, GetBaseType(), GetTypeAttributes(type), GetProperties(type));
+			return new DynamicGraphType(typeName, GetBaseType(), GetFormat(type), GetTypeAttributes(type), GetProperties(type));
 		}
 
 		internal virtual GraphType GetBaseType()
@@ -197,6 +197,21 @@ namespace ExoGraph
 
 		protected abstract Attribute[] GetPropertyAttributes(TPropertySource property);
 
+		protected virtual string GetLabel(TPropertySource property)
+		{
+			return null;
+		}
+
+		protected virtual string GetFormat(TPropertySource property)
+		{
+			return null;
+		}
+
+		protected virtual string GetFormat(TTypeSource type)
+		{
+			return null;
+		}
+
 		protected abstract bool IsList(TPropertySource property);
 
 		protected abstract bool IsStatic(TPropertySource property);
@@ -227,8 +242,8 @@ namespace ExoGraph
 		{
 			IEnumerable<TPropertySource> properties;
 
-			internal DynamicGraphType(string name, GraphType baseType, Attribute[] attributes, IEnumerable<TPropertySource> properties)
-				: base(name, baseType.QualifiedName + "+" + name, baseType, baseType.Scope, attributes)
+			internal DynamicGraphType(string name, GraphType baseType, string format, Attribute[] attributes, IEnumerable<TPropertySource> properties)
+				: base(name, baseType.QualifiedName + "+" + name, baseType, baseType.Scope, format, attributes)
 			{
 				this.properties = properties;
 			}
@@ -260,6 +275,12 @@ namespace ExoGraph
 					if (Properties.Contains(name))
 						continue;
 
+					// Get the label for the property
+					var label = provider.GetLabel(property);
+
+					// Get the format for the property
+					var format = provider.GetFormat(property);
+
 					// Determine if the property is a list
 					var isList = provider.IsList(property);
 
@@ -282,12 +303,12 @@ namespace ExoGraph
 					if (referenceType == null)
 						AddProperty(
 							new DynamicValueProperty(
-								this, property, name, isStatic, provider.GetValueType(property), provider.GetValueConverter(property), isList, isReadOnly, isPersisted, attributes)
+								this, property, name, label, format, isStatic, provider.GetValueType(property), provider.GetValueConverter(property), isList, isReadOnly, isPersisted, attributes)
 						);
 					else
 						AddProperty(
 							new DynamicReferenceProperty(
-								this, property, name, isStatic, referenceType, isList, isReadOnly, isPersisted, attributes)
+								this, property, name, label, format, isStatic, referenceType, isList, isReadOnly, isPersisted, attributes)
 						);
 
 				}
@@ -362,8 +383,8 @@ namespace ExoGraph
 			[Serializable]
 			class DynamicValueProperty : GraphValueProperty
 			{
-				internal DynamicValueProperty(DynamicGraphType declaringType, TPropertySource property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-					: base(declaringType, name, isStatic, propertyType, converter, isList, isReadOnly, isPersisted,attributes)
+				internal DynamicValueProperty(DynamicGraphType declaringType, TPropertySource property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+					: base(declaringType, name, label, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
 				{
 					this.PropertySource = property;
 				}
@@ -397,8 +418,8 @@ namespace ExoGraph
 			[Serializable]
 			class DynamicReferenceProperty : GraphReferenceProperty
 			{
-				internal DynamicReferenceProperty(DynamicGraphType declaringType, TPropertySource property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-					: base(declaringType, name, isStatic, propertyType, isList, isReadOnly, isPersisted,attributes)
+				internal DynamicReferenceProperty(DynamicGraphType declaringType, TPropertySource property, string name, string label, string format, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+					: base(declaringType, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
 				{
 					this.PropertySource = property;
 				}

@@ -77,7 +77,7 @@ namespace ExoGraph.UnitTest
 
 			// Ensure that the graph instance has been saved correctly
 			Assert.IsFalse(userInstance.IsNew, "New instance was not saved.");
-			Assert.IsTrue(saveEvent != null && saveEvent.Instance == userInstance && saveEvent.IdChanges.Count() == 1, 
+			Assert.IsTrue(saveEvent != null && saveEvent.Instance == userInstance && saveEvent.Added.Count() == 1, 
 				"The save event was not correctly raised during a save operation.");
 		}
 

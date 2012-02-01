@@ -18,6 +18,17 @@ namespace ExoGraph.UnitTest
 			instance = new GraphInstance(this);
 		}
 
+		~TestEntity()
+		{
+			if (Finalized != null)
+			{
+				Finalized(this, EventArgs.Empty);
+				Finalized = null;
+			}
+		}
+
+		public event EventHandler Finalized;
+
 		internal int? Id { get; set; }
 
 		protected TValue Get<TValue>(Expression<Func<TValue>> property)

@@ -8,6 +8,7 @@ using System;
 using System.ComponentModel;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace ExoGraph
 {
@@ -16,7 +17,7 @@ namespace ExoGraph
 	/// </summary>
 	[DataContract]
 	[Serializable]
-	public class GraphInstance : IGraphPropertySource
+	public class GraphInstance : IGraphPropertySource, IFormattable
 	{
 		#region Fields
 
@@ -764,6 +765,46 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
+		/// <param name="property">The name of the property</param>
+		/// <returns>The formatted of the property</returns>
+		public string GetFormattedValue(string property)
+		{
+			return GetFormattedValue(Type.Properties[property], null);
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
+		/// <param name="property">The specific <see cref="GraphProperty"/></param>
+		/// <returns>The formatted value of the property</returns>
+		public string GetFormattedValue(GraphProperty property)
+		{
+			return property.GetFormattedValue(this, null);
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
+		/// <param name="property">The name of the property</param>
+		/// <returns>The formatted of the property</returns>
+		public string GetFormattedValue(string property, string format)
+		{
+			return GetFormattedValue(Type.Properties[property], format);
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
+		/// <param name="property">The specific <see cref="GraphProperty"/></param>
+		/// <returns>The formatted value of the property</returns>
+		public string GetFormattedValue(GraphProperty property, string format)
+		{
+			return property.GetFormattedValue(this, format);
+		}
+
+		/// <summary>
 		/// Gets the list of <see cref="GraphInstance"/> items assigned to the specified property.
 		/// </summary>
 		/// <param name="property">The name of property</param>
@@ -847,12 +888,61 @@ namespace ExoGraph
 		}
 
 		/// <summary>
-		/// Returns the string representation of the underlying graph instance.
+		/// Returns the string representation of the underlying graph instance,
+		/// potentially formatted using the default format specified by the graph type.
 		/// </summary>
 		/// <returns></returns>
 		public override string ToString()
 		{
-			return "" + instance;
+			// Return a typed identifier for the instance if a format does not exist for the type
+			if (String.IsNullOrEmpty(Type.Format))
+				return Type.Name + "|" + Id;
+
+			return ToString(Type.Format);
+		}
+
+		/// <summary>
+		/// Returns the string representation of the underlying graph instance,
+		/// using the specified format.
+		/// </summary>
+		/// <param name="format"></param>
+		/// <returns></returns>
+		public string ToString(string format)
+		{
+			return ((IFormattable)this).ToString(format, null);
+		}
+
+		/// <summary>
+		/// Returns the string representation of the underlying graph instance,
+		/// using the specified format.
+		/// </summary>
+		/// <param name="format"></param>
+		/// <returns></returns>
+		public bool TryFormat(string format, out string value)
+		{
+			if (string.IsNullOrEmpty(format))
+			{
+				value = instance == null ? "" : instance.ToString();
+				return true;
+			}
+
+			return Type.TryFormatInstance(this, format, out value);
+		}
+
+		/// <summary>
+		/// Returns the string representation of the underlying graph instance,
+		/// using the specified format.
+		/// </summary>
+		/// <param name="format"></param>
+		/// <returns></returns>
+		string IFormattable.ToString(string format, IFormatProvider formatProvider)
+		{
+			// Just return the string value of the underlying instance if a format was not specified
+			if (String.IsNullOrEmpty(format))
+				return "" + instance;
+
+			// Delegate to the type to format the instance
+			return Type.FormatInstance(this, format);
 		}
 
 		#endregion

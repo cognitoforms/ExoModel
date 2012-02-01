@@ -9,7 +9,6 @@ namespace ExoGraph
 	/// Represents a property on a type in a graph hierarchy.
 	/// </summary>
 	[Serializable]
-	[DataContract]
 	public abstract class GraphProperty : ISerializable
 	{
 		#region Fields
@@ -20,10 +19,12 @@ namespace ExoGraph
 
 		#region Constructors
 
-		internal GraphProperty(GraphType declaringType, string name, bool isStatic, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		internal GraphProperty(GraphType declaringType, string name, string label, string format, bool isStatic, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
 			this.DeclaringType = declaringType;
 			this.Name = name;
+			this.Label = label ?? labelRegex.Replace(Name, " $1").Substring(1);
+			this.Format = format;
 			this.IsStatic = isStatic;
 			this.IsList = isList;
 			this.IsReadOnly = isReadOnly;
@@ -36,16 +37,11 @@ namespace ExoGraph
 
 		#region Properties
 
-		[DataMember(Name = "name")]
 		public string Name { get; private set; }
 
-		public string Label
-		{
-			get
-			{
-				return GetLabel();
-			}
-		}
+		public virtual string Label { get; private set; }
+
+		public virtual string Format { get; private set; }
 
 		public int Index { get; internal set; }
 
@@ -134,13 +130,12 @@ namespace ExoGraph
 		protected internal abstract void SetValue(object instance, object value);
 
 		/// <summary>
-		/// Determines the appropriate label for use in a user interface to display for the property.
+		/// Gets the formatted value of the current property for the specified instance.
 		/// </summary>
-		/// <returns></returns>
-		protected virtual string GetLabel()
-		{
-			return labelRegex.Replace(Name, " $1").Substring(1);
-		}
+		/// <param name="instance">The specific <see cref="GraphInstance"/></param>
+		/// <param name="format">The optional format specifier to use to format the value, or null to use the default property format</param>
+		/// <returns>The formatted value of the property</returns>
+		internal abstract string GetFormattedValue(GraphInstance instance, string format);
 
 		#endregion
 

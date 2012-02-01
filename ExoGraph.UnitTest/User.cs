@@ -14,6 +14,12 @@ namespace ExoGraph.UnitTest
 			set { Set(() => UserName, value); }
 		}
 
+		public bool IsActive
+		{
+			get { return Get(() => IsActive); }
+			set { Set(() => IsActive, value); }
+		}
+
 		public ICollection<Request> Requests
 		{
 			get { return Get(() => Requests); }

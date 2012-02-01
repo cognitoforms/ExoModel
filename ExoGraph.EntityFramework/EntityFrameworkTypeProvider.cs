@@ -23,7 +23,7 @@ namespace ExoGraph.EntityFramework
 		{ }
 
 		public EntityFrameworkGraphTypeProvider(string @namespace, Func<object> createContext)
-			: base(@namespace, GetEntityTypes(createContext()))
+			: base(@namespace, GetEntityTypes(createContext())) 
 		{
 			this.CreateContext = createContext;
 		}
@@ -57,7 +57,7 @@ namespace ExoGraph.EntityFramework
 						var graphInstance = GraphContext.Current.GetGraphInstance(firstEntity);
 
 						if (graphInstance != null)
-							((EntityFrameworkGraphTypeProvider.EntityGraphType)graphInstance.Type).RaiseOnSave(graphInstance);
+							((EntityFrameworkGraphTypeProvider.EntityGraphType) graphInstance.Type).RaiseOnSave(graphInstance);
 					}
 				};
 
@@ -68,7 +68,6 @@ namespace ExoGraph.EntityFramework
 						if (e.Action == CollectionChangeAction.Remove)
 							return;
 					}) });
-
 			}
 
 			return storage.Context;
@@ -115,9 +114,9 @@ namespace ExoGraph.EntityFramework
 				return type;
 		}
 
-		protected override ReflectionGraphType CreateGraphType(string @namespace, Type type)
+		protected override ReflectionGraphType CreateGraphType(string @namespace, Type type, string format)
 		{
-			return new EntityGraphType(@namespace, type, "");
+			return new EntityGraphType(@namespace, type, "", format);
 		}
 
 		/// <summary>
@@ -154,7 +153,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="isList"></param>
 		/// <param name="attributes"></param>
 		/// <returns></returns>
-		protected override GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		protected override GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, string label, string format, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
 			// Fetch any attributes associated with a buddy-class
 			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
@@ -167,7 +166,7 @@ namespace ExoGraph.EntityFramework
 			var type = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(((EntityGraphType)declaringType).UnderlyingType.FullName, DataSpace.CSpace);
 			NavigationProperty navProp;
 			type.NavigationProperties.TryGetValue(name, false, out navProp);
-			return new EntityReferenceProperty(declaringType, navProp, property, name, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes);
+			return new EntityReferenceProperty(declaringType, navProp, property, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes);
 		}
 
 		/// <summary>
@@ -182,11 +181,11 @@ namespace ExoGraph.EntityFramework
 		/// <param name="isList"></param>
 		/// <param name="attributes"></param>
 		/// <returns></returns>
-		protected override GraphValueProperty CreateValueProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		protected override GraphValueProperty CreateValueProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
 			// Do not include entity reference properties in the model
 			if (property.PropertyType.IsSubclassOf(typeof(EntityReference)))
-				return null;
+			    return null;
 
 			// Fetch any attributes associated with a buddy-class
 			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
@@ -194,7 +193,7 @@ namespace ExoGraph.EntityFramework
 			// Mark properties that are not mapped as not persisted
 			isPersisted = !attributes.OfType<NotMappedAttribute>().Any();
 
-			return new EntityValueProperty(declaringType, property, name, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes);
+			return new EntityValueProperty(declaringType, property, name, label, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes);
 		}
 
 		#region Storage
@@ -216,8 +215,8 @@ namespace ExoGraph.EntityFramework
 			string @namespace;
 			PropertyInfo[] idProperties;
 
-			protected internal EntityGraphType(string @namespace, Type type, string scope)
-				: base(@namespace, type, scope)
+			protected internal EntityGraphType(string @namespace, Type type, string scope, string format)
+				: base(@namespace, type, scope, format)
 			{
 				this.@namespace = @namespace;
 			}
@@ -267,7 +266,7 @@ namespace ExoGraph.EntityFramework
 			protected override void OnInit()
 			{
 				// Fetch the "buddy class", if any
-				var metadataTypeAttribute = this.UnderlyingType.GetCustomAttributes(typeof(MetadataTypeAttribute), false).OfType<MetadataTypeAttribute>().FirstOrDefault();
+				var metadataTypeAttribute = this.UnderlyingType.GetCustomAttributes(typeof(MetadataTypeAttribute), false).OfType<MetadataTypeAttribute>().FirstOrDefault();			
 				if (metadataTypeAttribute != null)
 					BuddyClass = metadataTypeAttribute.MetadataClassType;
 
@@ -357,10 +356,10 @@ namespace ExoGraph.EntityFramework
 				if (list is RelatedEnd)
 				{
 					Type d1 = typeof(CollectionWrapper<>);
-					Type constructed = d1.MakeGenericType(((EntityGraphType)property.PropertyType).UnderlyingType);
+					Type constructed = d1.MakeGenericType(((EntityGraphType) property.PropertyType).UnderlyingType);
 
 					var constructor = constructed.GetConstructors()[0];
-					return (IList)constructor.Invoke(new object[] { list });
+					return (IList) constructor.Invoke(new object[] { list });
 				}
 
 				return base.ConvertToList(property, list);
@@ -397,7 +396,7 @@ namespace ExoGraph.EntityFramework
 			protected override string GetId(object instance)
 			{
 				// Get the entity key
-				var key = instance is IEntityWithKey ?
+				var key = instance is IEntityWithKey ? 
 					((IEntityWithKey)instance).EntityKey :
 					GetObjectContext().ObjectContext.CreateEntityKey(QualifiedEntitySetName, instance);
 
@@ -525,21 +524,29 @@ namespace ExoGraph.EntityFramework
 		/// <summary>
 		/// Subclass of <see cref="ReflectionReferenceProperty"/> specific to entity models.
 		/// </summary>
+		/// <remarks>
+		/// <see cref="EntityValueProperty"/> supports use of <see cref="DisplayAttribute"/> and <see cref="DisplayFormatAttribute"/>
+		/// to provide localized labels and formatting for value properties.
+		/// </remarks>
 		internal class EntityValueProperty : ReflectionValueProperty
 		{
-			internal EntityValueProperty(GraphType declaringType, PropertyInfo property, string name, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-				: base(declaringType, property, name, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
-			{ }
+			DisplayAttribute displayAttribute;
+
+			internal EntityValueProperty(GraphType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+				: base(declaringType, property, name, label, format ?? attributes.OfType<DisplayFormatAttribute>().Select(f => f.DataFormatString).FirstOrDefault(), isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
+			{
+				displayAttribute = GetAttributes<DisplayAttribute>().FirstOrDefault();
+			}
 
 			/// <summary>
-			/// Determines the appropriate label for use in a user interface to display for the property.
+			/// Gets the localized label for properties that have a <see cref="DisplayAttribute"/>.
 			/// </summary>
-			/// <param name="property"></param>
-			/// <returns></returns>
-			string GetLabel(GraphProperty property)
+			public override string Label
 			{
-				DisplayAttribute displayAttribute = property.GetAttributes<DisplayAttribute>().FirstOrDefault();
-				return displayAttribute != null ? displayAttribute.GetName() : base.GetLabel();
+				get
+				{
+					return displayAttribute != null ? displayAttribute.GetName() : base.Label;
+				}
 			}
 		}
 
@@ -552,11 +559,14 @@ namespace ExoGraph.EntityFramework
 		/// </summary>
 		internal class EntityReferenceProperty : ReflectionReferenceProperty
 		{
-			internal EntityReferenceProperty(GraphType declaringType, NavigationProperty navProp, PropertyInfo property, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-				: base(declaringType, property, name, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
+			DisplayAttribute displayAttribute;
+
+			internal EntityReferenceProperty(GraphType declaringType, NavigationProperty navProp, PropertyInfo property, string name, string label, string format, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+				: base(declaringType, property, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
 			{
 				RelationshipName = navProp != null ? navProp.RelationshipType.Name : null;
 				TargetRoleName = navProp != null ? navProp.ToEndMember.Name : null;
+				displayAttribute = GetAttributes<DisplayAttribute>().FirstOrDefault();
 			}
 
 			internal string RelationshipName { get; private set; }
@@ -564,14 +574,14 @@ namespace ExoGraph.EntityFramework
 			internal string TargetRoleName { get; private set; }
 
 			/// <summary>
-			/// Determines the appropriate label for use in a user interface to display for the property.
+			/// Gets the localized label for properties that have a <see cref="DisplayAttribute"/>.
 			/// </summary>
-			/// <param name="property"></param>
-			/// <returns></returns>
-			protected override string GetLabel()
+			public override string Label
 			{
-				DisplayAttribute displayAttribute = GetAttributes<DisplayAttribute>().FirstOrDefault();
-				return displayAttribute != null ? displayAttribute.GetName() : base.GetLabel();
+				get
+				{
+					return displayAttribute != null ? displayAttribute.GetName() : base.Label;
+				}
 			}
 		}
 

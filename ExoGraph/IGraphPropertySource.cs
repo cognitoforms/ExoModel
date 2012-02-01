@@ -66,6 +66,22 @@ namespace ExoGraph
 		object GetValue(GraphValueProperty property);
 
 		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
+		/// <param name="property">The name of the property</param>
+		/// <param name="format">The optional format to use</param>
+		/// <returns>The formatted value of the property</returns>
+		string GetFormattedValue(string property, string format);
+
+		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
+		/// <param name="property">The specific <see cref="GraphProperty"/></param>
+		/// <param name="format">The optional format to use</param>
+		/// <returns>The formatted value of the property</returns>
+		string GetFormattedValue(GraphProperty property, string format);
+
+		/// <summary>
 		/// Gets the list of <see cref="GraphInstance"/> items assigned to the specified property.
 		/// </summary>
 		/// <param name="property">The name of property</param>

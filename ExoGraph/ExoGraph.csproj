@@ -79,6 +79,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GraphReferenceFormatAttribute.cs" />
     <Compile Include="GraphStepList.cs" />
     <Compile Include="DynamicGraphTypeProvider.cs" />
     <Compile Include="DescriptorGraphTypeProvider.cs" />
@@ -111,6 +112,7 @@
     <Compile Include="IGraphTypeProvider.cs" />
     <Compile Include="ITransactedGraphEvent.cs">
     </Compile>
+    <Compile Include="GraphSource.cs" />
     <Compile Include="ReadOnlyList.cs" />
     <Compile Include="GraphTypeList.cs" />
     <Compile Include="GraphContextProvider.cs" />

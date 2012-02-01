@@ -5,6 +5,7 @@ using System.Runtime.Serialization;
 using System.Collections;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Text;
 
 namespace ExoGraph
 {
@@ -18,9 +19,11 @@ namespace ExoGraph
 		#region Fields
 
 		internal static GraphType Unknown = new UnknownGraphType();
+		static Regex formatParser = new Regex(@"(?<!\\)\[(?<property>[a-z0-9_.]+)(?:\:(?<format>.+?))?(?<!\\)\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
 		Dictionary<Type, object> customEvents = new Dictionary<Type, object>();
 		Dictionary<Type, object> transactedCustomEvents = new Dictionary<Type, object>();
+		Dictionary<string, List<FormatToken>> formats = new Dictionary<string, List<FormatToken>>();
 		Attribute[] attributes;
 		Dictionary<Type, object> extensions;
 
@@ -38,11 +41,12 @@ namespace ExoGraph
 		/// <param name="baseType"></param>
 		/// <param name="scope"></param>
 		/// <param name="attributes"></param>
-		public GraphType(string name, string qualifiedName, GraphType baseType, string scope, Attribute[] attributes)
+		public GraphType(string name, string qualifiedName, GraphType baseType, string scope, string format, Attribute[] attributes)
 		{
 			this.Name = name;
 			this.QualifiedName = qualifiedName;
 			this.Scope = scope;
+			this.Format = format;
 			this.attributes = attributes;
 			this.BaseType = baseType;
 
@@ -63,6 +67,8 @@ namespace ExoGraph
 		public GraphContext Context { get; private set; }
 
 		public string Name { get; private set; }
+
+		public string Format { get; private set; }
 
 		public string QualifiedName { get; private set; }
 
@@ -566,6 +572,26 @@ namespace ExoGraph
 		}
 
 		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
+		/// <param name="property">The name of the property</param>
+		/// <returns>The formatted of the property</returns>
+		public string GetFormattedValue(string property, string format)
+		{
+			return GetFormattedValue(Properties[property], format);
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
+		/// <param name="property">The specific <see cref="GraphProperty"/></param>
+		/// <returns>The formatted value of the property</returns>
+		public string GetFormattedValue(GraphProperty property, string format)
+		{
+			return property.GetFormattedValue(null, format);
+		}
+
+		/// <summary>
 		/// Gets the list of <see cref="GraphInstance"/> items assigned to the specified property.
 		/// </summary>
 		/// <param name="property">The name of property</param>
@@ -833,6 +859,18 @@ namespace ExoGraph
 		protected internal abstract void SetIsPendingDelete(object instance, bool isPendingDelete);
 
 		/// <summary>
+		/// Gets a format provider to provide custom formatting services for the specified type.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		protected internal IFormatProvider GetFormatProvider(Type type)
+		{
+			if (type == typeof(bool) || type == typeof(bool?))
+				return BooleanFormatter.Instance;
+			return null;
+		}
+
+		/// <summary>
 		/// Indicates whether the specified instance is cached and should be prevented from maintaining 
 		/// references to <see cref="GraphContext"/>.
 		/// </summary>
@@ -853,6 +891,142 @@ namespace ExoGraph
 			throw new InvalidOperationException(this.GetType() + " must implement GetLock() if IsCached() is overridden");
 		}
 
+		/// <summary>
+		/// Attempts to format the instance using the specified format.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="format"></param>
+		/// <returns></returns>
+		internal bool TryFormatInstance(GraphInstance instance, string format, out string value)
+		{
+			// Get the list of format tokens by parsing the format expression
+			List<FormatToken> formatTokens;
+			if (!formats.TryGetValue(format, out formatTokens))
+			{
+				// Replace \\ escape sequence with char 0, \[ escape sequence with char 1, and \] escape sequence with char 2
+				var escapedFormat = format.Replace(@"\\", ((char)0).ToString()).Replace(@"\[", ((char)1).ToString()).Replace(@"\]", ((char)1).ToString());
+
+				// Replace \\ escape sequence with \, \[ escape sequence with [, and \] escape sequence with ]
+				var correctedFormat = format.Replace(@"\\", @"\").Replace(@"\[", "[").Replace(@"\]", "]");
+
+				formatTokens = new List<FormatToken>();
+				int index = 0;
+				foreach (Match substitution in formatParser.Matches(escapedFormat))
+				{
+					var path = substitution.Groups["property"].Value;
+					GraphPath graphPath;
+					if (!TryGetPath(path, out graphPath))
+					{
+						value = null;
+						return false;
+					}
+
+					formatTokens.Add(
+						new FormatToken() 
+						{ 
+							Literal = substitution.Index > index ? correctedFormat.Substring(index, substitution.Index - index) : null,
+							Property = new GraphSource(graphPath),
+							Format = substitution.Groups["format"].Success ? correctedFormat.Substring(substitution.Groups["format"].Index, substitution.Groups["format"].Length) : null
+						});
+					index = substitution.Index + substitution.Length;
+				}
+				// Add the trailing literal
+				if (index < correctedFormat.Length)
+					formatTokens.Add(new FormatToken() { Literal = correctedFormat.Substring(index, correctedFormat.Length - index) });
+				
+				// Cache the parsed format expression
+				formats.Add(format, formatTokens);
+			}
+
+			// Handle simple case of [Property]
+			if (formatTokens.Count == 1 && formatTokens[0].Literal == null)
+			{
+				value = formatTokens[0].Property.GetFormattedValue(instance, formatTokens[0].Format);
+				return true;
+			}
+
+			// Use a string builder to create and return the formatted result
+			StringBuilder result = new StringBuilder();
+			foreach (var token in formatTokens)
+			{
+				result.Append(token.Literal);
+				if (token.Property != null)
+					result.Append(token.Property.GetFormattedValue(instance, token.Format));
+			}
+			value = result.ToString();
+			return true;
+		}
+
+		/// <summary>
+		/// Formats the instance using the specified format.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="format"></param>
+		/// <returns></returns>
+		internal string FormatInstance(GraphInstance instance, string format)
+		{
+			string result;
+			if (!TryFormatInstance(instance, format, out result))
+				throw new ArgumentException("The specified format, '" + format + "', was not valid for the root type of '" + instance.Type.Name + "'.");
+			return result;
+		}
+
+		#endregion
+
+		#region FormatToken
+
+		/// <summary>
+		/// Represents a token portion of a graph instance format expression.
+		/// </summary>
+		class FormatToken
+		{
+			internal string Literal { get; set; }
+
+			internal GraphSource Property { get; set; }
+
+			internal string Format { get; set; }
+
+			public override string ToString()
+			{
+				return Literal + (Property == null ? "" : "[" + Property.Path + (String.IsNullOrEmpty(Format) ? "" : ":" + Format) + "]");
+			}
+		}
+
+		#endregion
+
+		#region BooleanFormatter
+
+		/// <summary>
+		/// Implementation of <see cref="IFormatProvider"/> that supports using format specifiers
+		/// for <see cref="Boolean"/> properties by default.  The usage of this class can be eliminated
+		/// by overriding the behavior of <see cref="GetFormatProvider"/>.
+		/// </summary>
+		private class BooleanFormatter : IFormatProvider, ICustomFormatter
+		{
+			internal static BooleanFormatter Instance = new BooleanFormatter();
+
+			object IFormatProvider.GetFormat(Type formatType)
+			{
+				if (formatType == typeof(ICustomFormatter))
+					return this;
+				return null;
+			}
+
+			string ICustomFormatter.Format(string format, object arg, IFormatProvider formatProvider)
+			{
+				if (String.IsNullOrEmpty(format))
+					return arg + "";
+				var options = format.Split(';');
+				if (arg == null && options.Length >= 3)
+					return options[2]; // Unspecified
+				else if (((arg is bool && (bool)arg) || (arg is bool? && ((bool?)arg).HasValue && ((bool?)arg).Value)) && options.Length >= 1)
+					return options[0]; // True
+				else if (options.Length >= 2)
+					return options[1]; // False
+				return null;
+			}
+		}
+
 		#endregion
 
 		#region ISerializable Members
@@ -863,7 +1037,7 @@ namespace ExoGraph
 		}
 
 		[Serializable]
-		class Serialized : ISerializable, IObjectReference
+		private class Serialized : ISerializable, IObjectReference
 		{
 			string typeName;
 
@@ -900,7 +1074,7 @@ namespace ExoGraph
 		class UnknownGraphType : GraphType
 		{
 			internal UnknownGraphType()
-				: base("ExoGraph.GraphType.Unknown", "ExoGraph.GraphType.Unknown", null, "Unknown", new Attribute[] { })
+			   : base("ExoGraph.GraphType.Unknown", "ExoGraph.GraphType.Unknown", null, "Unknown", null, new Attribute[] { })
 			{ }
 
 			protected internal override void OnInit()

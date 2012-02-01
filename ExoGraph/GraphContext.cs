@@ -19,6 +19,10 @@ namespace ExoGraph
 	public sealed class GraphContext
 	{
 		#region Fields
+		/// <summary>
+		/// All extentions associated with the context
+		/// </summary>
+		Dictionary<Type, object> extensions;
 
 		/// <summary>
 		/// Tracks the types of objects in the graph.
@@ -141,6 +145,21 @@ namespace ExoGraph
 			Init(null, providers);
 		}
 
+		/// <summary>
+		/// Gets or creates an extension instance linked to the current <see cref="GraphContext"/>.
+		/// </summary>
+		/// <typeparam name="TExtension">The type of extension to create.</typeparam>
+		/// <returns></returns>
+		public TExtension GetExtension<TExtension>()
+			where TExtension : class, new()
+		{
+			object extension;
+			if (extensions == null)
+				extensions = new Dictionary<Type, object>();
+			if (!extensions.TryGetValue(typeof(TExtension), out extension))
+				extensions[typeof(TExtension)] = extension = new TExtension();
+			return (TExtension)extension;
+		}
 		#endregion
 
 		#region Graph Instance Methods

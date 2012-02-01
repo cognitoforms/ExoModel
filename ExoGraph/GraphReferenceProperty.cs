@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+
 namespace ExoGraph
 {
 	/// <summary>
@@ -10,8 +12,8 @@ namespace ExoGraph
 	{
 		#region Constructors
 
-		protected internal GraphReferenceProperty(GraphType declaringType, string name, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-			: base(declaringType, name, isStatic, isList, isReadOnly, isPersisted, attributes)
+		protected internal GraphReferenceProperty(GraphType declaringType, string name, string label, string format, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+			: base(declaringType, name, label, format ?? propertyType.Format, isStatic, isList, isReadOnly, isPersisted, attributes)
 		{
 			this.PropertyType = propertyType;
 		}
@@ -54,6 +56,22 @@ namespace ExoGraph
 				GraphInstance child = instance.GetReference(this);
 				if (child != null)
 					yield return child;
+			}
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the property for the specified instance.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns></returns>
+		internal override string GetFormattedValue(GraphInstance instance, string format)
+		{
+			if (IsList)
+				return instance.GetList(this).ToString(format ?? Format);
+			else
+			{
+				var reference = instance.GetReference(this);
+				return reference != null ? reference.ToString(format ?? Format) : "";
 			}
 		}
 
