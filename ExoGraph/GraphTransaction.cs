@@ -166,6 +166,10 @@ namespace ExoGraph
 		/// </summary>
 		public GraphTransaction Chain(GraphTransaction nextTransaction)
 		{
+			// Immediately exit if the transaction is being chained with itself
+			if (nextTransaction == this)
+				return nextTransaction;
+
 			// Propogate the new instance cache forward to the next transaction
 			if (newInstances != null)
 			{
@@ -281,6 +285,18 @@ namespace ExoGraph
 		/// <returns></returns>
 		public GraphTransaction Perform(Action operation)
 		{
+			return Perform(operation, new GraphTransaction());
+		}
+
+		/// <summary>
+		/// Performs a set of previous changes, performs the specified operation, and records new changes that
+		/// occur as a result of the previous changes and the specified operation.
+		/// </summary>
+		/// <param name="operation"></param>
+		/// <param name="transaction"></param>
+		/// <returns></returns>
+		public GraphTransaction Perform(Action operation, GraphTransaction transaction)
+		{
 			// Create an event scope to track changes that occur as a result of applying previous changes
 			GraphEventScope eventScope = new GraphEventScope();
 			try
@@ -289,7 +305,7 @@ namespace ExoGraph
 				Perform();
 
 				// Return the new changes that occurred while applying the previous changes
-				return Chain(new GraphTransaction()).Record(() =>
+				return Chain(transaction).Record(() =>
 				{
 					// Allow graph subscribers to be notified of the previous changes
 					eventScope.Exit();
