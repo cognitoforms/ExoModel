@@ -26,6 +26,7 @@ namespace ExoModel.EntityFramework
 			: base(@namespace, GetEntityTypes(createContext())) 
 		{
 			this.CreateContext = createContext;
+			this.DefaultFormatProperties = new string[] { "Label", "Name", "Text", "FullName", "Title", "Description" };
 		}
 
 		Func<object> CreateContext { get; set; }

@@ -98,6 +98,8 @@ namespace ExoModel
 
 		#region Properties
 
+		public string[] DefaultFormatProperties	{ get; set;	}
+
 		#endregion
 
 		#region Methods
@@ -179,6 +181,10 @@ namespace ExoModel
 
 			// Get the default reference format for the type
 			string format = type.GetCustomAttributes(true).OfType<ModelReferenceFormatAttribute>().Select(a => a.Format).FirstOrDefault();
+
+			// If a format was not found, see if the type has a property that is in the set of default format properties
+			if (format == null && DefaultFormatProperties != null)
+				format = DefaultFormatProperties.Where(p => type.GetProperty(p) != null).Select(p => "[" + p + "]").FirstOrDefault();
 
 			// Create the new model type
 			return CreateModelType(@namespace, type, format);
