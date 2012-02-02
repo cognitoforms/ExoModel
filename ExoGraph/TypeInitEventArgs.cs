@@ -3,17 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace ExoGraph
+namespace ExoModel
 {
 	public class TypeInitEventArgs : EventArgs
 	{
-		GraphType[] graphTypes;
+		ModelType[] modelTypes;
 
-		public GraphType[] GraphTypes
+		public ModelType[] ModelTypes
 		{
 			get
 			{
-				return graphTypes;
+				return modelTypes;
 			}
 		}
 
@@ -21,9 +21,9 @@ namespace ExoGraph
 		{
 		}
 
-		public TypeInitEventArgs(GraphType[] types)
+		public TypeInitEventArgs(ModelType[] types)
 		{
-			graphTypes = types;
+			modelTypes = types;
 		}
 	}
 }

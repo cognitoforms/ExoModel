@@ -1,0 +1,172 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>9.0.30729</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>ExoModel</RootNamespace>
+    <AssemblyName>ExoModel</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <SccProjectName>SAK</SccProjectName>
+    <SccLocalPath>SAK</SccLocalPath>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccProvider>SAK</SccProvider>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <OldToolsVersion>3.5</OldToolsVersion>
+    <UpgradeBackupLocation />
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;EXOGRAPH</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <DocumentationFile>
+    </DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE;SkipPostSharp</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Runtime.Serialization">
+      <RequiredTargetFramework>3.0</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.ServiceModel.Web">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Web" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="WindowsBase">
+      <RequiredTargetFramework>3.0</RequiredTargetFramework>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ModelReferenceFormatAttribute.cs" />
+    <Compile Include="ModelStepList.cs" />
+    <Compile Include="DynamicModelTypeProvider.cs" />
+    <Compile Include="DescriptorModelTypeProvider.cs" />
+    <Compile Include="Extensions.cs" />
+    <Compile Include="ModelMethod.cs" />
+    <Compile Include="ModelMethodList.cs" />
+    <Compile Include="ModelMethodParameter.cs" />
+    <Compile Include="ModelMethodParameterList.cs" />
+    <Compile Include="ModelSaveEvent.cs" />
+    <Compile Include="ModelDeleteEvent.cs" />
+    <Compile Include="ModelPropertyList.cs" />
+    <Compile Include="ModelReferenceProperty.cs" />
+    <Compile Include="ModelReferencePropertyList.cs" />
+    <Compile Include="ModelValueProperty.cs" />
+    <Compile Include="ModelValuePropertyList.cs" />
+    <Compile Include="ModelPathList.cs" />
+    <Compile Include="ModelPathChangedEventArgs.cs" />
+    <Compile Include="ModelInstanceList.cs" />
+    <Compile Include="ModelFilterChangedEventArgs.cs" />
+    <Compile Include="ModelInitEvent.cs" />
+    <Compile Include="ModelPropertyGetEvent.cs" />
+    <Compile Include="ModelReferenceChangeEvent.cs" />
+    <Compile Include="ModelValueChangeEvent.cs" />
+    <Compile Include="ModelListChangeEvent.cs" />
+    <Compile Include="ModelCustomEvent.cs" />
+    <Compile Include="ModelEventScope.cs" />
+    <Compile Include="ModelEventScopeExitedEventArgs.cs" />
+    <Compile Include="IModelInstance.cs" />
+    <Compile Include="IModelPropertySource.cs" />
+    <Compile Include="IModelTypeProvider.cs" />
+    <Compile Include="ITransactedModelEvent.cs">
+    </Compile>
+    <Compile Include="ModelSource.cs" />
+    <Compile Include="ReadOnlyList.cs" />
+    <Compile Include="ModelTypeList.cs" />
+    <Compile Include="ModelContextProvider.cs" />
+    <Compile Include="ModelProperty.cs" />
+    <Compile Include="ModelEvent.cs" />
+    <Compile Include="ModelReference.cs" />
+    <Compile Include="ModelFilter.cs" />
+    <Compile Include="ModelContext.cs" />
+    <Compile Include="ModelTransaction.cs" />
+    <Compile Include="ModelPath.cs" />
+    <Compile Include="ModelStep.cs" />
+    <Compile Include="ModelInstance.cs" />
+    <Compile Include="ModelType.cs" />
+    <Compile Include="IModelContextProvider.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReflectionModelTypeProvider.cs" />
+    <Compile Include="TypeInitEventArgs.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1 Client Profile</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.VisualBasic.PowerPacks.10.0">
+      <Visible>False</Visible>
+      <ProductName>Microsoft Visual Basic PowerPacks 10.0</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Windows.Installer.3.1">
+      <Visible>False</Visible>
+      <ProductName>Windows Installer 3.1</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NuGet\ExoModel.nuspec">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="NuGet\lib\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

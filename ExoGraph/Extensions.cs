@@ -4,14 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Reflection;
 
-namespace ExoGraph
+namespace ExoModel
 {
 	public static class Extensions
 	{
-		public static IEnumerable<GraphType> GetGraphTypes(this Assembly assembly)
+		public static IEnumerable<ModelType> GetModelTypes(this Assembly assembly)
 		{
-			GraphContext context = GraphContext.Current;
-			return assembly.GetTypes().Select(t => context.GetGraphType(t)).Where(t => t != null);
+			ModelContext context = ModelContext.Current;
+			return assembly.GetTypes().Select(t => context.GetModelType(t)).Where(t => t != null);
 		}
 
 		/// <summary>

@@ -3,7 +3,7 @@ using System.Collections;
 using System;
 using System.Linq;
 
-namespace ExoGraph
+namespace ExoModel
 {
 	/// <summary>
 	/// Base class for read only lists of items keyed by name.

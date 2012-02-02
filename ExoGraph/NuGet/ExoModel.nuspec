@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<package>
+  <metadata>
+    <id>ExoModel</id>
+    <version>1.0.0</version>
+    <authors>Jamie Thomas</authors>
+    <description>
+	  ExoModel provides a rich event-driven abstraction layer over any ORM or domain model.
+	  ExoModel allows open source libraries to extend a variety of popular ORM's, like Entity Framework or nHibernate,
+	  without having to be specifically designed to work with each one.
+	  Additionally, ExoModel's eventing approach supports new programming models such as change-driven code execution,
+	  change tracking and rollbacks, and domain events.
+	</description>
+    <summary>ExoModel provides a rich event-driven abstraction layer over any ORM or domain model.</summary>
+    <projectUrl>http://exosuite.com/</projectUrl>
+    <licenseUrl>http://exosuite.com/license</licenseUrl>
+  </metadata>
+  <files>
+    <file src="..\bin\Debug\ExoModel.dll" target="lib"/>
+  </files>
+</package>
