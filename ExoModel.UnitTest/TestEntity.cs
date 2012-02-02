@@ -2,20 +2,20 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using ExoGraph;
+using ExoModel;
 using System.Linq.Expressions;
 using System.Collections.ObjectModel;
 
-namespace ExoGraph.UnitTest
+namespace ExoModel.UnitTest
 {
-	public class TestEntity : IGraphInstance
+	public class TestEntity : IModelInstance
 	{
-		GraphInstance instance;
+		ModelInstance instance;
 		Dictionary<string, object> values = new Dictionary<string, object>();
 
 		protected TestEntity()
 		{
-			instance = new GraphInstance(this);
+			instance = new ModelInstance(this);
 		}
 
 		~TestEntity()
@@ -63,7 +63,7 @@ namespace ExoGraph.UnitTest
 			instance.OnPropertySet(propertyName, oldValue, value);
 		}
 
-		GraphInstance IGraphInstance.Instance
+		ModelInstance IModelInstance.Instance
 		{
 			get { return instance; }
 		}

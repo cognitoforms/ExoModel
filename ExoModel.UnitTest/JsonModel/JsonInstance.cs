@@ -3,40 +3,40 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Dynamic;
-using ExoGraph;
+using ExoModel;
 using System.Collections.ObjectModel;
 
-namespace ExoGraph.UnitTest.JsonModel
+namespace ExoModel.UnitTest.JsonModel
 {
 	/// <summary>
-	/// Represents a concrete dynamic graph instance, relying on the <see cref="GraphInstance"/>
+	/// Represents a concrete dynamic model instance, relying on the <see cref="ModelInstance"/>
 	/// metadata to expose dynamic properties and behavior.
 	/// </summary>
-	public class JsonInstance : DynamicObject, IGraphInstance
+	public class JsonInstance : DynamicObject, IModelInstance
 	{
-		GraphInstance instance;
+		ModelInstance instance;
 		object[] instanceProperties;
 
-		internal JsonInstance(GraphType type)
+		internal JsonInstance(ModelType type)
 			: this(type, null)
 		{ }
 
-		internal JsonInstance(GraphType type, string id)
+		internal JsonInstance(ModelType type, string id)
 		{
 			this.Type = type;
 			this.Id = id;
-			this.instance = new GraphInstance(this);
+			this.instance = new ModelInstance(this);
 			instanceProperties = new object[Type.Properties.Count];
 		}
 
-		GraphInstance IGraphInstance.Instance
+		ModelInstance IModelInstance.Instance
 		{
 			get { return instance; }
 		}
 
 		internal string Id { get; private set; }
 
-		internal GraphType Type { get; private set; }
+		internal ModelType Type { get; private set; }
 
 		public object this[string property]
 		{
@@ -50,12 +50,12 @@ namespace ExoGraph.UnitTest.JsonModel
 			}
 		}
 
-		public object this[GraphProperty property]
+		public object this[ModelProperty property]
 		{
 			get
 			{
 				var value = instanceProperties[property.Index];
-				if (value == null && property is GraphReferenceProperty && property.IsList)
+				if (value == null && property is ModelReferenceProperty && property.IsList)
 					instanceProperties[property.Index] = value = new ObservableCollection<JsonInstance>();
 				return value;
 			}

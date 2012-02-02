@@ -6,10 +6,10 @@ using System.Web.Script.Serialization;
 using System.Collections.ObjectModel;
 using System.Collections;
 
-namespace ExoGraph.UnitTest.JsonModel
+namespace ExoModel.UnitTest.JsonModel
 {
 	/// <summary>
-	/// Represents a complete dynamic graph based on JSON type and instance data, based on the JSON
+	/// Represents a complete dynamic model based on JSON type and instance data, based on the JSON
 	/// format used by ExoWeb for sending type and instance data to web clients.
 	/// </summary>
 	public class JsonModel
@@ -21,8 +21,8 @@ namespace ExoGraph.UnitTest.JsonModel
 
 		public JsonModel()
 		{
-			this.Types = new Dictionary<string, GraphType>();
-			this.Instances = new Dictionary<GraphType, Dictionary<string, JsonInstance>>();
+			this.Types = new Dictionary<string, ModelType>();
+			this.Instances = new Dictionary<ModelType, Dictionary<string, JsonInstance>>();
 		}
 
 		public JsonModel(string json)
@@ -31,11 +31,11 @@ namespace ExoGraph.UnitTest.JsonModel
 			Load(json);
 		}
 
-		public Dictionary<string, GraphType> Types { get; private set; }
+		public Dictionary<string, ModelType> Types { get; private set; }
 
-		Dictionary<GraphType, Dictionary<string, JsonInstance>> Instances { get; set; }
+		Dictionary<ModelType, Dictionary<string, JsonInstance>> Instances { get; set; }
 
-		public JsonInstance GetInstance(GraphType type, string id)
+		public JsonInstance GetInstance(ModelType type, string id)
 		{
 			Dictionary<string, JsonInstance> instances;
 			if (Instances.TryGetValue(type, out instances))
@@ -52,27 +52,27 @@ namespace ExoGraph.UnitTest.JsonModel
 			// Parse the json into a parse tree
 			var meta = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
 
-			// Load graph types
+			// Load model types
 			var types = meta.Get<Dictionary<string, object>>("types", null);
 			if (types != null)
 			{
-				// Create all of the graph types
+				// Create all of the model types
 				foreach (var type in types)
 				{
 					var name = type.Key;
 					var options = (Dictionary<string, object>)type.Value;
 					var baseTypeName = options.Get<string>("baseType", null);
-					GraphType baseType = null;
+					ModelType baseType = null;
 					if (baseTypeName != null)
 						Types.TryGetValue(baseTypeName, out baseType);
 					var format = options.Get<string>("format", null);
-					Types.Add(name, new JsonGraphTypeProvider.JsonGraphType(name, name, baseType, null, format, null));
+					Types.Add(name, new JsonModelTypeProvider.JsonModelType(name, name, baseType, null, format, null));
 				}
 
 				// Then load all of the properties
 				foreach (var type in types)
 				{
-					var graphType = Types[type.Key] as JsonGraphTypeProvider.JsonGraphType;
+					var modelType = Types[type.Key] as JsonModelTypeProvider.JsonModelType;
 					var properties = ((Dictionary<string, object>)type.Value).Get<Dictionary<string, object>>("properties", new Dictionary<string, object>()).Select(p =>
 					{
 						var options = (Dictionary<string, object>)p.Value;
@@ -89,46 +89,46 @@ namespace ExoGraph.UnitTest.JsonModel
 						}
 
 						if (valueTypes.ContainsKey(typeName))
-							return (GraphProperty)new JsonGraphTypeProvider.JsonGraphValueProperty(graphType, p.Key, label, format, isStatic, valueTypes[typeName], isList, isReadOnly, false);
+							return (ModelProperty)new JsonModelTypeProvider.JsonModelValueProperty(modelType, p.Key, label, format, isStatic, valueTypes[typeName], isList, isReadOnly, false);
 						else
-							return (GraphProperty)new JsonGraphTypeProvider.JsonGraphReferenceProperty(graphType, p.Key, label, format, isStatic, Types[typeName], isList, isReadOnly, false);
+							return (ModelProperty)new JsonModelTypeProvider.JsonModelReferenceProperty(modelType, p.Key, label, format, isStatic, Types[typeName], isList, isReadOnly, false);
 					})
 					.ToList();
 
 					// Initialize properties as part of the type initialization process
-					graphType.AfterInitialize(() =>
+					modelType.AfterInitialize(() =>
 					{
 						// Add base type instance properties first
-						if (graphType.BaseType != null)
-							graphType.AddProperties(graphType.BaseType.Properties.Where(p => !p.IsStatic));
+						if (modelType.BaseType != null)
+							modelType.AddProperties(modelType.BaseType.Properties.Where(p => !p.IsStatic));
 
 						// Then add instance properties
-						graphType.AddProperties(properties.Where(p => !p.IsStatic));
+						modelType.AddProperties(properties.Where(p => !p.IsStatic));
 
 						// Finally add static properties
-						graphType.AddProperties(properties.Where(p => p.IsStatic));
+						modelType.AddProperties(properties.Where(p => p.IsStatic));
 					});
 				}
 			}
 
-			// Load graph instances
+			// Load model instances
 			var typeInstances = meta.Get<Dictionary<string, object>>("instances", null);
 			if (typeInstances != null)
 			{
 				// First build a strongly-typed parse tree from the JSON instance data
 				var instances = typeInstances.Select(type =>
 				{
-					var graphType = Types[type.Key];
+					var modelType = Types[type.Key];
 					var instanceMeta = (Dictionary<string, object>)type.Value;
 
 					return new
 					{
-						Type = graphType,
+						Type = modelType,
 						StaticProperties = (object)null,
-						Cache = Instances.ContainsKey(graphType) ? Instances[graphType] : Instances[graphType] = new Dictionary<string,JsonInstance>(),
+						Cache = Instances.ContainsKey(modelType) ? Instances[modelType] : Instances[modelType] = new Dictionary<string,JsonInstance>(),
 						Instances = instanceMeta.Where(instance => instance.Key != "static").Select(instance => new
 						{
-							Instance = new JsonInstance(graphType, instance.Key),
+							Instance = new JsonInstance(modelType, instance.Key),
 							Properties = (ArrayList)instance.Value
 						})
 						.ToList()
@@ -136,7 +136,7 @@ namespace ExoGraph.UnitTest.JsonModel
 				})
 				.ToList();
 
-				// Then add the instances to the graph cache
+				// Then add the instances to the model cache
 				foreach (var type in instances)
 				{
 					foreach (var instance in type.Instances)
@@ -158,9 +158,9 @@ namespace ExoGraph.UnitTest.JsonModel
 								continue;
 
 							// Value
-							if (property is GraphValueProperty)
+							if (property is ModelValueProperty)
 							{
-								var valueType = ((GraphValueProperty)property).PropertyType;
+								var valueType = ((ModelValueProperty)property).PropertyType;
 								if (valueType == typeof(DateTime))
 									value = DateTime.Parse((string)value);
 								instance.Instance[property] = value;
@@ -169,13 +169,13 @@ namespace ExoGraph.UnitTest.JsonModel
 							// List
 							else if (property.IsList)
 							{
-								var listType = ((GraphReferenceProperty)property).PropertyType;
+								var listType = ((ModelReferenceProperty)property).PropertyType;
 								instance.Instance[property] = new ObservableCollection<JsonInstance>(((ArrayList)value).Cast<string>().Select(id => GetInstance(listType, id)));
 							}
 
 							// Instance
 							else
-								instance.Instance[property] = GetInstance(((GraphReferenceProperty)property).PropertyType, (string)value);
+								instance.Instance[property] = GetInstance(((ModelReferenceProperty)property).PropertyType, (string)value);
 						}
 					}
 				}

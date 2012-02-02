@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Collections.ObjectModel;
 
-namespace ExoGraph.UnitTest
+namespace ExoModel.UnitTest
 {
 	public class Category : TestEntity, ICategory<User, Category, Priority, Request, ICollection<Request>, ICollection<Category>>
 	{

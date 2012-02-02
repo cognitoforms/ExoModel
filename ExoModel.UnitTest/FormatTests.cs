@@ -5,10 +5,10 @@ using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Reflection;
 
-namespace ExoGraph.UnitTest
+namespace ExoModel.UnitTest
 {
 	/// <summary>
-	/// Tests the formatting capabilities of ExoGraph.
+	/// Tests the formatting capabilities of ExoModel.
 	/// </summary>
 	[TestClass]
 	public class FormatTests
@@ -16,14 +16,14 @@ namespace ExoGraph.UnitTest
 		[ClassInitialize]
 		public static void Initialize(TestContext options)
 		{
-			// Initialize the graph context to use the test graph type provider
-			GraphContext.Init(
+			// Initialize the model context to use the test model type provider
+			ModelContext.Init(
 				() => {},
-				new TestGraphTypeProvider(Assembly.GetExecutingAssembly()));
+				new TestModelTypeProvider(Assembly.GetExecutingAssembly()));
 		}
 
 		[TestMethod]
-		public void TestGraphInstanceFormatting()
+		public void TestModelInstanceFormatting()
 		{
 			var request = new Request()
 			{
@@ -34,10 +34,10 @@ namespace ExoGraph.UnitTest
 				User = new User() { UserName = "Billy Bob's Worst Nightmare", IsActive = false }
 			};
 
-			Assert.AreEqual("Billy Bob", GraphContext.Current.GetGraphInstance(request).ToString("[AssignedTo.UserName]"));
+			Assert.AreEqual("Billy Bob", ModelContext.Current.GetModelInstance(request).ToString("[AssignedTo.UserName]"));
 			Assert.AreEqual("Billy Bob is assigned to a High priority Server Support request for Billy Bob's Worst Nightmare.",
-				GraphContext.Current.GetGraphInstance(request).ToString("[AssignedTo.UserName] is assigned to a [Priority.Name] priority [Category.Name] request for [User.UserName]."));
-			Assert.AreEqual("Inactive", GraphContext.Current.GetGraphInstance(request).ToString(@"[User.IsActive:Ac\]tive;Inactive]"));
+				ModelContext.Current.GetModelInstance(request).ToString("[AssignedTo.UserName] is assigned to a [Priority.Name] priority [Category.Name] request for [User.UserName]."));
+			Assert.AreEqual("Inactive", ModelContext.Current.GetModelInstance(request).ToString(@"[User.IsActive:Ac\]tive;Inactive]"));
 		}
 	}
 }

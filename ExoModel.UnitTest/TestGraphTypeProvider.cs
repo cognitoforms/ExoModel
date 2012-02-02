@@ -2,34 +2,34 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using ExoGraph;
+using ExoModel;
 using System.Reflection;
 
-namespace ExoGraph.UnitTest
+namespace ExoModel.UnitTest
 {
 	/// <summary>
-	/// Test subclass of <see cref="ReflectionGraphTypeProvider"/> that provides a limited implementation to support unit testing.
+	/// Test subclass of <see cref="ReflectionModelTypeProvider"/> that provides a limited implementation to support unit testing.
 	/// </summary>
-	public class TestGraphTypeProvider : ReflectionGraphTypeProvider
+	public class TestModelTypeProvider : ReflectionModelTypeProvider
 	{
 		Dictionary<Type, List<TestEntity>> entities = new Dictionary<Type, List<TestEntity>>();
 
-		public TestGraphTypeProvider()
+		public TestModelTypeProvider()
 			: this(Assembly.GetExecutingAssembly())
 		{ }
 
-		public TestGraphTypeProvider(Assembly assembly)
+		public TestModelTypeProvider(Assembly assembly)
 			: base(assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(TestEntity))))
 		{ }
 
-		protected override ReflectionGraphTypeProvider.ReflectionGraphType CreateGraphType(string @namespace, Type type, string format)
+		protected override ReflectionModelTypeProvider.ReflectionModelType CreateModelType(string @namespace, Type type, string format)
 		{
-			return new TestGraphType(@namespace, type, format);
+			return new TestModelType(@namespace, type, format);
 		}
 
-		class TestGraphType : ReflectionGraphType
+		class TestModelType : ReflectionModelType
 		{
-			internal TestGraphType(string @namespace, Type type, string format)
+			internal TestModelType(string @namespace, Type type, string format)
 				: base(@namespace, type, null, format)
 			{ }
 
@@ -37,12 +37,12 @@ namespace ExoGraph.UnitTest
 			/// Saves the specified instance and all related instances.
 			/// </summary>
 			/// <param name="instance"></param>
-			protected override void SaveInstance(GraphInstance instance)
+			protected override void SaveInstance(ModelInstance instance)
 			{
-				Save(instance, new HashSet<GraphInstance>());
+				Save(instance, new HashSet<ModelInstance>());
 			}
 
-			new void Save(GraphInstance instance, HashSet<GraphInstance> saved)
+			new void Save(ModelInstance instance, HashSet<ModelInstance> saved)
 			{
 				var entity = instance.Instance as TestEntity;
 
@@ -57,9 +57,9 @@ namespace ExoGraph.UnitTest
 				if (entity.Id == null)
 				{
 					List<TestEntity> family;
-					if (!((TestGraphTypeProvider)Provider).entities.TryGetValue(entity.GetType(), out family))
+					if (!((TestModelTypeProvider)Provider).entities.TryGetValue(entity.GetType(), out family))
 					{
-						((TestGraphTypeProvider)Provider).entities[entity.GetType()] = family = new List<TestEntity>();
+						((TestModelTypeProvider)Provider).entities[entity.GetType()] = family = new List<TestEntity>();
 						family.Add(null);
 					}
 					entity.Id = family.Count;
@@ -68,7 +68,7 @@ namespace ExoGraph.UnitTest
 
 				// Recursively save child instances
 				foreach (var child in instance.Type.Properties
-					.OfType<GraphReferenceProperty>()
+					.OfType<ModelReferenceProperty>()
 					.SelectMany(p => p.GetInstances(instance)))
 					Save(child, saved);
 
@@ -97,7 +97,7 @@ namespace ExoGraph.UnitTest
 					if (!Int32.TryParse(id, out index))
 						throw new ArgumentException("Invalid non-integer identifier.");
 					List<TestEntity> family;
-					if (((TestGraphTypeProvider)Provider).entities.TryGetValue(UnderlyingType, out family))
+					if (((TestModelTypeProvider)Provider).entities.TryGetValue(UnderlyingType, out family))
 					{
 						if (index <= 0 || index >= family.Count)
 							throw new ArgumentException("No entity exists with the specified id.");

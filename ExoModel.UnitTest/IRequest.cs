@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace ExoGraph.UnitTest
+namespace ExoModel.UnitTest
 {
 	public interface IRequest<TUser, TCategory, TPriority, TRequest, TRequestList, TCategoryList>
 		where TUser : IUser<TUser, TCategory, TPriority, TRequest, TRequestList, TCategoryList>

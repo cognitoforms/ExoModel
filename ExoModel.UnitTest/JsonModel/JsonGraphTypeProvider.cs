@@ -7,65 +7,65 @@ using System.Web.Script.Serialization;
 using System.Collections.ObjectModel;
 using System.Collections;
 
-namespace ExoGraph.UnitTest.JsonModel
+namespace ExoModel.UnitTest.JsonModel
 {
 	/// <summary>
-	/// Custom <see cref="IGraphTypeProvider"/> implementation that supports defining a graph
+	/// Custom <see cref="IModelTypeProvider"/> implementation that supports defining a model
 	/// via JSON type metadata and JSON instance data using dynamic instances.
 	/// </summary>
-	public class JsonGraphTypeProvider : IGraphTypeProvider
+	public class JsonModelTypeProvider : IModelTypeProvider
 	{
-		public JsonGraphTypeProvider()
+		public JsonModelTypeProvider()
 		{
-			this.Graph = new JsonModel();
+			this.Model = new JsonModel();
 		}
 
-		public JsonGraphTypeProvider(string json)
+		public JsonModelTypeProvider(string json)
 		{
-			this.Graph = new JsonModel(json);
+			this.Model = new JsonModel(json);
 		}
 
-		public JsonGraphTypeProvider Load(string json)
+		public JsonModelTypeProvider Load(string json)
 		{
-			Graph.Load(json);
+			Model.Load(json);
 			return this;
 		}
 
-		public JsonModel Graph { get; private set; }
+		public JsonModel Model { get; private set; }
 
-		#region IGraphTypeProvider
+		#region IModelTypeProvider
 
-		string IGraphTypeProvider.GetGraphTypeName(object instance)
+		string IModelTypeProvider.GetModelTypeName(object instance)
 		{
 			if (instance is JsonInstance)
-				return ((IGraphInstance)instance).Instance.Type.Name;
+				return ((IModelInstance)instance).Instance.Type.Name;
 			return null;
 		}
 
-		string IGraphTypeProvider.GetGraphTypeName(Type type)
+		string IModelTypeProvider.GetModelTypeName(Type type)
 		{
 			return null;
 		}
 
-		GraphType IGraphTypeProvider.CreateGraphType(string typeName)
+		ModelType IModelTypeProvider.CreateModelType(string typeName)
 		{
-			GraphType type;
-			if (Graph.Types.TryGetValue(typeName, out type))
+			ModelType type;
+			if (Model.Types.TryGetValue(typeName, out type))
 				return type;
 			return null;
 		}
 
 		#endregion
 
-		#region JsonGraphType
+		#region JsonModelType
 
-		internal class JsonGraphType : GraphType
+		internal class JsonModelType : ModelType
 		{
-			internal JsonGraphType(string name, string qualifiedName, GraphType baseType, string scope, string format, Attribute[] attributes)
+			internal JsonModelType(string name, string qualifiedName, ModelType baseType, string scope, string format, Attribute[] attributes)
 				: base(name, qualifiedName, baseType, scope, format, attributes)
 			{ }
 
-			internal void AddProperties(IEnumerable<GraphProperty> properties)
+			internal void AddProperties(IEnumerable<ModelProperty> properties)
 			{
 				foreach (var property in properties)
 					AddProperty(property);
@@ -74,19 +74,19 @@ namespace ExoGraph.UnitTest.JsonModel
 			protected override void OnInit()
 			{ }
 
-			protected override System.Collections.IList ConvertToList(GraphReferenceProperty property, object list)
+			protected override System.Collections.IList ConvertToList(ModelReferenceProperty property, object list)
 			{
 				return (IList)list;
 			}
 
-			protected override void SaveInstance(GraphInstance graphInstance)
+			protected override void SaveInstance(ModelInstance modelInstance)
 			{
 				throw new NotImplementedException();
 			}
 
-			public override GraphInstance GetGraphInstance(object instance)
+			public override ModelInstance GetModelInstance(object instance)
 			{
-				return ((IGraphInstance)instance).Instance;
+				return ((IModelInstance)instance).Instance;
 			}
 
 			protected override string GetId(object instance)
@@ -96,7 +96,7 @@ namespace ExoGraph.UnitTest.JsonModel
 
 			protected override object GetInstance(string id)
 			{
-				return ((JsonGraphTypeProvider)Provider).Graph.GetInstance(this, id);
+				return ((JsonModelTypeProvider)Provider).Model.GetInstance(this, id);
 			}
 
 			protected override bool GetIsModified(object instance)
@@ -122,11 +122,11 @@ namespace ExoGraph.UnitTest.JsonModel
 
 		#endregion
 
-		#region JsonGraphValueProperty
+		#region JsonModelValueProperty
 
-		internal class JsonGraphValueProperty : GraphValueProperty
+		internal class JsonModelValueProperty : ModelValueProperty
 		{
-			internal JsonGraphValueProperty(GraphType declaringType, string name, string label, string format, bool isStatic, Type propertyType, bool isList, bool isReadOnly, bool isPersisted)
+			internal JsonModelValueProperty(ModelType declaringType, string name, string label, string format, bool isStatic, Type propertyType, bool isList, bool isReadOnly, bool isPersisted)
 				: base(declaringType, name, label, format, isStatic, propertyType, null, isList, isReadOnly, isPersisted, null)
 			{ }
 
@@ -143,11 +143,11 @@ namespace ExoGraph.UnitTest.JsonModel
 
 		#endregion
 
-		#region JsonGraphReferenceProperty
+		#region JsonModelReferenceProperty
 
-		internal class JsonGraphReferenceProperty : GraphReferenceProperty
+		internal class JsonModelReferenceProperty : ModelReferenceProperty
 		{
-			internal JsonGraphReferenceProperty(GraphType declaringType, string name, string label, string format, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted)
+			internal JsonModelReferenceProperty(ModelType declaringType, string name, string label, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted)
 				: base(declaringType, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, null)
 			{ }
 
