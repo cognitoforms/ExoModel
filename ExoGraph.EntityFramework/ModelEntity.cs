@@ -5,18 +5,18 @@ using System.Text;
 using System.Data.Objects.DataClasses;
 using System.Data.Objects;
 
-namespace ExoGraph.EntityFramework
+namespace ExoModel.EntityFramework
 {
-	public abstract class GraphEntity : EntityObject, IGraphInstance
+	public abstract class ModelEntity : EntityObject, IModelInstance
 	{
-		GraphInstance instance;
+		ModelInstance instance;
 
-		public GraphEntity()
+		public ModelEntity()
 		{
-			instance = new GraphInstance(this);
+			instance = new ModelInstance(this);
 		}
 
-		GraphInstance IGraphInstance.Instance
+		ModelInstance IModelInstance.Instance
 		{
 			get
 			{
@@ -51,12 +51,12 @@ namespace ExoGraph.EntityFramework
 		}
 	}
 
-	public abstract class GraphEntity<TObjectContext> : GraphEntity
-		where TObjectContext : GraphObjectContext
+	public abstract class ModelEntity<TObjectContext> : ModelEntity
+		where TObjectContext : ModelObjectContext
 	{
 		/// <summary>
 		/// Enables the base class to know the type of the concrete subclass in order to obtain the
-		/// correct <see cref="GraphObjectContext"/>.  Ideally, this would be a generic type parameter,
+		/// correct <see cref="ModelObjectContext"/>.  Ideally, this would be a generic type parameter,
 		/// but a bug in the Entity Framework does not support curiously recursing generic types
 		/// as a subclass of EntityObject.
 		/// </summary>
@@ -66,7 +66,7 @@ namespace ExoGraph.EntityFramework
 		{
 			get
 			{
-				return (TObjectContext)((EntityFrameworkGraphTypeProvider.EntityGraphType)GraphContext.Current.GetGraphType(entityType)).GetObjectContext();
+				return (TObjectContext)((EntityFrameworkModelTypeProvider.EntityModelType)ModelContext.Current.GetModelType(entityType)).GetObjectContext();
 			}
 		}
 

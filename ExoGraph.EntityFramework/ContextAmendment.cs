@@ -8,10 +8,10 @@ using System.Reflection;
 using System.Data.Metadata.Edm;
 using System.Data.Objects;
 
-namespace ExoGraph.EntityFramework
+namespace ExoModel.EntityFramework
 {
 	/// <summary>
-	/// Amends types after compilation to support Entity Framework and ExoGraph.
+	/// Amends types after compilation to support Entity Framework and ExoModel.
 	/// </summary>
 	/// <typeparam name="TType"></typeparam>
 	public class ContextAmendment<TType> : Amendment<TType, IEntityContext>

@@ -5,20 +5,20 @@ using System.Text;
 using System.Data.Objects;
 using System.Data.EntityClient;
 
-namespace ExoGraph.EntityFramework
+namespace ExoModel.EntityFramework
 {
-	public class GraphObjectContext : ObjectContext, IEntityContext
+	public class ModelObjectContext : ObjectContext, IEntityContext
 	{
     	/// <summary>
-    	/// Initialize a new GraphObjectContext object.
+    	/// Initialize a new ModelObjectContext object.
     	/// </summary>
-    	public GraphObjectContext(string connectionString, string defaultContainerName) : base(connectionString, defaultContainerName)
+    	public ModelObjectContext(string connectionString, string defaultContainerName) : base(connectionString, defaultContainerName)
 		{ }
     
     	/// <summary>
-    	/// Initialize a new GraphObjectContext object.
+    	/// Initialize a new ModelObjectContext object.
     	/// </summary>
-		public GraphObjectContext(EntityConnection connection, string defaultContainerName)
+		public ModelObjectContext(EntityConnection connection, string defaultContainerName)
 			: base(connection, defaultContainerName)
     	{ }
 

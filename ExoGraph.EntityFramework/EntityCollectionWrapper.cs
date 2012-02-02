@@ -9,7 +9,7 @@ using System.Data.Objects;
 using System.Collections;
 using System.Collections.Specialized;
 
-namespace ExoGraph.EntityFramework
+namespace ExoModel.EntityFramework
 {
 	public class CollectionWrapper<T> : IList, INotifyCollectionChanged
 		where T : class

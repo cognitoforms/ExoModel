@@ -8,8 +8,8 @@
     <ProjectGuid>{48D45BC6-1815-4F09-BD2F-FC5011B7DBC2}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>ExoGraph.EntityFramework</RootNamespace>
-    <AssemblyName>ExoGraph.EntityFramework</AssemblyName>
+    <RootNamespace>ExoModel.EntityFramework</RootNamespace>
+    <AssemblyName>ExoModel.EntityFramework</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SccProjectName>SAK</SccProjectName>
@@ -58,22 +58,16 @@
     <Compile Include="EntityCollectionWrapper.cs" />
     <Compile Include="EntityFrameworkTypeProvider.cs" />
     <Compile Include="EntityAmendment.cs" />
-    <Compile Include="GraphContextAttribute.cs" />
-    <Compile Include="GraphEntity.cs" />
-    <Compile Include="GraphObjectContext.cs" />
+    <Compile Include="ModelContextAttribute.cs" />
+    <Compile Include="ModelEntity.cs" />
+    <Compile Include="ModelObjectContext.cs" />
     <Compile Include="IEntityContext.cs" />
-    <Compile Include="IGraphEntity.cs" />
+    <Compile Include="IModelEntity.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ExoGraph\ExoGraph.csproj">
-      <Project>{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}</Project>
-      <Name>ExoGraph</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="Infrastructure\DataModel.tt" />
-    <None Include="NuGet\ExoGraph.EntityFramework.nuspec">
+    <None Include="NuGet\ExoModel.EntityFramework.nuspec">
       <SubType>Designer</SubType>
     </None>
     <None Include="packages.config" />
@@ -89,6 +83,12 @@
     <Content Include="Dependencies\Afterthought.Amender.pdb" />
     <Content Include="Dependencies\Afterthought.dll" />
     <Content Include="Dependencies\Afterthought.pdb" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ExoGraph\ExoModel.csproj">
+      <Project>{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}</Project>
+      <Name>ExoModel</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

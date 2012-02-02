@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Data.Objects;
 
-namespace ExoGraph.EntityFramework
+namespace ExoModel.EntityFramework
 {
 	public interface IEntityContext
 	{

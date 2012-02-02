@@ -4,12 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Data.Objects.DataClasses;
 
-namespace ExoGraph.EntityFramework
+namespace ExoModel.EntityFramework
 {
 	/// <summary>
-	/// Interface implemented by all ExoGraph aware Entity Framework entities.
+	/// Interface implemented by all ExoModel aware Entity Framework entities.
 	/// </summary>
-	public interface IGraphEntity : IGraphInstance, IEntityWithKey, IEntityWithRelationships, IEntityWithChangeTracker
+	public interface IModelEntity : IModelInstance, IEntityWithKey, IEntityWithRelationships, IEntityWithChangeTracker
 	{
 		IEntityChangeTracker ChangeTracker { get; set; }
 

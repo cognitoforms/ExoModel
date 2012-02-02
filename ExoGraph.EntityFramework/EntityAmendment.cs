@@ -8,23 +8,23 @@ using System.Reflection;
 using System.Data.Metadata.Edm;
 using System.ComponentModel.DataAnnotations;
 
-namespace ExoGraph.EntityFramework
+namespace ExoModel.EntityFramework
 {
 	/// <summary>
-	/// Amends types after compilation to support Entity Framework and ExoGraph.
+	/// Amends types after compilation to support Entity Framework and ExoModel.
 	/// </summary>
 	/// <typeparam name="TType"></typeparam>
-	public class EntityAmendment<TType> : Amendment<TType, IGraphEntity>
+	public class EntityAmendment<TType> : Amendment<TType, IModelEntity>
 	{
 		public EntityAmendment(HashSet<Type> entityTypes)
 		{
-			// IGraphInstance
-			Implement<IGraphInstance>(
-				Properties.Add<GraphInstance>("Instance", EntityAdapter.InitializeGraphInstance)
+			// IModelInstance
+			Implement<IModelInstance>(
+				Properties.Add<ModelInstance>("Instance", EntityAdapter.InitializeModelInstance)
 			);
 
-			// IGraphEntity
-			Implement<IGraphEntity>();
+			// IModelEntity
+			Implement<IModelEntity>();
 
 			// IEntityWithKey
 			Implement<IEntityWithKey>();

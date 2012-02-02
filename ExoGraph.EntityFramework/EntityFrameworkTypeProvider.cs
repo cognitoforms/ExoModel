@@ -12,17 +12,17 @@ using System.ComponentModel.DataAnnotations;
 using System.Collections;
 using System.Reflection;
 
-namespace ExoGraph.EntityFramework
+namespace ExoModel.EntityFramework
 {
-	public class EntityFrameworkGraphTypeProvider : ReflectionGraphTypeProvider
+	public class EntityFrameworkModelTypeProvider : ReflectionModelTypeProvider
 	{
 		static MethodInfo entityDeletedEvent = typeof(ObjectStateManager).GetEvent("EntityDeleted", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).GetAddMethod(true);
 
-		public EntityFrameworkGraphTypeProvider(Func<object> createContext)
+		public EntityFrameworkModelTypeProvider(Func<object> createContext)
 			: this("", createContext)
 		{ }
 
-		public EntityFrameworkGraphTypeProvider(string @namespace, Func<object> createContext)
+		public EntityFrameworkModelTypeProvider(string @namespace, Func<object> createContext)
 			: base(@namespace, GetEntityTypes(createContext())) 
 		{
 			this.CreateContext = createContext;
@@ -32,7 +32,7 @@ namespace ExoGraph.EntityFramework
 
 		static IEnumerable<Type> GetEntityTypes(object context)
 		{
-			foreach (Type type in context.GetType().Assembly.GetTypes().Where(t => typeof(IGraphInstance).IsAssignableFrom(t)))
+			foreach (Type type in context.GetType().Assembly.GetTypes().Where(t => typeof(IModelInstance).IsAssignableFrom(t)))
 				yield return type;
 		}
 
@@ -54,10 +54,10 @@ namespace ExoGraph.EntityFramework
 					// Raise the save event on the first found dirty entity
 					if (firstEntity != null)
 					{
-						var graphInstance = GraphContext.Current.GetGraphInstance(firstEntity);
+						var modelInstance = ModelContext.Current.GetModelInstance(firstEntity);
 
-						if (graphInstance != null)
-							((EntityFrameworkGraphTypeProvider.EntityGraphType) graphInstance.Type).RaiseOnSave(graphInstance);
+						if (modelInstance != null)
+							((EntityFrameworkModelTypeProvider.EntityModelType) modelInstance.Type).RaiseOnSave(modelInstance);
 					}
 				};
 
@@ -77,7 +77,7 @@ namespace ExoGraph.EntityFramework
 		static Storage context;
 
 		/// <summary>
-		/// Gets thread static or <see cref="HttpContext"/> storage for the <see cref="GraphContext"/>.
+		/// Gets thread static or <see cref="HttpContext"/> storage for the <see cref="ModelContext"/>.
 		/// </summary>
 		/// <returns></returns>
 		static Storage GetStorage()
@@ -87,10 +87,10 @@ namespace ExoGraph.EntityFramework
 			// If in a web request, store the reference in HttpContext
 			if (webCtx != null)
 			{
-				Storage storage = (Storage)webCtx.Items[typeof(EntityFrameworkGraphTypeProvider)];
+				Storage storage = (Storage)webCtx.Items[typeof(EntityFrameworkModelTypeProvider)];
 
 				if (storage == null)
-					webCtx.Items[typeof(EntityFrameworkGraphTypeProvider)] = storage = new Storage();
+					webCtx.Items[typeof(EntityFrameworkModelTypeProvider)] = storage = new Storage();
 
 				return storage;
 			}
@@ -114,9 +114,9 @@ namespace ExoGraph.EntityFramework
 				return type;
 		}
 
-		protected override ReflectionGraphType CreateGraphType(string @namespace, Type type, string format)
+		protected override ReflectionModelType CreateModelType(string @namespace, Type type, string format)
 		{
-			return new EntityGraphType(@namespace, type, "", format);
+			return new EntityModelType(@namespace, type, "", format);
 		}
 
 		/// <summary>
@@ -125,14 +125,14 @@ namespace ExoGraph.EntityFramework
 		/// <param name="declaringType"></param>
 		/// <param name="property"></param>
 		/// <returns></returns>
-		private Attribute[] GetBuddyClassAttributes(GraphType declaringType, System.Reflection.PropertyInfo property)
+		private Attribute[] GetBuddyClassAttributes(ModelType declaringType, System.Reflection.PropertyInfo property)
 		{
 			Attribute[] attributes = null;
 
-			var entityGraphType = declaringType as EntityGraphType;
-			if (entityGraphType.BuddyClass != null)
+			var entityModelType = declaringType as EntityModelType;
+			if (entityModelType.BuddyClass != null)
 			{
-				var buddyClassProperty = entityGraphType.BuddyClass.GetProperty(property.Name);
+				var buddyClassProperty = entityModelType.BuddyClass.GetProperty(property.Name);
 
 				if (buddyClassProperty != null)
 					attributes = buddyClassProperty.GetCustomAttributes(true).Cast<Attribute>().ToArray();
@@ -142,7 +142,7 @@ namespace ExoGraph.EntityFramework
 		}
 
 		/// <summary>
-		/// Overridden to allow the addition of buddy-class attributes to the list of attributes associated with the <see cref="GraphType"/>
+		/// Overridden to allow the addition of buddy-class attributes to the list of attributes associated with the <see cref="ModelType"/>
 		/// </summary>
 		/// <param name="declaringType"></param>
 		/// <param name="property"></param>
@@ -153,7 +153,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="isList"></param>
 		/// <param name="attributes"></param>
 		/// <returns></returns>
-		protected override GraphReferenceProperty CreateReferenceProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, string label, string format, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		protected override ModelReferenceProperty CreateReferenceProperty(ModelType declaringType, System.Reflection.PropertyInfo property, string name, string label, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
 			// Fetch any attributes associated with a buddy-class
 			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
@@ -163,14 +163,14 @@ namespace ExoGraph.EntityFramework
 
 			// Determine whether the property represents an actual entity framework navigation property or an custom property
 			var context = GetObjectContext();
-			var type = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(((EntityGraphType)declaringType).UnderlyingType.FullName, DataSpace.CSpace);
+			var type = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(((EntityModelType)declaringType).UnderlyingType.FullName, DataSpace.CSpace);
 			NavigationProperty navProp;
 			type.NavigationProperties.TryGetValue(name, false, out navProp);
 			return new EntityReferenceProperty(declaringType, navProp, property, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes);
 		}
 
 		/// <summary>
-		/// Overridden to allow the addition of buddy-class attributes to the list of attributes associated with the <see cref="GraphType"/>
+		/// Overridden to allow the addition of buddy-class attributes to the list of attributes associated with the <see cref="ModelType"/>
 		/// </summary>
 		/// <param name="declaringType"></param>
 		/// <param name="property"></param>
@@ -181,7 +181,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="isList"></param>
 		/// <param name="attributes"></param>
 		/// <returns></returns>
-		protected override GraphValueProperty CreateValueProperty(GraphType declaringType, System.Reflection.PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		protected override ModelValueProperty CreateValueProperty(ModelType declaringType, System.Reflection.PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
 			// Do not include entity reference properties in the model
 			if (property.PropertyType.IsSubclassOf(typeof(EntityReference)))
@@ -208,14 +208,14 @@ namespace ExoGraph.EntityFramework
 
 		#endregion
 
-		#region EntityGraphType
+		#region EntityModelType
 
-		public class EntityGraphType : ReflectionGraphType
+		public class EntityModelType : ReflectionModelType
 		{
 			string @namespace;
 			PropertyInfo[] idProperties;
 
-			protected internal EntityGraphType(string @namespace, Type type, string scope, string format)
+			protected internal EntityModelType(string @namespace, Type type, string scope, string format)
 				: base(@namespace, type, scope, format)
 			{
 				this.@namespace = @namespace;
@@ -261,7 +261,7 @@ namespace ExoGraph.EntityFramework
 			}
 
 			/// <summary>
-			/// Performs initialization of the graph type outside of the constructor to avoid recursion deadlocks.
+			/// Performs initialization of the model type outside of the constructor to avoid recursion deadlocks.
 			/// </summary>
 			protected override void OnInit()
 			{
@@ -275,9 +275,9 @@ namespace ExoGraph.EntityFramework
 				// Get the current object context
 				IEntityContext context = GetObjectContext();
 
-				// Find the base entity graph type
-				GraphType baseType = this;
-				while (baseType.BaseType is EntityGraphType)
+				// Find the base entity model type
+				ModelType baseType = this;
+				while (baseType.BaseType is EntityModelType)
 					baseType = baseType.BaseType;
 
 				string entityNamespace = context.GetType().Namespace;
@@ -286,20 +286,20 @@ namespace ExoGraph.EntityFramework
 				// This assumes:
 				//   1. only one entity container
 				//   2. only one entity set for an given entity type
-				//   3. only one entity type with a name that matches the graph type
+				//   3. only one entity type with a name that matches the model type
 				QualifiedEntitySetName = context.ObjectContext.DefaultContainerName + "." +
 					context.ObjectContext.MetadataWorkspace.GetItems<EntityContainer>(DataSpace.CSpace)[0]
-						.BaseEntitySets.First(s => s.ElementType.Name == ((EntityFrameworkGraphTypeProvider.EntityGraphType)baseType).UnderlyingType.Name).Name;
+						.BaseEntitySets.First(s => s.ElementType.Name == ((EntityFrameworkModelTypeProvider.EntityModelType)baseType).UnderlyingType.Name).Name;
 
-				// Get the entity type of the current graph type
+				// Get the entity type of the current model type
 				var entityType = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + UnderlyingType.Name, DataSpace.OSpace);
 
 				// Find all back-references from entities contained in each parent-child relationship for use when
 				// items are expected to be deleted because they were removed from the assocation
-				var ownerProperties = new Dictionary<GraphReferenceProperty, GraphReferenceProperty>();
+				var ownerProperties = new Dictionary<ModelReferenceProperty, ModelReferenceProperty>();
 				foreach (var property in Properties.OfType<EntityReferenceProperty>().Where(p => p.IsList))
 				{
-					var relatedEntityType = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + ((EntityGraphType)property.PropertyType).UnderlyingType.Name, DataSpace.OSpace);
+					var relatedEntityType = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + ((EntityModelType)property.PropertyType).UnderlyingType.Name, DataSpace.OSpace);
 					NavigationProperty manyNavProp;
 					if (!entityType.NavigationProperties.TryGetValue(property.Name, false, out manyNavProp))
 						continue;
@@ -307,12 +307,12 @@ namespace ExoGraph.EntityFramework
 					if (oneNavProp == null)
 						continue;
 
-					var oneNavDeclaringType = GraphContext.Current.GetGraphType(@namespace + oneNavProp.DeclaringType.Name);
+					var oneNavDeclaringType = ModelContext.Current.GetModelType(@namespace + oneNavProp.DeclaringType.Name);
 					oneNavDeclaringType.AfterInitialize(delegate
 					{
 						var parentReference = property.PropertyType.Properties[oneNavProp.Name];
 						if (parentReference != null && oneNavProp.ToEndMember.TypeUsage.Facets.Any(f => f.Name == "Nullable" && !(bool)f.Value))
-							ownerProperties[property] = parentReference as GraphReferenceProperty;
+							ownerProperties[property] = parentReference as ModelReferenceProperty;
 					});
 				}
 
@@ -322,7 +322,7 @@ namespace ExoGraph.EntityFramework
 				{
 					if (e.Removed.Any())
 					{
-						GraphReferenceProperty relatedProperty;
+						ModelReferenceProperty relatedProperty;
 						if (ownerProperties.TryGetValue(e.Property, out relatedProperty))
 						{
 							foreach (var instance in e.Removed)
@@ -335,12 +335,12 @@ namespace ExoGraph.EntityFramework
 					}
 				};
 
-				// Automatically add new IGraphEntity instances to the object context during initialization
-				if (typeof(IGraphEntity).IsAssignableFrom(UnderlyingType))
+				// Automatically add new IModelEntity instances to the object context during initialization
+				if (typeof(IModelEntity).IsAssignableFrom(UnderlyingType))
 				{
 					this.Init += (sender, e) =>
 					{
-						var entity = e.Instance.Instance as IGraphEntity;
+						var entity = e.Instance.Instance as IModelEntity;
 						if (!entity.IsInitialized && entity.EntityKey == null)
 						{
 							entity.IsInitialized = true;
@@ -350,13 +350,13 @@ namespace ExoGraph.EntityFramework
 				}
 			}
 
-			protected override System.Collections.IList ConvertToList(GraphReferenceProperty property, object list)
+			protected override System.Collections.IList ConvertToList(ModelReferenceProperty property, object list)
 			{
 				// If the list is managed by Entity Framework, convert to a list with listeners
 				if (list is RelatedEnd)
 				{
 					Type d1 = typeof(CollectionWrapper<>);
-					Type constructed = d1.MakeGenericType(((EntityGraphType) property.PropertyType).UnderlyingType);
+					Type constructed = d1.MakeGenericType(((EntityModelType) property.PropertyType).UnderlyingType);
 
 					var constructor = constructed.GetConstructors()[0];
 					return (IList) constructor.Invoke(new object[] { list });
@@ -367,15 +367,15 @@ namespace ExoGraph.EntityFramework
 
 			/// <summary>
 			/// Gets or creates the object context for the current scope of work that corresponds to the 
-			/// current <see cref="EntityGraphType"/>.
+			/// current <see cref="EntityModelType"/>.
 			/// </summary>
 			/// <returns></returns>
 			public IEntityContext GetObjectContext()
 			{
-				return ((EntityFrameworkGraphTypeProvider)Provider).GetObjectContext();
+				return ((EntityFrameworkModelTypeProvider)Provider).GetObjectContext();
 			}
 
-			protected override void SaveInstance(GraphInstance graphInstance)
+			protected override void SaveInstance(ModelInstance modelInstance)
 			{
 				try
 				{
@@ -452,7 +452,7 @@ namespace ExoGraph.EntityFramework
 			/// <returns></returns>
 			EntityState GetEntityState(object instance)
 			{
-				var changeTracker = ((IGraphEntity)instance).ChangeTracker;
+				var changeTracker = ((IModelEntity)instance).ChangeTracker;
 				return changeTracker == null ? EntityState.Detached : changeTracker.EntityState;
 			}
 
@@ -512,7 +512,7 @@ namespace ExoGraph.EntityFramework
 				return !GetEntityState(instance).HasFlag(EntityState.Unchanged);
 			}
 
-			internal void RaiseOnSave(GraphInstance instance)
+			internal void RaiseOnSave(ModelInstance instance)
 			{
 				base.OnSave(instance);
 			}
@@ -532,7 +532,7 @@ namespace ExoGraph.EntityFramework
 		{
 			DisplayAttribute displayAttribute;
 
-			internal EntityValueProperty(GraphType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+			internal EntityValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 				: base(declaringType, property, name, label, format ?? attributes.OfType<DisplayFormatAttribute>().Select(f => f.DataFormatString).FirstOrDefault(), isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
 			{
 				displayAttribute = GetAttributes<DisplayAttribute>().FirstOrDefault();
@@ -561,7 +561,7 @@ namespace ExoGraph.EntityFramework
 		{
 			DisplayAttribute displayAttribute;
 
-			internal EntityReferenceProperty(GraphType declaringType, NavigationProperty navProp, PropertyInfo property, string name, string label, string format, bool isStatic, GraphType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+			internal EntityReferenceProperty(ModelType declaringType, NavigationProperty navProp, PropertyInfo property, string name, string label, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 				: base(declaringType, property, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
 			{
 				RelationshipName = navProp != null ? navProp.RelationshipType.Name : null;

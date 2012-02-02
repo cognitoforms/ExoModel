@@ -1,19 +1,19 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <package>
 	<metadata>
-		<id>ExoGraph.EntityFramework</id>
+		<id>ExoModel.EntityFramework</id>
 		<version>1.0.0</version>
 		<authors>Jamie Thomas</authors>
-		<description>ExoGraph.EntityFramework</description>
-		<summary>ExoGraph.EntityFrameworky</summary>
+		<description>ExoModel.EntityFramework</description>
+		<summary>ExoModel.EntityFrameworky</summary>
 		<projectUrl>http://exosuite.com/</projectUrl>
 		<licenseUrl>http://exosuite.com/license</licenseUrl>
 		<dependencies>
-			<dependency id="ExoGraph" version="1.0.0" />
+			<dependency id="ExoModel" version="1.0.0" />
 		  <dependency id="Afterthought" version="1.0.6" />
 		</dependencies>
 	</metadata>
 	<files>
-		<file src="..\bin\Debug\ExoGraph.EntityFramework.dll" target="lib"/>
+		<file src="..\bin\Debug\ExoModel.EntityFramework.dll" target="lib"/>
 	</files>
 </package>

@@ -3,21 +3,21 @@ using System.Reflection;
 using System.Data.Objects;
 using System;
 
-namespace ExoGraph.EntityFramework
+namespace ExoModel.EntityFramework
 {
 	public static class EntityAdapter
 	{
 		static MethodInfo getRelatedEnd = typeof(RelationshipManager).GetMethod("GetRelatedEnd", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance, null, new System.Type[] { typeof(string) }, null);
 
 		/// <summary>
-		/// Creates a new <see cref="GraphInstance"/> for the specified instance.
+		/// Creates a new <see cref="ModelInstance"/> for the specified instance.
 		/// </summary>
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
 		/// <returns></returns>
-		public static GraphInstance InitializeGraphInstance(IGraphEntity instance, string property)
+		public static ModelInstance InitializeModelInstance(IModelEntity instance, string property)
 		{
-			return new GraphInstance(instance);
+			return new ModelInstance(instance);
 		}
 
 		public static ObjectContext GetObjectContext(IEntityContext context, string property)
@@ -43,7 +43,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
 		/// <returns></returns>
-		public static RelationshipManager InitializeRelationshipManager(IGraphEntity instance, string property)
+		public static RelationshipManager InitializeRelationshipManager(IModelEntity instance, string property)
 		{
 			return RelationshipManager.Create(instance);
 		}
@@ -55,7 +55,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="property"></param>
 		/// <param name="args"></param>
 		/// <returns></returns>
-		public static void SetChangeTracker(IGraphEntity instance, IEntityChangeTracker changeTracker)
+		public static void SetChangeTracker(IModelEntity instance, IEntityChangeTracker changeTracker)
 		{
 			instance.ChangeTracker = changeTracker;
 			instance.IsInitialized = true;
@@ -67,7 +67,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
 		/// <returns></returns>
-		public static object GetReference(IGraphEntity instance, string property)
+		public static object GetReference(IModelEntity instance, string property)
 		{
 			// Raise property get notifications
 			instance.Instance.OnPropertyGet(property);
@@ -84,7 +84,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
 		/// <returns></returns>
-		public static void BeforeGetReferenceUnmapped(IGraphEntity instance, string property)
+		public static void BeforeGetReferenceUnmapped(IModelEntity instance, string property)
 		{
 			// Raise property get notifications
 			instance.Instance.OnPropertyGet(property);
@@ -96,7 +96,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
 		/// <returns></returns>
-		public static object GetList(IGraphEntity instance, string property)
+		public static object GetList(IModelEntity instance, string property)
 		{
 			// Raise property get notifications
 			instance.Instance.OnPropertyGet(property);
@@ -119,7 +119,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
 		/// <param name="value"></param>
-		public static void SetReference(IGraphEntity instance, string property, object value)
+		public static void SetReference(IModelEntity instance, string property, object value)
 		{
 			// Ignore reference setting before the instance is initialized
 			if (!instance.IsInitialized)
@@ -137,9 +137,9 @@ namespace ExoGraph.EntityFramework
 			if ((oldValue == null ^ value == null) || (oldValue != null && !oldValue.Equals(value)))
 			{
 				if (oldValue != null)
-					reference.Remove((IGraphEntity)oldValue);
+					reference.Remove((IModelEntity)oldValue);
 				if (value != null)
-					reference.Add((IGraphEntity)value);
+					reference.Add((IModelEntity)value);
 
 				// Raise property change notifications
 				instance.Instance.OnPropertyChanged(property, oldValue, value);
@@ -154,7 +154,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="oldValue"></param>
 		/// <param name="value"></param>
 		/// <param name="newValue"></param>
-		public static void AfterSetReferenceUnmapped(IGraphEntity instance, string property, object oldValue, object value, object newValue)
+		public static void AfterSetReferenceUnmapped(IModelEntity instance, string property, object oldValue, object value, object newValue)
 		{
 			// Ignore changes to uninitialized instances
 			if (instance.IsInitialized)
@@ -166,12 +166,12 @@ namespace ExoGraph.EntityFramework
 
 
 		/// <summary>
-		/// Notifies ExoGraph that a value property is being accessed.
+		/// Notifies ExoModel that a value property is being accessed.
 		/// </summary>
 		/// <typeparam name="TProperty"></typeparam>
 		/// <param name="instance"></param>
 		/// <param name="property"></param>
-		public static void BeforeGetValue(IGraphEntity instance, string property)
+		public static void BeforeGetValue(IModelEntity instance, string property)
 		{
 			// Raise property get notifications for initialized instances
 			if (instance.IsInitialized)
@@ -186,7 +186,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="property"></param>
 		/// <param name="oldValue"></param>
 		/// <param name="value"></param>
-		public static TProperty BeforeSetValueMapped<TProperty>(IGraphEntity instance, string property, TProperty oldValue, TProperty value)
+		public static TProperty BeforeSetValueMapped<TProperty>(IModelEntity instance, string property, TProperty oldValue, TProperty value)
 		{
 			// Notify the change tracker that the property is changing
 			if (instance.IsInitialized)
@@ -205,7 +205,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="oldValue"></param>
 		/// <param name="value"></param>
 		/// <param name="newValue"></param>
-		public static void AfterSetValueMapped<TProperty>(IGraphEntity instance, string property, TProperty oldValue, TProperty value, TProperty newValue)
+		public static void AfterSetValueMapped<TProperty>(IModelEntity instance, string property, TProperty oldValue, TProperty value, TProperty newValue)
 		{
 			// Ignore changes to uninitialized instances
 			if (instance.IsInitialized)
@@ -227,7 +227,7 @@ namespace ExoGraph.EntityFramework
 		/// <param name="oldValue"></param>
 		/// <param name="value"></param>
 		/// <param name="newValue"></param>
-		public static void AfterSetValueUnmapped<TProperty>(IGraphEntity instance, string property, TProperty oldValue, TProperty value, TProperty newValue)
+		public static void AfterSetValueUnmapped<TProperty>(IModelEntity instance, string property, TProperty oldValue, TProperty value, TProperty newValue)
 		{
 			// Ignore changes to uninitialized instances
 			if (instance.IsInitialized)

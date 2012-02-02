@@ -6,15 +6,15 @@ using Afterthought;
 using System.Data.Objects;
 using System.Data.Entity;
 
-namespace ExoGraph.EntityFramework
+namespace ExoModel.EntityFramework
 {
-	public class GraphContextAttribute : Attribute, IAmendmentAttribute
+	public class ModelContextAttribute : Attribute, IAmendmentAttribute
 	{
 		IEnumerable<ITypeAmendment> IAmendmentAttribute.GetAmendments(Type target)
 		{
 			// Ensure the target is a DbContext or ObjectContext subclass
 			// Use late-binding approach for DbContext to ensure implementation can still support 4.0 without NuGet EF package
-			if ((target.IsSubclassOf(typeof(ObjectContext)) && target != typeof(GraphObjectContext)) || (target.BaseType != null && target.BaseType.FullName == "System.Data.Entity.DbContext"))
+			if ((target.IsSubclassOf(typeof(ObjectContext)) && target != typeof(ModelObjectContext)) || (target.BaseType != null && target.BaseType.FullName == "System.Data.Entity.DbContext"))
 			{
 				// Determine the set of entity types from the object context target type
 				var entityTypes = target.GetProperties()
