@@ -180,7 +180,7 @@ namespace ExoModel
 				return null;
 
 			// Get the default reference format for the type
-			string format = type.GetCustomAttributes(true).OfType<ModelReferenceFormatAttribute>().Select(a => a.Format).FirstOrDefault();
+			string format = type.GetCustomAttributes(true).OfType<ModelFormatAttribute>().Select(a => a.Format).FirstOrDefault();
 
 			// If a format was not found, see if the type has a property that is in the set of default format properties
 			if (format == null && DefaultFormatProperties != null)
@@ -259,7 +259,7 @@ namespace ExoModel
 					// Create references based on properties that relate to other instance types
 					else if (provider.supportedTypes.Contains(property.PropertyType))
 					{
-						var format = property.GetCustomAttributes(true).OfType<ModelReferenceFormatAttribute>().Select(a => a.Format).FirstOrDefault();
+						var format = property.GetCustomAttributes(true).OfType<ModelFormatAttribute>().Select(a => a.Format).FirstOrDefault();
 						ModelReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, format, property.GetGetMethod().IsStatic, Context.GetModelType(property.PropertyType), false, property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (reference != null)
 							AddProperty(reference);
@@ -268,7 +268,7 @@ namespace ExoModel
 					// Create references based on properties that are lists of other instance types
 					else if (TryGetListItemType(property.PropertyType, out listItemType) && provider.supportedTypes.Contains(listItemType))
 					{
-						var format = property.GetCustomAttributes(true).OfType<ModelReferenceFormatAttribute>().Select(a => a.Format).FirstOrDefault();
+						var format = property.GetCustomAttributes(true).OfType<ModelFormatAttribute>().Select(a => a.Format).FirstOrDefault();
 						ModelReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, format, property.GetGetMethod().IsStatic, Context.GetModelType(listItemType), true, false, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (reference != null)
 							AddProperty(reference);

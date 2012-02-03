@@ -5,7 +5,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>9.0.30729</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{A9D2CE52-3723-4E44-8AF7-9DD50CF13A8D}</ProjectGuid>
+    <ProjectGuid>{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ExoModel</RootNamespace>
@@ -79,7 +79,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ModelReferenceFormatAttribute.cs" />
+    <Compile Include="ModelFormatAttribute.cs" />
     <Compile Include="ModelStepList.cs" />
     <Compile Include="DynamicModelTypeProvider.cs" />
     <Compile Include="DescriptorModelTypeProvider.cs" />

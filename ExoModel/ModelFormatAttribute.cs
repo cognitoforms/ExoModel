@@ -13,12 +13,12 @@ namespace ExoModel
 	/// the formats for <see cref="ModelType"/> and <see cref="ModelReferenceProperty"/> instances.
 	/// </remarks>
 	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Property)]
-	public class ModelReferenceFormatAttribute : Attribute
+	public class ModelFormatAttribute : Attribute
 	{
-		public ModelReferenceFormatAttribute()
+		public ModelFormatAttribute()
 		{ }
 
-		public ModelReferenceFormatAttribute(string format)
+		public ModelFormatAttribute(string format)
 		{
 			this.Format = format;
 		}
