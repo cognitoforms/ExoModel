@@ -121,6 +121,22 @@ namespace ExoModel
 		}
 
 		/// <summary>
+		/// Returns true if the instance is new and contained within the transaction.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns></returns>
+		public bool ContainsNewInstance(ModelInstance instance)
+		{
+			if (newInstances == null || !instance.IsNew)
+				return false;
+			else
+			{
+				string key = GetNewInstanceKey(instance.Type, instance.Id);
+				return newInstances.ContainsKey(key) && newInstances[key] != null;
+			}
+		}
+
+		/// <summary>
 		/// Performs all of the model events associated with the current transaction.
 		/// </summary>
 		public void Perform()
