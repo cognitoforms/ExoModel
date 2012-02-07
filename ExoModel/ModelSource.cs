@@ -9,7 +9,10 @@ namespace ExoModel
 	public class ModelSource
 	{
 		string[] sourcePath;
-		
+
+		ModelSource()
+		{ }
+
 		/// <summary>
 		/// Creates a new <see cref="ModelSource"/> for the specified root type and path.
 		/// </summary>
@@ -17,7 +20,7 @@ namespace ExoModel
 		/// <param name="path">The source path, which is either an instance path or a static path</param>
 		public ModelSource(ModelPath path)
 		{
-			InitializeFromInstancePath(path);
+			InitializeFromModelPath(path);
 		}
 
 		/// <summary>
@@ -27,42 +30,73 @@ namespace ExoModel
 		/// <param name="path">The source path, which is either an instance path or a static path</param>
 		public ModelSource(ModelType rootType, string path)
 		{
+			// Raise an error if the specified path is not valid
+			if (!InitializeFromTypeAndPath(rootType, path))
+				throw new ArgumentException("The specified path, '" + path + "', was not valid for the root type of '" + rootType.Name + "'.", "path");
+		}
+
+		/// <summary>
+		/// Attempts to create a new <see cref="ModelSource"/> for the specified root type and path.
+		/// </summary>
+		/// <param name="rootType">The root type name, which is required for instance paths</param>
+		/// <param name="path">The source path, which is either an instance path or a static path</param>
+		/// <returns>True if the source was created, otherwise false</returns>
+		public static bool TryGetSource(ModelType rootType, string path, out ModelSource source)
+		{
+			source = new ModelSource();
+			if (source.InitializeFromTypeAndPath(rootType, path))
+				return true;
+			else
+			{
+				source = null;
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Attempts to initialize a <see cref="ModelSource"/> with the specified root type and path.
+		/// </summary>
+		/// <param name="rootType">The root type name, which is required for instance paths</param>
+		/// <param name="path">The source path, which is either an instance path or a static path</param>
+		/// <returns>True if the source was created, otherwise false</returns>
+		bool InitializeFromTypeAndPath(ModelType rootType, string path)
+		{
 			// Instance Path
 			ModelPath instancePath;
 			if (rootType != null && rootType.TryGetPath(path, out instancePath))
 			{
-				InitializeFromInstancePath(instancePath);
+				InitializeFromModelPath(instancePath);
+				return true;
 			}
 
 			// Static Path
 			else if (path.Contains('.'))
 			{
 				// Store the source path
-				this.Path = path;
-				this.IsStatic = true;
-
 				var sourceModelType = ModelContext.Current.GetModelType(path.Substring(0, path.LastIndexOf('.')));
 				if (sourceModelType != null)
 				{
 					var sourceModelProperty = sourceModelType.Properties[path.Substring(path.LastIndexOf('.') + 1)];
 					if (sourceModelProperty != null && sourceModelProperty.IsStatic)
 					{
+						this.Path = path;
+						this.IsStatic = true;
 						this.SourceProperty = sourceModelProperty.Name;
 						this.SourceType = sourceModelProperty.DeclaringType.Name;
+						return true;
 					}
 				}
 			}
 
-			// Raise an error if the specified path is not valid
-			if (SourceProperty == null)
-				throw new ArgumentException("The specified path, '" + path + "', was not valid for the root type of '" + rootType.Name + "'.", "path");
+			// Otherwise, return false to indicate that the source path is not valid
+			return false;
 		}
 
 		/// <summary>
 		/// Initialize the source from a valid <see cref="ModelPath"/>
 		/// </summary>
 		/// <param name="instancePath"></param>
-		private void InitializeFromInstancePath(ModelPath instancePath)
+		private void InitializeFromModelPath(ModelPath instancePath)
 		{
 			this.Path = instancePath.Path;
 			this.IsStatic = false;
