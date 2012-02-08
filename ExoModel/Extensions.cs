@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Reflection;
+using System.Collections;
 
 namespace ExoModel
 {
@@ -37,6 +38,22 @@ namespace ExoModel
 		public static HashSet<T> ToHashSet<T>(this IEnumerable<T> fromEnumerable)
 		{
 			return ToHashSet(fromEnumerable, EqualityComparer<T>.Default);
+		}
+
+		/// <summary>
+		/// Utility method that converts
+		/// </summary>
+		/// <param name="type"></param>
+		/// <param name="listType"></param>
+		/// <param name="instances"></param>
+		/// <returns></returns>
+		public static object ToList(this IEnumerable<ModelInstance> instances, ModelType type, Type listType)
+		{
+			var result = listType.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null).Invoke(null);
+			var list = result as IList ?? type.ConvertToList(null, result);
+			foreach (var instance in instances)
+				list.Add(instance.Instance);
+			return result;
 		}
 	}
 }

@@ -477,25 +477,15 @@ namespace ExoModel
 				foreach (var parameter in method.GetParameters())
 				{
 					ModelType referenceType = ModelContext.Current.GetModelType(parameter.ParameterType);
-					Type listType;
+					Type listItemType;
+					bool isList = false;
 
-					if (referenceType == null)
+					if (referenceType == null && ((ReflectionModelType)declaringType).TryGetListItemType(parameter.ParameterType, out listItemType))
 					{
-						if (((ReflectionModelType)declaringType).TryGetListItemType(parameter.ParameterType, out listType))
-							referenceType = ModelContext.Current.GetModelType(listType);
-
-						// List Type
-						if (referenceType == null)
-							AddParameter(new ReflectionModelMethodParameter(this, parameter.Name, parameter.ParameterType));
-
-						// Reference Type
-						else
-							AddParameter(new ReflectionModelMethodParameter(this, parameter.Name, referenceType, true));
+						referenceType = ModelContext.Current.GetModelType(listItemType);
+						isList = referenceType != null;
 					}
-
-					// Value Type
-					else
-						AddParameter(new ReflectionModelMethodParameter(this, parameter.Name, referenceType, false));
+					AddParameter(new ReflectionModelMethodParameter(this, parameter.Name, parameter.ParameterType, referenceType, isList));
 				}
 			}
 
@@ -513,12 +503,8 @@ namespace ExoModel
 		{
 			#region Constructors
 
-			protected internal ReflectionModelMethodParameter(ModelMethod method, string name, Type valueType)
-				: base(method, name, valueType)
-			{ }
-
-			protected internal ReflectionModelMethodParameter(ModelMethod method, string name, ModelType referenceType, bool isList)
-				: base(method, name, referenceType, isList)
+			protected internal ReflectionModelMethodParameter(ModelMethod method, string name, Type parameterType, ModelType referenceType, bool isList)
+				: base(method, name, parameterType, referenceType, isList)
 			{ }
 
 			#endregion

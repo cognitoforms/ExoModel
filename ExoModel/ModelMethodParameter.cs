@@ -9,17 +9,11 @@ namespace ExoModel
 	{
 		#region Constructors
 
-		protected ModelMethodParameter(ModelMethod method, string name, Type valueType)
+		protected ModelMethodParameter(ModelMethod method, string name, Type parameterType, ModelType referenceType, bool isList)
 		{
 			this.Method = method;
 			this.Name = name;
-			this.ValueType = valueType;
-		}
-
-		protected ModelMethodParameter(ModelMethod method, string name, ModelType referenceType, bool isList)
-		{
-			this.Method = method;
-			this.Name = name;
+			this.ParameterType = parameterType;
 			this.ReferenceType = referenceType;
 			this.IsList = isList;
 		}
@@ -34,7 +28,7 @@ namespace ExoModel
 
 		public ModelType ReferenceType { get; private set; }
 
-		public Type ValueType { get; private set; }
+		public Type ParameterType { get; private set; }
 
 		public bool IsList { get; private set; }
 

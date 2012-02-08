@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
+using System.Reflection;
 
 namespace ExoModel
 {
@@ -55,6 +56,27 @@ namespace ExoModel
 			return ToString(property.Format);
 		}
 
+		/// <summary>
+		/// Creates and populates a new <see cref="TList"/> with the underlying instances in the current list.
+		/// </summary>
+		/// <typeparam name="TList"></typeparam>
+		/// <returns></returns>
+		public object ToList(Type listType)
+		{
+			return this.ToList(property.PropertyType, listType);
+		}
+
+		/// <summary>
+		/// Creates and populates a new <see cref="TList"/> with the underlying instances in the current list.
+		/// </summary>
+		/// <typeparam name="TList"></typeparam>
+		/// <returns></returns>
+		public TList ToList<TList>()
+			where TList : new()
+		{
+			return (TList)ToList(typeof(TList));
+		}
+
 		#endregion
 
 		#region IFormattable
@@ -66,7 +88,7 @@ namespace ExoModel
 		/// <param name="format"></param>
 		/// <param name="formatProvider"></param>
 		/// <returns></returns>
-		string  IFormattable.ToString(string format, IFormatProvider formatProvider)
+		string IFormattable.ToString(string format, IFormatProvider formatProvider)
 		{
 			return this.Aggregate("", (result, i) => result + "," + i);
 		}
@@ -166,7 +188,7 @@ namespace ExoModel
 			IList list = GetList();
 			if (list == null || !list.Contains(item.Instance))
 				return false;
-			
+
 			list.Remove(item.Instance);
 			return true;
 		}
