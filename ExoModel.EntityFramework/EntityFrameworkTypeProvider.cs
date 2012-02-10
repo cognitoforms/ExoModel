@@ -453,8 +453,15 @@ namespace ExoModel.EntityFramework
 			/// <returns></returns>
 			EntityState GetEntityState(object instance)
 			{
-				var changeTracker = ((IModelEntity)instance).ChangeTracker;
-				return changeTracker == null ? EntityState.Detached : changeTracker.EntityState;
+				if (instance is IModelEntity)
+				{
+					var changeTracker = ((IModelEntity)instance).ChangeTracker;
+					return changeTracker == null ? EntityState.Detached : changeTracker.EntityState;
+				}
+				else if (instance is ModelEntity)
+					return ((ModelEntity)instance).EntityState;
+				else
+					throw new ArgumentException("The specified entity instance must either be a subclass of ModelEntity or implement IModelEntity.");
 			}
 
 			/// <summary>

@@ -7,7 +7,7 @@ using System.Data.Objects;
 
 namespace ExoModel.EntityFramework
 {
-	public abstract class ModelEntity : EntityObject, IModelEntity
+	public abstract class ModelEntity : EntityObject, IModelInstance
 	{
 		ModelInstance instance;
 
@@ -49,18 +49,6 @@ namespace ExoModel.EntityFramework
 			if (this.EntityState != System.Data.EntityState.Detached && ((oldValue == null ^ newValue == null) || (oldValue != null && !oldValue.Equals(newValue))))
 				instance.OnPropertyChanged(property, oldValue, newValue);
 		}
-
-        IEntityChangeTracker IModelEntity.ChangeTracker
-        {
-            get;
-            set;
-        }
-
-        bool IModelEntity.IsInitialized
-        {
-            get;
-            set;
-        }
     }
 
 	public abstract class ModelEntity<TObjectContext> : ModelEntity
