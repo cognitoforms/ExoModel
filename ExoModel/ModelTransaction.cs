@@ -155,6 +155,35 @@ namespace ExoModel
 		}
 
 		/// <summary>
+		/// Truncates all previous events for instances when a state change occurs
+		/// </summary>
+		public void Truncate()
+		{
+			HashSet<ModelInstance> removeEventInstances = new HashSet<ModelInstance>();
+
+			for (var transaction = this; transaction != null; transaction = transaction.PreviousTransaction)
+			{
+				// Process the transaction log in reverse order, searching for changes to remove
+				for (var i = transaction.events.Count - 1; i >= 0; i--)
+				{
+					var evt = transaction.events[i];
+
+					if(evt is ModelSaveEvent)
+					{
+						ModelSaveEvent saveEvent = (ModelSaveEvent) evt;
+						removeEventInstances.UnionWith(saveEvent.Added); 
+						removeEventInstances.UnionWith(saveEvent.Deleted); 
+						removeEventInstances.UnionWith(saveEvent.Modified);
+
+						transaction.events.Remove(saveEvent);
+					}
+					else if(removeEventInstances.Contains(evt.Instance))
+						transaction.events.Remove(evt);
+				}
+			}
+		}
+
+		/// <summary>
 		/// Condenses adjacent change events that do not affect the final state of the overall transaction.
 		/// </summary>
 		public void Condense()
