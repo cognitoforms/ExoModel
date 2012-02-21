@@ -246,7 +246,7 @@ namespace ExoModel
 
 				// Process all properties on the instance type to create references.  Process static properties
 				// last since they would otherwise complicate calculated indexes when dealing with sub types.
-				foreach (PropertyInfo property in GetEligibleProperties())
+				foreach (PropertyInfo property in GetEligibleProperties().OrderBy(p => (p.GetGetMethod(true) ?? p.GetSetMethod(true)).IsStatic).ThenBy(p => p.Name))
 				{
 					// Exit immediately if the property was not in the list of valid declaring types
 					if (ModelContext.Current.GetModelType(property.DeclaringType) == null || (isNewProperty[property.Name] && property.DeclaringType != UnderlyingType))
@@ -304,7 +304,7 @@ namespace ExoModel
 			/// <returns></returns>
 			protected virtual IEnumerable<PropertyInfo> GetEligibleProperties()
 			{
-				return UnderlyingType.GetProperties().OrderBy(p => (p.GetGetMethod(true) ?? p.GetSetMethod(true)).IsStatic);
+				return UnderlyingType.GetProperties();
 			}
 
 			/// <summary>
