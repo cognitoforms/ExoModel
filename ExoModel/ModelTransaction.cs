@@ -274,7 +274,6 @@ namespace ExoModel
 			});
 		}
 
-
 		/// <summary>
 		/// Pauses the transaction and executes the action so that its changes are not recorded to the current transaction.
 		/// </summary>
@@ -320,6 +319,48 @@ namespace ExoModel
 			}
 			Commit();
 			return this;
+		}
+
+		/// <summary>
+		/// Activates a committed transaction, allowing additional changes to be recorded and appended to the current transaction.
+		/// </summary>
+		/// <returns></returns>
+		public ModelTransaction Record(Action operation, Func<ModelEvent, bool> filter)
+		{
+			if (IsActive)
+				throw new InvalidOperationException("Cannot begin a transaction that is already active.");
+
+			var eventFilter = new EventFilter() { filter = filter, transaction = this };
+
+			IsActive = true;
+			Context.Event += eventFilter.RecordEvents;
+
+			try
+			{
+				operation();
+			}
+			finally
+			{
+				IsActive = false;
+				Context.Event -= eventFilter.RecordEvents;
+			}
+			return this;
+		}
+
+		/// <summary>
+		/// Supports excluding model events that do not match the given filter
+		/// </summary>
+		class EventFilter
+		{
+			internal Func<ModelEvent, bool> filter;
+
+			internal ModelTransaction transaction;
+
+			internal void RecordEvents(object sender, ModelEvent e)
+			{
+				if (filter(e))
+					transaction.context_Event(sender, e);
+			}
 		}
 
 		/// <summary>
