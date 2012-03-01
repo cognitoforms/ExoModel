@@ -125,6 +125,12 @@ namespace ExoModel.EntityFramework
 			if (!instance.IsInitialized)
 				return;
 
+			// Touch the Id to ensure that the value is initialized
+			if (value != null && !((IModelEntity) value).IsInitialized)
+			{
+				var id = ((IModelEntity) value).Instance.Id;
+			}
+
 			// Get the entity reference
 			var reference = (IRelatedEnd)getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property });
 
