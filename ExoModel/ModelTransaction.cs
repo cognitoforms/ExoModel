@@ -274,7 +274,7 @@ namespace ExoModel
 			});
 		}
 
-		/// <summary>
+				/// <summary>
 		/// Pauses the transaction and executes the action so that its changes are not recorded to the current transaction.
 		/// </summary>
 		/// <returns></returns>
@@ -297,6 +297,34 @@ namespace ExoModel
 				throw;
 			}
 			Begin();
+			return this;
+		}
+
+		/// <summary>
+		/// Pauses the transaction and executes the action so that its changes are not recorded to the current transaction.
+		/// </summary>
+		/// <returns></returns>
+		public ModelTransaction Exclude(Action operation, Func<ModelEvent, bool> excluded)
+		{
+			if (!IsActive)
+				throw new InvalidOperationException("Cannot pause a transaction that is inactive.");
+
+			Context.Event -= context_Event;
+
+			var eventFilter = new EventFilter() { filter = (evt) => !excluded(evt), transaction = this };
+
+			Context.Event += eventFilter.RecordEvents;
+
+			try
+			{
+				operation();
+			}
+			finally
+			{
+				Context.Event -= eventFilter.RecordEvents;
+				Context.Event += context_Event;
+			}
+
 			return this;
 		}
 
