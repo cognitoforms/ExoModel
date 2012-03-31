@@ -312,7 +312,9 @@ namespace ExoModel.EntityFramework
 					oneNavDeclaringType.AfterInitialize(delegate
 					{
 						var parentReference = property.PropertyType.Properties[oneNavProp.Name];
-						if (parentReference != null && oneNavProp.ToEndMember.TypeUsage.Facets.Any(f => f.Name == "Nullable" && !(bool)f.Value))
+						if (parentReference != null && (
+							(oneNavProp.ToEndMember.RelationshipMultiplicity == RelationshipMultiplicity.One && oneNavProp.ToEndMember.TypeUsage.Facets.Any(f => f.Name == "Nullable" && !(bool)f.Value)) ||
+							(oneNavProp.FromEndMember.RelationshipMultiplicity == RelationshipMultiplicity.One && oneNavProp.FromEndMember.TypeUsage.Facets.Any(f => f.Name == "Nullable" && !(bool)f.Value))))
 							ownerProperties[property] = parentReference as ModelReferenceProperty;
 					});
 				}
