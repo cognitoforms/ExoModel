@@ -107,17 +107,22 @@ namespace ExoModel
 			// Create a temporary root step
 			var root = new ModelStep(newPath);
 
-			// Parse the instance path
-			var match = pathParser.Match(path);
-			if (match == null)
-				throw new ArgumentException("The specified path, '" + path + "', is not valid.");
-
 			var steps = new List<ModelStep>() { root };
 			var stack = new Stack<List<ModelStep>>();
-			var tokens = match.Groups[1].Captures.Cast<Capture>().Select(c => c.Value).ToArray();
-			for (int i = 0; i < tokens.Length; i++)
+
+			int expectedTokenStart = 0;
+
+			var tokenMatches = pathParser.Matches(path);
+			int tokenIndex = 0;
+			foreach (Match tokenMatch in tokenMatches)
 			{
-				var token = tokens[i];
+				// ensure there are no gaps between tokens except for whitespace
+				if (tokenMatch.Index != expectedTokenStart && path.Substring(expectedTokenStart, tokenMatch.Index - expectedTokenStart - 1).Trim() != "" )
+					throw new ArgumentException("The specified path, '" + path + "', is not valid. Character " + (expectedTokenStart));
+
+				expectedTokenStart = tokenMatch.Index + tokenMatch.Length;
+
+				var token = tokenMatch.Value;
 				switch (token[0])
 				{
 					case '{':
@@ -146,12 +151,11 @@ namespace ExoModel
 					default:
 
 						// Get the property name for the next step
-						var propertyName = token.Trim();
-						if (propertyName == "")
-							continue;
+						var propertyName = token;
 
 						// Track the next steps
 						var nextSteps = new List<ModelStep>();
+
 
 						// Process each of the current steps
 						foreach (var step in steps)
@@ -180,8 +184,8 @@ namespace ExoModel
 									continue;
 
 								// Look ahead to see if this step is filtered
-								filter = i < tokens.Length - 1 && tokens[i + 1].StartsWith("<") ?
-									rootType.Context.GetModelType(tokens[i + 1].Substring(1, tokens[i + 1].Length - 2)) :
+								filter = tokenIndex < tokenMatches.Count - 1 && tokenMatches[tokenIndex + 1].Value.StartsWith("<") ?
+									rootType.Context.GetModelType(tokenMatches[tokenIndex + 1].Value.Substring(1, tokenMatches[tokenIndex + 1].Length - 2)) :
 									null;
 
 								// See if the step already exists for this property and filter or needs to be created
@@ -205,6 +209,8 @@ namespace ExoModel
 						steps = nextSteps;
 						break;
 				}
+			
+				++tokenIndex;
 			}
 
 			// Throw an exception if there are unmatched property group delimiters
@@ -242,7 +248,7 @@ namespace ExoModel
 		/// <summary>
 		/// Parses query paths into tokens for processing
 		/// </summary>
-		static Regex pathParser = new Regex(@"^([a-zA-Z0-9_]+|[{}.,]|\s|(\<[a-zA-Z0-9_.]+\>))*$", RegexOptions.Compiled);
+		static Regex pathParser = new Regex(@"[a-zA-Z0-9_]+|[{}.,]|\<[a-zA-Z0-9_.]+\>", RegexOptions.Compiled);
 
 		/// <summary>
 		/// Notify path subscribers that the path has changed.
