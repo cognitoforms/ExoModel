@@ -49,7 +49,10 @@ namespace ExoModel
 		/// <returns></returns>
 		public static object ToList(this IEnumerable<ModelInstance> instances, ModelType type, Type listType)
 		{
-			var result = listType.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null).Invoke(null);
+			ConstructorInfo ctor = listType.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
+			if (ctor == null)
+				throw new Exception(string.Format("Could not find default constructor for list type \"{0}\".", listType.Name));
+			var result = ctor.Invoke(null);
 			var list = result as IList ?? type.ConvertToList(null, result);
 			foreach (var instance in instances)
 				list.Add(instance.Instance);
