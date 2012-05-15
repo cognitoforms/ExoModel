@@ -248,9 +248,17 @@ namespace ExoModel.EntityFramework
 				return property ?? GetProperty(declaringType.BaseType, name);
 			}
 
+			/// <summary>
+			/// BuddyClass which represents associated entity metadata
+			/// </summary>
 			internal Type BuddyClass { get; set; }
 
 			internal string QualifiedEntitySetName { get; private set; }
+
+			/// <summary>
+			/// List of properties which represent owners in owner/assigned relationships
+			/// </summary>
+			internal Dictionary<ModelReferenceProperty, ModelReferenceProperty> OwnerProperties { get; set; }
 
 			/// <summary>
 			/// Override to ensure that entity key properties are excluded from the model.
@@ -297,7 +305,7 @@ namespace ExoModel.EntityFramework
 
 				// Find all back-references from entities contained in each parent-child relationship for use when
 				// items are expected to be deleted because they were removed from the assocation
-				var ownerProperties = new Dictionary<ModelReferenceProperty, ModelReferenceProperty>();
+				OwnerProperties = new Dictionary<ModelReferenceProperty, ModelReferenceProperty>();
 				foreach (var property in Properties.OfType<EntityReferenceProperty>().Where(p => p.IsList))
 				{
 					var relatedEntityType = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + ((EntityModelType)property.PropertyType).UnderlyingType.Name, DataSpace.OSpace);
@@ -309,14 +317,7 @@ namespace ExoModel.EntityFramework
 						continue;
 
 					var oneNavDeclaringType = ModelContext.Current.GetModelType(@namespace + oneNavProp.DeclaringType.Name);
-					oneNavDeclaringType.AfterInitialize(delegate
-					{
-						var parentReference = property.PropertyType.Properties[oneNavProp.Name];
-						if (parentReference != null && (
-							(oneNavProp.ToEndMember.RelationshipMultiplicity == RelationshipMultiplicity.One && oneNavProp.ToEndMember.TypeUsage.Facets.Any(f => f.Name == "Nullable" && !(bool)f.Value)) ||
-							(oneNavProp.FromEndMember.RelationshipMultiplicity == RelationshipMultiplicity.One && oneNavProp.FromEndMember.TypeUsage.Facets.Any(f => f.Name == "Nullable" && !(bool)f.Value))))
-							ownerProperties[property] = parentReference as ModelReferenceProperty;
-					});
+					DeferOwnerDetection(oneNavDeclaringType, property, oneNavProp);
 				}
 
 				// When a list-change event is raised, check to see if an parent/child dependency exists, and delete the child if
@@ -325,8 +326,9 @@ namespace ExoModel.EntityFramework
 				{
 					if (e.Removed.Any())
 					{
+						var propertyType = (EntityModelType) e.Property.PropertyType;
 						ModelReferenceProperty relatedProperty;
-						if (ownerProperties.TryGetValue(e.Property, out relatedProperty))
+						if (propertyType.OwnerProperties.TryGetValue(e.Property, out relatedProperty))
 						{
 							foreach (var instance in e.Removed)
 							{
@@ -351,6 +353,18 @@ namespace ExoModel.EntityFramework
 						}
 					};
 				}
+			}
+
+			private void DeferOwnerDetection(ModelType type, EntityReferenceProperty property, NavigationProperty oneNavProp)
+			{
+				type.AfterInitialize(delegate
+				{
+					var parentReference = property.PropertyType.Properties[oneNavProp.Name];
+					if (parentReference != null && (
+						(oneNavProp.ToEndMember.RelationshipMultiplicity == RelationshipMultiplicity.One && oneNavProp.ToEndMember.TypeUsage.Facets.Any(f => f.Name == "Nullable" && !(bool)f.Value)) ||
+						(oneNavProp.FromEndMember.RelationshipMultiplicity == RelationshipMultiplicity.One && oneNavProp.FromEndMember.TypeUsage.Facets.Any(f => f.Name == "Nullable" && !(bool)f.Value))))
+						((EntityModelType) type).OwnerProperties[property] = parentReference as ModelReferenceProperty;
+				});
 			}
 
 			protected override System.Collections.IList ConvertToList(ModelReferenceProperty property, object list)
