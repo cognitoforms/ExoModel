@@ -15,7 +15,7 @@ namespace ExoModel
 		Dictionary<string, ModelInstance> newInstances;
 		ModelContext context;
 
-		List<ModelEvent> events = new List<ModelEvent>();
+		LinkedList<ModelEvent> events = new LinkedList<ModelEvent>();
 
 		/// <summary>
 		/// Records <see cref="ModelEvent"/> occurences within the current context.
@@ -42,9 +42,9 @@ namespace ExoModel
 					{
 						// Process the transaction log in reverse order, searching for instances 
 						// that were persisted by the save event
-						for (var i = transaction.events.Count - 1; i >= 0; i--)
+						for (var node = events.Last; node != null; node = node.Previous)
 						{
-							var evt = transaction.events[i];
+							var evt = node.Value;
 
 							// Stop processing if a previous save event is encountered
 							if (evt is ModelSaveEvent)
@@ -72,7 +72,7 @@ namespace ExoModel
 				}
 
 				// Add the transacted event to the list of events for the transaction
-				events.Add(e);
+				events.AddLast(e);
 			}
 		}
 
@@ -143,10 +143,8 @@ namespace ExoModel
 		{
 			ModelEventScope.Perform(() =>
 			{
-				int eventCount = events.Count;
-				for (int i = 0; i < eventCount; i++)
+				foreach (var modelEvent in events)
 				{
-					ModelEvent modelEvent = events[i];
 					((ITransactedModelEvent)modelEvent).Perform(this);
 					if (modelEvent is ModelInitEvent.InitNew)
 						RegisterNewInstance(modelEvent.Instance);
@@ -164,9 +162,11 @@ namespace ExoModel
 			for (var transaction = this; transaction != null; transaction = transaction.PreviousTransaction)
 			{
 				// Process the transaction log in reverse order, searching for changes to remove
-				for (var i = transaction.events.Count - 1; i >= 0; i--)
+				var node = events.Last;
+				while (node != null)
 				{
-					var evt = transaction.events[i];
+					var evt = node.Value;
+					var previous = node.Previous;
 
 					if(evt is ModelSaveEvent)
 					{
@@ -175,11 +175,33 @@ namespace ExoModel
 						removeEventInstances.UnionWith(saveEvent.Deleted); 
 						removeEventInstances.UnionWith(saveEvent.Modified);
 
-						transaction.events.Remove(saveEvent);
+						transaction.events.Remove(node);
 					}
-					else if(removeEventInstances.Contains(evt.Instance))
-						transaction.events.Remove(evt);
+					else if (removeEventInstances.Contains(evt.Instance))
+						transaction.events.Remove(node);
+
+					node = previous;
 				}
+			}
+		}
+
+		/// <summary>
+		/// Purges all events that match the specified criteria.
+		/// </summary>
+		public void Purge(Func<ModelEvent, bool> criteria)
+		{
+			// Purge previous transactions linked to the current transaction too
+			if (PreviousTransaction != null)
+				PreviousTransaction.Purge(criteria);
+
+			// Remove events that match the specified criteria
+			var node = events.First;
+			while (node != null)
+			{
+				var next = node.Next;
+				if (criteria(node.Value))
+					events.Remove(node);
+				node = next;
 			}
 		}
 
@@ -188,20 +210,27 @@ namespace ExoModel
 		/// </summary>
 		public void Condense()
 		{
+			// Exit immediately if the transaction is too small to condense
+			if (events.Count < 2)
+				return;
+
 			// Merge events
-			int i = events.Count - 1;
-			while (i > 0)
+			var node = events.First;
+			while (node != null && node.Next != null)
 			{
 				// Remove mergable events
-				if (events[i - 1].Merge(events[i]))
-					events.RemoveAt(i);
-
-				// Decrement
-				i--;
+				if (node.Value.Merge(node.Next.Value))
+					events.Remove(node.Next);
 
 				// Remove invalid events
-				if (!events[i].IsValid)
-					events.RemoveAt(i--);
+				if (!node.Value.IsValid)
+				{
+					var next = node.Next;
+					events.Remove(node);
+					node = next;
+				}
+				else
+					node = node.Next;
 			}
 		}
 
@@ -269,8 +298,8 @@ namespace ExoModel
 			Context.Event -= context_Event;
 			ModelEventScope.Perform(() =>
 			{
-				for (int i = events.Count - 1; i >= 0; i--)
-					((ITransactedModelEvent)events[i]).Rollback(this);
+				for (var node = events.Last; node != null; node = node.Previous)
+					((ITransactedModelEvent)node.Value).Rollback(this);
 			});
 		}
 
@@ -490,7 +519,7 @@ namespace ExoModel
 			var transaction = new ModelTransaction();
 
 			// Initialize the events
-			transaction.events = events;
+			transaction.events = new LinkedList<ModelEvent>(events);
 
 			// Return the new transaction
 			return transaction;
@@ -508,7 +537,7 @@ namespace ExoModel
 		}
 
 		/// <summary>
-		/// Combines two or more transactions creating a new 
+		/// Combines two or more transactions creating a new transaction.
 		/// </summary>
 		/// <param name="transactions"></param>
 		/// <returns></returns>
@@ -543,7 +572,8 @@ namespace ExoModel
 				}
 
 				// Copy events
-				newTransaction.events.AddRange(transaction.events);
+				foreach (var evt in transaction.events)
+					newTransaction.events.AddLast(evt);
 			}
 			return newTransaction;
 		}
