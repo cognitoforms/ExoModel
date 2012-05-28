@@ -37,12 +37,12 @@ namespace ExoModel
 					HashSet<ModelInstance> added = new HashSet<ModelInstance>();
 					HashSet<ModelInstance> modified = new HashSet<ModelInstance>();
 					HashSet<ModelInstance> deleted = new HashSet<ModelInstance>();
-					
+
 					for (var transaction = this; transaction != null; transaction = transaction.PreviousTransaction)
 					{
 						// Process the transaction log in reverse order, searching for instances 
 						// that were persisted by the save event
-						for (var node = events.Last; node != null; node = node.Previous)
+						for (var node = transaction.events.Last; node != null; node = node.Previous)
 						{
 							var evt = node.Value;
 
@@ -61,11 +61,11 @@ namespace ExoModel
 							// Modified
 							else if (!evt.Instance.IsNew && !evt.Instance.IsModified)
 								modified.Add(evt.Instance);
-								
+
 						}
 					}
 
-		UpdateSave: ModelSaveEvent saveEvent = (ModelSaveEvent)e;
+				UpdateSave: ModelSaveEvent saveEvent = (ModelSaveEvent)e;
 					saveEvent.Added = added.ToArray();
 					saveEvent.Deleted = deleted.ToArray();
 					saveEvent.Modified = modified.Except(saveEvent.Added).Except(saveEvent.Deleted).ToArray();
@@ -90,7 +90,7 @@ namespace ExoModel
 
 		public ModelTransaction PreviousTransaction { get; private set; }
 
-		private string GetNewInstanceKey (ModelType modelType, string id)
+		private string GetNewInstanceKey(ModelType modelType, string id)
 		{
 			return modelType.Name + "|" + id;
 		}
@@ -98,7 +98,7 @@ namespace ExoModel
 		void RegisterNewInstance(ModelInstance instance)
 		{
 			if (newInstances == null)
-				newInstances = new Dictionary<string,ModelInstance>();
+				newInstances = new Dictionary<string, ModelInstance>();
 			newInstances[GetNewInstanceKey(instance.Type, instance.Id)] = instance;
 		}
 
@@ -168,11 +168,11 @@ namespace ExoModel
 					var evt = node.Value;
 					var previous = node.Previous;
 
-					if(evt is ModelSaveEvent)
+					if (evt is ModelSaveEvent)
 					{
-						ModelSaveEvent saveEvent = (ModelSaveEvent) evt;
-						removeEventInstances.UnionWith(saveEvent.Added); 
-						removeEventInstances.UnionWith(saveEvent.Deleted); 
+						ModelSaveEvent saveEvent = (ModelSaveEvent)evt;
+						removeEventInstances.UnionWith(saveEvent.Added);
+						removeEventInstances.UnionWith(saveEvent.Deleted);
 						removeEventInstances.UnionWith(saveEvent.Modified);
 
 						transaction.events.Remove(node);
@@ -303,7 +303,7 @@ namespace ExoModel
 			});
 		}
 
-				/// <summary>
+		/// <summary>
 		/// Pauses the transaction and executes the action so that its changes are not recorded to the current transaction.
 		/// </summary>
 		/// <returns></returns>
