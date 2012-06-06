@@ -30,6 +30,10 @@ namespace ExoModel
 
 		#region Methods
 
+		/// <summary>
+		/// Gets the underlying list and coerces it into a valid <see cref="IList"/> implementation.
+		/// </summary>
+		/// <returns></returns>
 		internal IList GetList()
 		{
 			return property.DeclaringType.ConvertToList(property, property.GetValue(owner == null ? null : owner.Instance));
@@ -77,6 +81,71 @@ namespace ExoModel
 			return (TList)ToList(typeof(TList));
 		}
 
+		public IQueryable Where(string predicate, params object[] values)
+		{
+			throw new NotImplementedException();
+			//if (source == null) throw new ArgumentNullException("source");
+			//if (predicate == null) throw new ArgumentNullException("predicate");
+			//LambdaExpression lambda = ModelExpression.ParseLambda(source.ElementType, typeof(bool), predicate, values);
+			//return source.Provider.CreateQuery(
+			//    Expression.Call(
+			//        typeof(Queryable), "Where",
+			//        new Type[] { source.ElementType },
+			//        source.Expression, Expression.Quote(lambda)));
+		}
+
+		public IQueryable Select(string selector, params object[] values)
+		{
+			throw new NotImplementedException();
+			//if (source == null) throw new ArgumentNullException("source");
+			//if (selector == null) throw new ArgumentNullException("selector");
+			//LambdaExpression lambda = ModelExpression.ParseLambda(source.ElementType, null, selector, values);
+			//return source.Provider.CreateQuery(
+			//    Expression.Call(
+			//        typeof(Queryable), "Select",
+			//        new Type[] { source.ElementType, lambda.Body.Type },
+			//        source.Expression, Expression.Quote(lambda)));
+		}
+
+		public IQueryable OrderBy(string ordering, params object[] values)
+		{
+			throw new NotImplementedException();
+			//if (source == null) throw new ArgumentNullException("source");
+			//if (ordering == null) throw new ArgumentNullException("ordering");
+			//ParameterExpression[] parameters = new ParameterExpression[] {
+			//    Expression.Parameter(source.ElementType, "") };
+			//ModelExpression.ExpressionParser parser = new ModelExpression.ExpressionParser(parameters, ordering, values);
+			//IEnumerable<ModelExpression.DynamicOrdering> orderings = parser.ParseOrdering();
+			//Expression queryExpr = source.Expression;
+			//string methodAsc = "OrderBy";
+			//string methodDesc = "OrderByDescending";
+			//foreach (ModelExpression.DynamicOrdering o in orderings)
+			//{
+			//    queryExpr = Expression.Call(
+			//        typeof(Queryable), o.Ascending ? methodAsc : methodDesc,
+			//        new Type[] { source.ElementType, o.Selector.Type },
+			//        queryExpr, Expression.Quote(Expression.Lambda(o.Selector, parameters)));
+			//    methodAsc = "ThenBy";
+			//    methodDesc = "ThenByDescending";
+			//}
+			//return source.Provider.CreateQuery(queryExpr);
+		}
+
+		public IQueryable GroupBy(string keySelector, string elementSelector, params object[] values)
+		{
+			throw new NotImplementedException();
+			//if (source == null) throw new ArgumentNullException("source");
+			//if (keySelector == null) throw new ArgumentNullException("keySelector");
+			//if (elementSelector == null) throw new ArgumentNullException("elementSelector");
+			//LambdaExpression keyLambda = ModelExpression.ParseLambda(source.ElementType, null, keySelector, values);
+			//LambdaExpression elementLambda = ModelExpression.ParseLambda(source.ElementType, null, elementSelector, values);
+			//return source.Provider.CreateQuery(
+			//    Expression.Call(
+			//        typeof(Queryable), "GroupBy",
+			//        new Type[] { source.ElementType, keyLambda.Body.Type, elementLambda.Body.Type },
+			//        source.Expression, Expression.Quote(keyLambda), Expression.Quote(elementLambda)));
+		}
+
 		#endregion
 
 		#region IFormattable
@@ -105,7 +174,10 @@ namespace ExoModel
 		{
 			IList list = GetList();
 			if (list == null)
-				throw new NullReferenceException("Cannot add item '" + item + "' to the " + property.Name + " list on '" + owner + "' because the list is null.");
+			{
+				property.DeclaringType.InitializeList(owner, property);
+				list = GetList();
+			}
 			list.Add(item.Instance);
 		}
 
@@ -191,6 +263,15 @@ namespace ExoModel
 
 			list.Remove(item.Instance);
 			return true;
+		}
+
+		/// <summary>
+		/// Bulk updates the list to contain the specified set of values.
+		/// </summary>
+		/// <param name="values">The values the list should contain</param>
+		public void Update(IEnumerable<ModelInstance> values)
+		{
+			property.DeclaringType.UpdateList(owner, property, values);
 		}
 
 		#endregion

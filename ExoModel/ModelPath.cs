@@ -2,6 +2,8 @@
 using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Linq.Expressions;
+using System.Collections.ObjectModel;
 
 namespace ExoModel
 {
@@ -88,6 +90,18 @@ namespace ExoModel
 				step.Property.Observers.Remove(step);
 				Unsubscribe(step.NextSteps);
 			}
+		}
+
+		/// <summary>
+		/// Creates a new <see cref="ModelPath"/> instance for the specified root <see cref="ModelType"/>
+		/// based on the specified <see cref="Expression"/> tree.
+		/// </summary>
+		/// <param name="rootType"></param>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		internal static ModelPath CreatePath(ModelType rootType, Expression expression)
+		{
+			return PathBuilder.Build(rootType, expression);
 		}
 
 		/// <summary>
@@ -309,6 +323,150 @@ namespace ExoModel
 		{
 			// Unsubscribe all steps along the path
 			Unsubscribe(FirstSteps);
+		}
+
+		#endregion
+
+		#region PathBuilder
+
+		/// <summary>
+		/// Builds a <see cref="ModelPath"/> based on the specified <see cref="Expression"/>.
+		/// </summary>
+		class PathBuilder : ModelExpression.ExpressionVisitor
+		{
+			Dictionary<Expression, ModelStep> steps = new Dictionary<Expression, ModelStep>();
+			Expression expression;
+			ModelPath path;
+			ModelStep rootStep;
+
+			internal static ModelPath Build(ModelType rootType, Expression expression)
+			{
+				var builder = new PathBuilder() { expression = expression, path = new ModelPath() { RootType = rootType } };
+				builder.Build();
+				return builder.path;
+			}
+
+			void Build()
+			{
+				Visit(expression);
+				path.FirstSteps = rootStep != null ? rootStep.NextSteps : new ModelStepList();
+				if (path.FirstSteps.Count() == 0)
+					path.Path = "";
+				else if (path.FirstSteps.Count() == 1)
+					path.Path = path.FirstSteps.First().ToString();
+				else
+					path.Path = "{" + path.FirstSteps.Aggregate("", (p, s) => p.Length > 0 ? p + "," + s : s.ToString()) + "}";
+			}
+
+			protected override Expression VisitParameter(ParameterExpression p)
+			{
+				base.VisitParameter(p);
+				
+				// Add the root step
+				if (rootStep == null)
+				{
+					rootStep = new ModelStep(path);
+					steps.Add(p, rootStep);
+				}
+
+				return p;
+			}
+
+			protected override Expression VisitPropertyGet(ModelExpression.PropertyGet m)
+			{
+				base.VisitPropertyGet(m);
+				ModelStep step;
+				if (steps.TryGetValue(m.Expression, out step) && !(step.Property is ModelValueProperty))
+				{
+					// Get the model type of the parent expression
+					var type = step.Property == null ? path.RootType : ((ModelReferenceProperty)step.Property).PropertyType;
+
+					// Make sure the type of the expression matches the declaring type of the property
+					if (type != m.Property.DeclaringType && !m.Property.DeclaringType.IsSubType(type))
+						return m;
+
+					// Determine if the member access represents a property on the model type
+					var property = m.Property;
+
+					// Create and record a new step
+					var nextStep = step.NextSteps.FirstOrDefault(s => s.Property == property);
+					if (nextStep == null)
+					{
+						nextStep = new ModelStep(path) { Property = property, PreviousStep = step };
+						step.NextSteps.Add(nextStep);
+					}
+					if (!steps.ContainsKey(m))
+						steps.Add(m, nextStep);
+				}
+				return m;
+			}
+
+			protected override Expression VisitMemberAccess(MemberExpression m)
+			{
+				base.VisitMemberAccess(m);
+				ModelStep step;
+				if (m.Expression != null && steps.TryGetValue(m.Expression, out step) && !(step.Property is ModelValueProperty))
+				{
+					// Get the model type of the parent expression
+					var type = step.Property == null ? path.RootType : ((ModelReferenceProperty)step.Property).PropertyType;
+
+					// Determine if the member access represents a property on the model type
+					var property = type.Properties[m.Member.Name];
+
+					// If the property exists on the model type, create and record a new step
+					if (property != null)
+					{
+						var nextStep = step.NextSteps.FirstOrDefault(s => s.Property == property);
+						if (nextStep == null)
+						{
+							nextStep = new ModelStep(path) { Property = property, PreviousStep = step };
+							step.NextSteps.Add(nextStep);
+						}
+						steps.Add(m, nextStep);
+					}
+				}
+				return m;
+			}
+
+			protected override Expression VisitMethodCall(MethodCallExpression m)
+			{
+				// Visit the target of the method
+				Visit(m.Object);
+
+				// Process arguments to method calls to handle lambda expressions
+				foreach (var argument in m.Arguments)
+				{
+					// Perform special logic for lambdas
+					if (argument is LambdaExpression)
+					{
+						// Get the target of the method, assuming for static methods it will be the first argument
+						// This handles the common case of extension methods, whose first parameter must be the target instance
+						var target = m.Object ?? m.Arguments.First();
+
+						// Determine if the target implements IEnumerable<T>, and if so, determine the type of T
+						var listType = target.Type.IsGenericType && target.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>) ? target.Type :
+							target.Type.GetInterfaces().Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>)).FirstOrDefault();
+
+						// If the instance or first parameter to a static method is represented in the expression path,
+						// the corresponding step is a reference list, and the lambda is an action or function accepting instances 
+						// from the list, assume that each instance in the list will be passed to the lambda expression
+						ModelStep step;
+						if (listType != null && steps.TryGetValue(target, out step) && step.Property is ModelReferenceProperty && step.Property.IsList)
+						{
+							// Find the parameter that will be passed elements from the list, and link it to the parent step
+							var element = ((LambdaExpression)argument).Parameters.FirstOrDefault(p => listType.GetGenericArguments()[0].IsAssignableFrom(p.Type));
+							if (element != null)
+								steps.Add(element, step);
+
+							// If the method return the original list, associate the step with the return value
+							if (m.Type.IsAssignableFrom(target.Type))
+								steps.Add(m, step);
+						}
+					}
+					Visit(argument);
+				}
+				return m;
+			}
 		}
 
 		#endregion

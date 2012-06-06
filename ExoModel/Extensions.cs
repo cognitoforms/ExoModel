@@ -58,5 +58,16 @@ namespace ExoModel
 				list.Add(instance.Instance);
 			return result;
 		}
+
+		/// <summary>
+		/// Gets the <see cref="ModelType"/> that corresponds to the current <see cref="Type"/>, or null if the type
+		/// does not correspond to a valid model type.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public static ModelType GetModelType(this Type type)
+		{
+			return ModelContext.Current.GetModelType(type);
+		}
 	}
 }

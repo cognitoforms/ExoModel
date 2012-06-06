@@ -6,6 +6,7 @@ using System.Collections;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Text;
+using System.Linq.Expressions;
 
 namespace ExoModel
 {
@@ -58,6 +59,7 @@ namespace ExoModel
 			this.OutReferences = new ModelReferencePropertyList();
 			this.Values = new ModelValuePropertyList();
 			this.Paths = new ModelPathList();
+			this.Expressions = new Dictionary<string, ModelExpression>();
 		}
 
 		#endregion
@@ -88,11 +90,13 @@ namespace ExoModel
 
 		internal ModelValuePropertyList Values { get; private set; }
 
-		internal ModelPathList Paths { get; private set; }
-
 		internal int PropertyCount { get; private set; }
 
 		protected internal IModelTypeProvider Provider { get; internal set; }
+
+		ModelPathList Paths { get; set; }
+
+		Dictionary<string, ModelExpression> Expressions { get; set; }
 
 		#endregion
 
@@ -416,6 +420,73 @@ namespace ExoModel
 		}
 
 		/// <summary>
+		/// Gets the <see cref="ModelPath"/> starting from the current <see cref="ModelType"/> based
+		/// on the specified <see cref="Expression"/> tree.
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		public ModelPath GetPath<TRoot>(Expression<Action<TRoot>> expression)
+		{
+			return ModelPath.CreatePath(this, expression);
+		}
+
+		/// <summary>
+		/// Gets the <see cref="ModelPath"/> starting from the current <see cref="ModelType"/> based
+		/// on the specified <see cref="Expression"/> tree.
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		public ModelPath GetPath<TRoot, TResult>(Expression<Func<TRoot, TResult>> expression)
+		{
+			return ModelPath.CreatePath(this, expression);
+		}
+
+		/// <summary>
+		/// Gets the <see cref="ModelPath"/> starting from the current <see cref="ModelType"/> based
+		/// on the specified <see cref="Expression"/> tree.
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		public ModelPath GetPath(Expression expression)
+		{
+			return ModelPath.CreatePath(this, expression);
+		}
+
+		/// <summary>
+		/// Gets a <see cref="ModelExpression"/> for the specified expression string.
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		public ModelExpression GetExpression(string expression)
+		{
+			return GetExpression(null, expression);
+		}
+
+		/// <summary>
+		/// Gets a <see cref="ModelExpression"/> for the specified expression string.
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		public ModelExpression GetExpression<TResult>(string expression)
+		{
+			return GetExpression(typeof(TResult), expression);
+		}
+
+		/// <summary>
+		/// Gets a <see cref="ModelExpression"/> for the specified expression string.
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <param name="resultType"></param>
+		/// <returns></returns>
+		public ModelExpression GetExpression(Type resultType, string expression)
+		{
+			ModelExpression exp;
+			if (!Expressions.TryGetValue(expression, out exp))
+				Expressions[expression] = exp = new ModelExpression(this, expression, resultType);
+			return exp;
+		}
+
+		/// <summary>
 		///  Gets the <see cref="ModelPath"/> starting from the current <see cref="ModelType"/> based
 		/// on the specified path string.
 		/// </summary>
@@ -698,6 +769,51 @@ namespace ExoModel
 		/// <param name="list"></param>
 		/// <returns></returns>
 		protected internal abstract IList ConvertToList(ModelReferenceProperty property, object list);
+
+		/// <summary>
+		/// Bulk updates the values of a list reference property to have the values of the specified enumeration.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="property"></param>
+		/// <param name="values"></param>
+		/// <remarks>Subclasses may override this implementation to support bulk list updates</remarks>
+		protected internal virtual void UpdateList(ModelInstance instance, ModelReferenceProperty property, IEnumerable<ModelInstance> values)
+		{
+			// Get the source list
+			var source = instance.GetList(property);
+
+			// Attempt the handle cases where the underlying list property is null
+			if (source.GetList() == null)
+				InitializeList(instance, property);
+
+			// Get the set of items the list should contain
+			var items = new HashSet<ModelInstance>(values);
+
+			// Remove items from the source that do not exist in the calculated set
+			foreach (var item in source.ToArray())
+			{
+				if (!items.Contains(item))
+					source.Remove(item);
+				else
+					items.Remove(item);
+			}
+
+			// Add items that did not exist in the source
+			foreach (var item in items)
+				source.Add(item);
+		}
+
+		/// <summary>
+		/// Initializes a <see cref="ModelReferenceProperty"/> on the specified instance to a new empty list.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="property"></param>
+		/// <param name="values"></param>
+		/// <returns></returns>
+		protected internal virtual void InitializeList(ModelInstance instance, ModelReferenceProperty property)
+		{
+			throw new NotSupportedException("Initialization of null list properties is not supported by default.  Override ModelType.InitializeList to enable this behavior or ensure all list properties always have a value list value.");
+		}
 
 		protected internal virtual void OnStartTrackingList(ModelInstance instance, ModelReferenceProperty property, IList list)
 		{

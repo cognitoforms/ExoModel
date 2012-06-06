@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
 using System.Collections.ObjectModel;
+using Expr = System.Linq.Expressions.Expression;
 
 namespace ExoModel
 {
@@ -67,13 +68,13 @@ namespace ExoModel
 
 		internal static LambdaExpression ParseLambda(Type itType, Type resultType, string expression, params object[] values)
 		{
-			return ParseLambda(new ParameterExpression[] { System.Linq.Expressions.Expression.Parameter(itType, "") }, resultType, expression, values);
+			return ParseLambda(new ParameterExpression[] { Expr.Parameter(itType, "") }, resultType, expression, values);
 		}
 
 		internal static LambdaExpression ParseLambda(ParameterExpression[] parameters, Type resultType, string expression, params object[] values)
 		{
 			ExpressionParser parser = new ExpressionParser(parameters, expression, values);
-			return System.Linq.Expressions.Expression.Lambda(parser.Parse(resultType), parameters);
+			return Expr.Lambda(parser.Parse(resultType), parameters);
 		}
 
 		internal static Expression<Func<T, S>> ParseLambda<T, S>(string expression, params object[] values)
@@ -546,13 +547,14 @@ namespace ExoModel
 
 			interface IRelationalSignatures : IArithmeticSignatures
 			{
-				void F(string x, string y);
+
 				void F(char x, char y);
 				void F(DateTime x, DateTime y);
 				void F(TimeSpan x, TimeSpan y);
 				void F(char? x, char? y);
 				void F(DateTime? x, DateTime? y);
 				void F(TimeSpan? x, TimeSpan? y);
+				void F(string x, string y);	
 			}
 
 			interface IEqualitySignatures : IRelationalSignatures
@@ -650,9 +652,9 @@ namespace ExoModel
             typeof(Convert)
         };
 
-			static readonly Expression trueLiteral = System.Linq.Expressions.Expression.Constant(true);
-			static readonly Expression falseLiteral = System.Linq.Expressions.Expression.Constant(false);
-			static readonly Expression nullLiteral = System.Linq.Expressions.Expression.Constant(null);
+			static readonly Expression trueLiteral = Expr.Constant(true);
+			static readonly Expression falseLiteral = Expr.Constant(false);
+			static readonly Expression nullLiteral = Expr.Constant(null);
 
 			static readonly string keywordIt = "it";
 			static readonly string keywordIif = "iif";
@@ -780,7 +782,7 @@ namespace ExoModel
 					NextToken();
 					Expression right = ParseLogicalAnd();
 					CheckAndPromoteOperands(typeof(ILogicalSignatures), op.text, ref left, ref right, op.pos);
-					left = System.Linq.Expressions.Expression.OrElse(left, right);
+					left = Expr.OrElse(left, right);
 				}
 				return left;
 			}
@@ -795,7 +797,7 @@ namespace ExoModel
 					NextToken();
 					Expression right = ParseComparison();
 					CheckAndPromoteOperands(typeof(ILogicalSignatures), op.text, ref left, ref right, op.pos);
-					left = System.Linq.Expressions.Expression.AndAlso(left, right);
+					left = Expr.AndAlso(left, right);
 				}
 				return left;
 			}
@@ -820,11 +822,11 @@ namespace ExoModel
 						{
 							if (left.Type.IsAssignableFrom(right.Type))
 							{
-								right = System.Linq.Expressions.Expression.Convert(right, left.Type);
+								right = Expr.Convert(right, left.Type);
 							}
 							else if (right.Type.IsAssignableFrom(left.Type))
 							{
-								left = System.Linq.Expressions.Expression.Convert(left, right.Type);
+								left = Expr.Convert(left, right.Type);
 							}
 							else
 							{
@@ -927,14 +929,14 @@ namespace ExoModel
 					switch (op.id)
 					{
 						case TokenId.Asterisk:
-							left = System.Linq.Expressions.Expression.Multiply(left, right);
+							left = Expr.Multiply(left, right);
 							break;
 						case TokenId.Slash:
-							left = System.Linq.Expressions.Expression.Divide(left, right);
+							left = Expr.Divide(left, right);
 							break;
 						case TokenId.Percent:
 						case TokenId.Identifier:
-							left = System.Linq.Expressions.Expression.Modulo(left, right);
+							left = Expr.Modulo(left, right);
 							break;
 					}
 				}
@@ -960,12 +962,12 @@ namespace ExoModel
 					if (op.id == TokenId.Minus)
 					{
 						CheckAndPromoteOperand(typeof(INegationSignatures), op.text, ref expr, op.pos);
-						expr = System.Linq.Expressions.Expression.Negate(expr);
+						expr = Expr.Negate(expr);
 					}
 					else
 					{
 						CheckAndPromoteOperand(typeof(INotSignatures), op.text, ref expr, op.pos);
-						expr = System.Linq.Expressions.Expression.Not(expr);
+						expr = Expr.Not(expr);
 					}
 					return expr;
 				}
@@ -1008,6 +1010,8 @@ namespace ExoModel
 						return ParseRealLiteral();
 					case TokenId.OpenParen:
 						return ParseParenExpression();
+					case TokenId.OpenBracket:
+						return ParseArrayLiteral();
 					default:
 						throw ParseError(Res.ExpressionExpected);
 				}
@@ -1087,7 +1091,7 @@ namespace ExoModel
 
 			Expression CreateLiteral(object value, string text)
 			{
-				ConstantExpression expr = System.Linq.Expressions.Expression.Constant(value);
+				ConstantExpression expr = Expr.Constant(value);
 				literals.Add(expr, text);
 				return expr;
 			}
@@ -1121,7 +1125,7 @@ namespace ExoModel
 					Expression expr = value as Expression;
 					if (expr == null)
 					{
-						expr = System.Linq.Expressions.Expression.Constant(value);
+						expr = Expr.Constant(value);
 					}
 					else
 					{
@@ -1178,7 +1182,7 @@ namespace ExoModel
 						throw ParseError(errorPos, Res.NeitherTypeConvertsToOther, type1, type2);
 					}
 				}
-				return System.Linq.Expressions.Expression.Condition(test, expr1, expr2);
+				return Expr.Condition(test, expr1, expr2);
 			}
 
 			Expression ParseNew()
@@ -1215,8 +1219,8 @@ namespace ExoModel
 				Type type = ModelExpression.CreateClass(properties);
 				MemberBinding[] bindings = new MemberBinding[properties.Count];
 				for (int i = 0; i < bindings.Length; i++)
-					bindings[i] = System.Linq.Expressions.Expression.Bind(type.GetProperty(properties[i].Name), expressions[i]);
-				return System.Linq.Expressions.Expression.MemberInit(System.Linq.Expressions.Expression.New(type), bindings);
+					bindings[i] = Expr.Bind(type.GetProperty(properties[i].Name), expressions[i]);
+				return Expr.MemberInit(Expr.New(type), bindings);
 			}
 
 			Expression ParseLambdaInvocation(LambdaExpression lambda)
@@ -1225,9 +1229,9 @@ namespace ExoModel
 				NextToken();
 				Expression[] args = ParseArgumentList();
 				MethodBase method;
-				if (FindMethod(lambda.Type, "Invoke", false, args, out method) != 1)
+				if (FindMethod(lambda.Type, "Invoke", false, ref args, out method) != 1)
 					throw ParseError(errorPos, Res.ArgsIncompatibleWithLambda);
-				return System.Linq.Expressions.Expression.Invoke(lambda, args);
+				return Expr.Invoke(lambda, args);
 			}
 
 			Expression ParseTypeAccess(Type type)
@@ -1245,14 +1249,14 @@ namespace ExoModel
 				{
 					Expression[] args = ParseArgumentList();
 					MethodBase method;
-					switch (FindBestMethod(type.GetConstructors(), args, out method))
+					switch (FindBestMethod(type.GetConstructors(), ref args, out method))
 					{
 						case 0:
 							if (args.Length == 1)
 								return GenerateConversion(args[0], type, errorPos);
 							throw ParseError(errorPos, Res.NoMatchingConstructor, GetTypeName(type));
 						case 1:
-							return System.Linq.Expressions.Expression.New((ConstructorInfo)method, args);
+							return Expr.New((ConstructorInfo)method, args);
 						default:
 							throw ParseError(errorPos, Res.AmbiguousConstructorInvocation, GetTypeName(type));
 					}
@@ -1270,14 +1274,14 @@ namespace ExoModel
 				{
 					if ((IsNullableType(exprType) || IsNullableType(type)) &&
 						GetNonNullableType(exprType) == GetNonNullableType(type))
-						return System.Linq.Expressions.Expression.Convert(expr, type);
+						return Expr.Convert(expr, type);
 					if ((IsNumericType(exprType) || IsEnumType(exprType)) &&
 						(IsNumericType(type)) || IsEnumType(type))
-						return System.Linq.Expressions.Expression.ConvertChecked(expr, type);
+						return Expr.ConvertChecked(expr, type);
 				}
 				if (exprType.IsAssignableFrom(type) || type.IsAssignableFrom(exprType) ||
 					exprType.IsInterface || type.IsInterface)
-					return System.Linq.Expressions.Expression.Convert(expr, type);
+					return Expr.Convert(expr, type);
 				throw ParseError(errorPos, Res.CannotConvertValue,
 					GetTypeName(exprType), GetTypeName(type));
 			}
@@ -1301,7 +1305,7 @@ namespace ExoModel
 					}
 					Expression[] args = ParseArgumentList();
 					MethodBase mb;
-					switch (FindMethod(type, id, instance == null, args, out mb))
+					switch (FindMethod(type, id, instance == null, ref args, out mb))
 					{
 						case 0:
 							throw ParseError(errorPos, Res.NoApplicableMethod,
@@ -1313,7 +1317,14 @@ namespace ExoModel
 							if (method.ReturnType == typeof(void))
 								throw ParseError(errorPos, Res.MethodIsVoid,
 									id, GetTypeName(method.DeclaringType));
-							return System.Linq.Expressions.Expression.Call(instance, (MethodInfo)method, args);
+
+							// Handle boxing of value types
+							var parameters = method.GetParameters();
+							for (var i = 0; i < args.Length; i++)
+								if (args[i].Type.IsValueType && !parameters[i].ParameterType.IsValueType)
+									args[i] = Expr.Convert(args[i], parameters[i].ParameterType);
+
+							return Expr.Call(instance, (MethodInfo)method, args);
 						default:
 							throw ParseError(errorPos, Res.AmbiguousMethodInvocation,
 								id, GetTypeName(type));
@@ -1325,22 +1336,29 @@ namespace ExoModel
 					if (member == null)
 					{
 						MethodBase mb;
-						if (FindMethod(type, id, instance == null, new Expression[0], out mb) == 1)
+						var args = new Expression[0];
+						if (FindMethod(type, id, instance == null, ref args, out mb) == 1)
 						{
 							MethodInfo method = (MethodInfo)mb;
 							if (method.ReturnType == typeof(void))
 								throw ParseError(errorPos, Res.MethodIsVoid,
 									id, GetTypeName(method.DeclaringType));
-							return System.Linq.Expressions.Expression.Call(instance, method, new Expression[0]);
+							return Expr.Call(instance, method, new Expression[0]);
 						}
 						throw ParseError(errorPos, Res.UnknownPropertyOrField,
 							id, GetTypeName(type));
 					}
 
 					if (member is PropertyInfo)
-						return new PropertyGet(instance, ModelContext.Current.GetModelType(member.DeclaringType).Properties[member.Name]);
+					{
+						var modelType = ModelContext.Current.GetModelType(member.DeclaringType);
+						if (modelType != null)
+							return new PropertyGet(instance, ModelContext.Current.GetModelType(member.DeclaringType).Properties[member.Name]);
+						else
+							return Expr.Property(instance, (PropertyInfo)member);
+					}
 					else
-						return System.Linq.Expressions.Expression.Field(instance, (FieldInfo)member);
+						return Expr.Field(instance, (FieldInfo)member);
 					//return member is PropertyInfo ?
 					//    Expression.Property(instance, (PropertyInfo)member) :
 					//    Expression.Field(instance, (FieldInfo)member);
@@ -1368,12 +1386,12 @@ namespace ExoModel
 			Expression ParseAggregate(Expression instance, Type elementType, string methodName, int errorPos)
 			{
 				ParameterExpression outerIt = it;
-				ParameterExpression innerIt = System.Linq.Expressions.Expression.Parameter(elementType, "");
+				ParameterExpression innerIt = Expr.Parameter(elementType, "");
 				it = innerIt;
 				Expression[] args = ParseArgumentList();
 				it = outerIt;
 				MethodBase signature;
-				if (FindMethod(typeof(IEnumerableSignatures), methodName, false, args, out signature) != 1)
+				if (FindMethod(typeof(IEnumerableSignatures), methodName, false, ref args, out signature) != 1)
 					throw ParseError(errorPos, Res.NoApplicableAggregate, methodName);
 				Type[] typeArgs;
 				if (signature.Name == "Min" || signature.Name == "Max")
@@ -1390,9 +1408,9 @@ namespace ExoModel
 				}
 				else
 				{
-					args = new Expression[] { instance, System.Linq.Expressions.Expression.Lambda(args[0], innerIt) };
+					args = new Expression[] { instance, Expr.Lambda(args[0], innerIt) };
 				}
-				return System.Linq.Expressions.Expression.Call(typeof(Enumerable), signature.Name, typeArgs, args);
+				return Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args);
 			}
 
 			Expression[] ParseArgumentList()
@@ -1417,6 +1435,60 @@ namespace ExoModel
 				return argList.ToArray();
 			}
 
+			Expression ParseArrayLiteral()
+			{
+				int errorPos = token.pos;
+				ValidateToken(TokenId.OpenBracket, Res.OpenParenExpected);
+				NextToken();
+				Expression[] elements = ParseArguments();
+				ValidateToken(TokenId.CloseBracket, Res.CloseBracketOrCommaExpected);
+				NextToken();
+				if (elements.Length == 0)
+					return Expr.Constant(new object[0]);
+
+				// Infer the type of the array based on the types of the array elements
+				Type arrayType = null;
+				bool includesNulls = false;
+				foreach (var element in elements)
+				{
+					// Track the fact that a null element was encountered, meaning that the array cannot be a value type
+					if (element == nullLiteral)
+						includesNulls = true;
+
+					// Initialize the array type based on the type of the first non-null element
+					if (arrayType == null)
+					{
+						if (element != nullLiteral)
+							arrayType = element.Type;
+					}
+
+					// Otherwise, ensure subsequent elements are compatible with the array type, or downcast accordingly
+					else
+					{
+						if (element.Type == arrayType || IsCompatibleWith(element.Type, arrayType))
+							continue;
+						if (IsCompatibleWith(arrayType, element.Type))
+							arrayType = element.Type;
+						else
+							arrayType = typeof(object);
+					}
+				}
+
+				// Force the type to be object if no type was determined or the array contained a null value amongst compatible value types
+				if (arrayType == null || (includesNulls && arrayType.IsValueType))
+					arrayType = typeof(object);
+
+				// Handling boxing of value types and casting of null literals
+				if (!arrayType.IsValueType)
+				{
+					for (var i = 0; i < elements.Length; i++)
+						if (elements[i].Type.IsValueType || elements[i] == nullLiteral)
+							elements[i] = Expr.Convert(elements[i], arrayType);
+				}
+
+				return Expr.NewArrayInit(arrayType, elements);
+			}
+
 			Expression ParseElementAccess(Expression expr)
 			{
 				int errorPos = token.pos;
@@ -1432,18 +1504,18 @@ namespace ExoModel
 					Expression index = PromoteExpression(args[0], typeof(int), true);
 					if (index == null)
 						throw ParseError(errorPos, Res.InvalidIndex);
-					return System.Linq.Expressions.Expression.ArrayIndex(expr, index);
+					return Expr.ArrayIndex(expr, index);
 				}
 				else
 				{
 					MethodBase mb;
-					switch (FindIndexer(expr.Type, args, out mb))
+					switch (FindIndexer(expr.Type, ref args, out mb))
 					{
 						case 0:
 							throw ParseError(errorPos, Res.NoApplicableIndexer,
 								GetTypeName(expr.Type));
 						case 1:
-							return System.Linq.Expressions.Expression.Call(expr, (MethodInfo)mb, args);
+							return Expr.Call(expr, (MethodInfo)mb, args);
 						default:
 							throw ParseError(errorPos, Res.AmbiguousIndexerInvocation,
 								GetTypeName(expr.Type));
@@ -1525,7 +1597,7 @@ namespace ExoModel
 			{
 				Expression[] args = new Expression[] { expr };
 				MethodBase method;
-				if (FindMethod(signatures, "F", false, args, out method) != 1)
+				if (FindMethod(signatures, "F", false, ref args, out method) != 1)
 					throw ParseError(errorPos, Res.IncompatibleOperand,
 						opName, GetTypeName(args[0].Type));
 				expr = args[0];
@@ -1535,7 +1607,7 @@ namespace ExoModel
 			{
 				Expression[] args = new Expression[] { left, right };
 				MethodBase method;
-				if (FindMethod(signatures, "F", false, args, out method) != 1)
+				if (FindMethod(signatures, "F", false, ref args, out method) != 1)
 					throw IncompatibleOperandsError(opName, left, right, errorPos);
 				left = args[0];
 				right = args[1];
@@ -1560,7 +1632,7 @@ namespace ExoModel
 				return null;
 			}
 
-			int FindMethod(Type type, string methodName, bool staticAccess, Expression[] args, out MethodBase method)
+			int FindMethod(Type type, string methodName, bool staticAccess, ref Expression[] args, out MethodBase method)
 			{
 				BindingFlags flags = BindingFlags.Public | BindingFlags.DeclaredOnly |
 					(staticAccess ? BindingFlags.Static : BindingFlags.Instance);
@@ -1568,14 +1640,14 @@ namespace ExoModel
 				{
 					MemberInfo[] members = t.FindMembers(MemberTypes.Method,
 						flags, Type.FilterNameIgnoreCase, methodName);
-					int count = FindBestMethod(members.Cast<MethodBase>(), args, out method);
+					int count = FindBestMethod(members.Cast<MethodBase>(), ref args, out method);
 					if (count != 0) return count;
 				}
 				method = null;
 				return 0;
 			}
 
-			int FindIndexer(Type type, Expression[] args, out MethodBase method)
+			int FindIndexer(Type type, ref Expression[] args, out MethodBase method)
 			{
 				foreach (Type t in SelfAndBaseTypes(type))
 				{
@@ -1586,7 +1658,7 @@ namespace ExoModel
 							OfType<PropertyInfo>().
 							Select(p => (MethodBase)p.GetGetMethod()).
 							Where(m => m != null);
-						int count = FindBestMethod(methods, args, out method);
+						int count = FindBestMethod(methods, ref args, out method);
 						if (count != 0) return count;
 					}
 				}
@@ -1630,22 +1702,68 @@ namespace ExoModel
 				public Expression[] Args;
 			}
 
-			int FindBestMethod(IEnumerable<MethodBase> methods, Expression[] args, out MethodBase method)
+			/// <summary>
+			/// Finds the best matching method from a set of qualifying methods based on the quantity and types of the arguments.
+			/// </summary>
+			/// <param name="methods"></param>
+			/// <param name="args"></param>
+			/// <param name="method"></param>
+			/// <returns></returns>
+			int FindBestMethod(IEnumerable<MethodBase> methods, ref Expression[] args, out MethodBase method)
 			{
+				var searchArgs = args;
 				MethodData[] applicable = methods.
 					Select(m => new MethodData { MethodBase = m, Parameters = m.GetParameters() }).
-					Where(m => IsApplicable(m, args)).
+					Where(m => IsApplicable(m, searchArgs)).
 					ToArray();
 				if (applicable.Length > 1)
 				{
 					applicable = applicable.
-						Where(m => applicable.All(n => m == n || IsBetterThan(args, m, n))).
+						Where(m => applicable.All(n => m == n || IsBetterThan(searchArgs, m, n))).
+						ToArray();
+				}
+				// Check for param arrays
+				if (applicable.Length == 0)
+				{
+					applicable = methods.
+						Where(m => 
+							m.GetParameters().Length > 0 && // At least one parameter exists
+							m.GetParameters().Last().GetCustomAttributes(typeof(ParamArrayAttribute), false).Length > 0 && // The last parameter is a param array
+							searchArgs.Length >= m.GetParameters().Length - 1). // The set of arguments passed could be enough
+						OrderBy(m => -m.GetParameters().Length). // Sort from most number of arguments to least
+						Select(m => 
+						{
+							// See if the additional arguments can be promoted into an array of the correct type
+							var parameters = m.GetParameters();
+							var arrayType = parameters.Last().ParameterType.GetElementType();
+							var elements = searchArgs.Skip(parameters.Count() - 1).Select(a => PromoteExpression(a, arrayType, false)).ToArray();
+							if (elements.Any(e => e == null))
+								return null;
+
+							// Handling boxing of value types and casting of null literals
+							if (!arrayType.IsValueType)
+							{
+								for (var i = 0; i < elements.Length; i++)
+									if (elements[i].Type.IsValueType || elements[i] == nullLiteral)
+										elements[i] = Expr.Convert(elements[i], arrayType);
+							}
+
+							// Return the matching method information
+							return new MethodData() 
+							{ 
+								MethodBase = m, 
+								Parameters = parameters,
+								Args = searchArgs.Take(parameters.Count() - 1).Concat(new Expression[] { Expr.NewArrayInit(arrayType, elements) }).ToArray() 
+							};
+						}).
+						Where(m => m != null).
+						Take(1).
 						ToArray();
 				}
 				if (applicable.Length == 1)
 				{
 					MethodData md = applicable[0];
-					for (int i = 0; i < args.Length; i++) args[i] = md.Args[i];
+					args = md.Args;
 					method = md.MethodBase;
 				}
 				else
@@ -1680,7 +1798,7 @@ namespace ExoModel
 					if (ce == nullLiteral)
 					{
 						if (!type.IsValueType || IsNullableType(type))
-							return System.Linq.Expressions.Expression.Constant(null, type);
+							return Expr.Constant(null, type);
 					}
 					else
 					{
@@ -1704,30 +1822,30 @@ namespace ExoModel
 									value = ParseEnum(text, target);
 									break;
 							}
-							if (value != null)
-								return System.Linq.Expressions.Expression.Constant(value, type);
+							if (value != null && type.IsAssignableFrom(value.GetType()))
+								return Expr.Constant(value, type);
 						}
 					}
 				}
 				if (IsCompatibleWith(expr.Type, type))
 				{
-					if (type.IsValueType || exact) return System.Linq.Expressions.Expression.Convert(expr, type);
+					if (type.IsValueType || exact) return Expr.Convert(expr, type);
 					return expr;
 				}
-				if (type == typeof(String))
-				{
-					if (expr.Type.IsValueType)
+				//if (type == typeof(String))
+				//{
+				//    if (expr.Type.IsValueType)
 
-						// expr.ToString()
-						return System.Linq.Expressions.Expression.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
-					else
+				//        // expr.ToString()
+				//        return Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
+				//    else
 
-						// expr == null ? "" : expr.ToString()
-						return System.Linq.Expressions.Expression.Condition(
-							System.Linq.Expressions.Expression.Equal(expr, System.Linq.Expressions.Expression.Constant(null)),
-							System.Linq.Expressions.Expression.Constant(""),
-							System.Linq.Expressions.Expression.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes)));
-				}
+				//        // expr == null ? "" : expr.ToString()
+				//        return Expr.Condition(
+				//            Expr.Equal(expr, Expr.Constant(null)),
+				//            Expr.Constant(""),
+				//            Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes)));
+				//}
 				return null;
 			}
 
@@ -1952,60 +2070,60 @@ namespace ExoModel
 
 			Expression GenerateEqual(Expression left, Expression right)
 			{
-				return System.Linq.Expressions.Expression.Equal(left, right);
+				return Expr.Equal(left, right);
 			}
 
 			Expression GenerateNotEqual(Expression left, Expression right)
 			{
-				return System.Linq.Expressions.Expression.NotEqual(left, right);
+				return Expr.NotEqual(left, right);
 			}
 
 			Expression GenerateGreaterThan(Expression left, Expression right)
 			{
 				if (left.Type == typeof(string))
 				{
-					return System.Linq.Expressions.Expression.GreaterThan(
+					return Expr.GreaterThan(
 						GenerateStaticMethodCall("Compare", left, right),
-						System.Linq.Expressions.Expression.Constant(0)
+						Expr.Constant(0)
 					);
 				}
-				return System.Linq.Expressions.Expression.GreaterThan(left, right);
+				return Expr.GreaterThan(left, right);
 			}
 
 			Expression GenerateGreaterThanEqual(Expression left, Expression right)
 			{
 				if (left.Type == typeof(string))
 				{
-					return System.Linq.Expressions.Expression.GreaterThanOrEqual(
+					return Expr.GreaterThanOrEqual(
 						GenerateStaticMethodCall("Compare", left, right),
-						System.Linq.Expressions.Expression.Constant(0)
+						Expr.Constant(0)
 					);
 				}
-				return System.Linq.Expressions.Expression.GreaterThanOrEqual(left, right);
+				return Expr.GreaterThanOrEqual(left, right);
 			}
 
 			Expression GenerateLessThan(Expression left, Expression right)
 			{
 				if (left.Type == typeof(string))
 				{
-					return System.Linq.Expressions.Expression.LessThan(
+					return Expr.LessThan(
 						GenerateStaticMethodCall("Compare", left, right),
-						System.Linq.Expressions.Expression.Constant(0)
+						Expr.Constant(0)
 					);
 				}
-				return System.Linq.Expressions.Expression.LessThan(left, right);
+				return Expr.LessThan(left, right);
 			}
 
 			Expression GenerateLessThanEqual(Expression left, Expression right)
 			{
 				if (left.Type == typeof(string))
 				{
-					return System.Linq.Expressions.Expression.LessThanOrEqual(
+					return Expr.LessThanOrEqual(
 						GenerateStaticMethodCall("Compare", left, right),
-						System.Linq.Expressions.Expression.Constant(0)
+						Expr.Constant(0)
 					);
 				}
-				return System.Linq.Expressions.Expression.LessThanOrEqual(left, right);
+				return Expr.LessThanOrEqual(left, right);
 			}
 
 			Expression GenerateAdd(Expression left, Expression right)
@@ -2014,17 +2132,17 @@ namespace ExoModel
 				{
 					return GenerateStaticMethodCall("Concat", left, right);
 				}
-				return System.Linq.Expressions.Expression.Add(left, right);
+				return Expr.Add(left, right);
 			}
 
 			Expression GenerateSubtract(Expression left, Expression right)
 			{
-				return System.Linq.Expressions.Expression.Subtract(left, right);
+				return Expr.Subtract(left, right);
 			}
 
 			Expression GenerateStringConcat(Expression left, Expression right)
 			{
-				return System.Linq.Expressions.Expression.Call(
+				return Expr.Call(
 					null,
 					typeof(string).GetMethod("Concat", new[] { typeof(object), typeof(object) }),
 					new[] { left, right });
@@ -2037,7 +2155,7 @@ namespace ExoModel
 
 			Expression GenerateStaticMethodCall(string methodName, Expression left, Expression right)
 			{
-				return System.Linq.Expressions.Expression.Call(null, GetStaticMethod(methodName, left, right), new[] { left, right });
+				return Expr.Call(null, GetStaticMethod(methodName, left, right), new[] { left, right });
 			}
 
 			void SetTextPos(int pos)
@@ -2329,23 +2447,23 @@ namespace ExoModel
 			{
 				// Attempt to coerce the property get into a simple member invocation
 				if (m.Property is IReflectionModelProperty)
-					return System.Linq.Expressions.Expression.MakeMemberAccess(Visit(m.Expression), ((IReflectionModelProperty)m.Property).PropertyInfo);
+					return Expr.MakeMemberAccess(Visit(m.Expression), ((IReflectionModelProperty)m.Property).PropertyInfo);
 				
 				// Otherwise, delegate to the model instance to access the property value
 				else
 					return
 
 						// (PropertyType)ModelContext.Current.GetModelInstance(instance)["PropertyName"]
-						System.Linq.Expressions.Expression.Convert(
+						Expr.Convert(
 
 							// ModelContext.Current.GetModelInstance(instance)["PropertyName"]
-							System.Linq.Expressions.Expression.Call(
+							Expr.Call(
 
 								// ModelContext.Current.GetModelInstance(instance)
-								System.Linq.Expressions.Expression.Call(
+								Expr.Call(
 
 									// ModelContext.Current
-									System.Linq.Expressions.Expression.Property(null, typeof(ModelContext).GetProperty("Current")),
+									Expr.Property(null, typeof(ModelContext).GetProperty("Current")),
 
 									// GetModelInstance()
 									typeof(ModelContext).GetMethod("GetModelInstance"),
@@ -2358,7 +2476,7 @@ namespace ExoModel
 								typeof(ModelInstance).GetProperty("Item", new Type[] { typeof(string) }).GetGetMethod(),
 
 								// "PropertyName"
-								System.Linq.Expressions.Expression.Constant(m.Property.Name)
+								Expr.Constant(m.Property.Name)
 							),
 							
 							// (PropertyType)
@@ -2469,7 +2587,7 @@ namespace ExoModel
 				ReadOnlyCollection<Expression> arguments = this.VisitExpressionList(initializer.Arguments);
 				if (arguments != initializer.Arguments)
 				{
-					return System.Linq.Expressions.Expression.ElementInit(initializer.AddMethod, arguments);
+					return Expr.ElementInit(initializer.AddMethod, arguments);
 				}
 				return initializer;
 			}
@@ -2479,7 +2597,7 @@ namespace ExoModel
 				Expression operand = this.Visit(u.Operand);
 				if (operand != u.Operand)
 				{
-					return System.Linq.Expressions.Expression.MakeUnary(u.NodeType, operand, u.Type, u.Method);
+					return Expr.MakeUnary(u.NodeType, operand, u.Type, u.Method);
 				}
 				return u;
 			}
@@ -2492,9 +2610,9 @@ namespace ExoModel
 				if (left != b.Left || right != b.Right || conversion != b.Conversion)
 				{
 					if (b.NodeType == ExpressionType.Coalesce && b.Conversion != null)
-						return System.Linq.Expressions.Expression.Coalesce(left, right, conversion as LambdaExpression);
+						return Expr.Coalesce(left, right, conversion as LambdaExpression);
 					else
-						return System.Linq.Expressions.Expression.MakeBinary(b.NodeType, left, right, b.IsLiftedToNull, b.Method);
+						return Expr.MakeBinary(b.NodeType, left, right, b.IsLiftedToNull, b.Method);
 				}
 				return b;
 			}
@@ -2504,7 +2622,7 @@ namespace ExoModel
 				Expression expr = this.Visit(b.Expression);
 				if (expr != b.Expression)
 				{
-					return System.Linq.Expressions.Expression.TypeIs(expr, b.TypeOperand);
+					return Expr.TypeIs(expr, b.TypeOperand);
 				}
 				return b;
 			}
@@ -2521,7 +2639,7 @@ namespace ExoModel
 				Expression ifFalse = this.Visit(c.IfFalse);
 				if (test != c.Test || ifTrue != c.IfTrue || ifFalse != c.IfFalse)
 				{
-					return System.Linq.Expressions.Expression.Condition(test, ifTrue, ifFalse);
+					return Expr.Condition(test, ifTrue, ifFalse);
 				}
 				return c;
 			}
@@ -2543,7 +2661,7 @@ namespace ExoModel
 			{
 				Expression exp = this.Visit(m.Expression);
 				if (exp != m.Expression)
-					return System.Linq.Expressions.Expression.MakeMemberAccess(exp, m.Member);
+					return Expr.MakeMemberAccess(exp, m.Member);
 				return m;
 			}
 
@@ -2553,7 +2671,7 @@ namespace ExoModel
 				IEnumerable<Expression> args = this.VisitExpressionList(m.Arguments);
 				if (obj != m.Object || args != m.Arguments)
 				{
-					return System.Linq.Expressions.Expression.Call(obj, m.Method, args);
+					return Expr.Call(obj, m.Method, args);
 				}
 				return m;
 			}
@@ -2590,7 +2708,7 @@ namespace ExoModel
 				Expression e = this.Visit(assignment.Expression);
 				if (e != assignment.Expression)
 				{
-					return System.Linq.Expressions.Expression.Bind(assignment.Member, e);
+					return Expr.Bind(assignment.Member, e);
 				}
 				return assignment;
 			}
@@ -2600,7 +2718,7 @@ namespace ExoModel
 				IEnumerable<MemberBinding> bindings = this.VisitBindingList(binding.Bindings);
 				if (bindings != binding.Bindings)
 				{
-					return System.Linq.Expressions.Expression.MemberBind(binding.Member, bindings);
+					return Expr.MemberBind(binding.Member, bindings);
 				}
 				return binding;
 			}
@@ -2610,7 +2728,7 @@ namespace ExoModel
 				IEnumerable<ElementInit> initializers = this.VisitElementInitializerList(binding.Initializers);
 				if (initializers != binding.Initializers)
 				{
-					return System.Linq.Expressions.Expression.ListBind(binding.Member, initializers);
+					return Expr.ListBind(binding.Member, initializers);
 				}
 				return binding;
 			}
@@ -2670,7 +2788,7 @@ namespace ExoModel
 				Expression body = this.Visit(lambda.Body);
 				if (body != lambda.Body)
 				{
-					return System.Linq.Expressions.Expression.Lambda(lambda.Type, body, lambda.Parameters);
+					return Expr.Lambda(lambda.Type, body, lambda.Parameters);
 				}
 				return lambda;
 			}
@@ -2681,9 +2799,9 @@ namespace ExoModel
 				if (args != nex.Arguments)
 				{
 					if (nex.Members != null)
-						return System.Linq.Expressions.Expression.New(nex.Constructor, args, nex.Members);
+						return Expr.New(nex.Constructor, args, nex.Members);
 					else
-						return System.Linq.Expressions.Expression.New(nex.Constructor, args);
+						return Expr.New(nex.Constructor, args);
 				}
 				return nex;
 			}
@@ -2694,7 +2812,7 @@ namespace ExoModel
 				IEnumerable<MemberBinding> bindings = this.VisitBindingList(init.Bindings);
 				if (n != init.NewExpression || bindings != init.Bindings)
 				{
-					return System.Linq.Expressions.Expression.MemberInit(n, bindings);
+					return Expr.MemberInit(n, bindings);
 				}
 				return init;
 			}
@@ -2705,7 +2823,7 @@ namespace ExoModel
 				IEnumerable<ElementInit> initializers = this.VisitElementInitializerList(init.Initializers);
 				if (n != init.NewExpression || initializers != init.Initializers)
 				{
-					return System.Linq.Expressions.Expression.ListInit(n, initializers);
+					return Expr.ListInit(n, initializers);
 				}
 				return init;
 			}
@@ -2717,11 +2835,11 @@ namespace ExoModel
 				{
 					if (na.NodeType == ExpressionType.NewArrayInit)
 					{
-						return System.Linq.Expressions.Expression.NewArrayInit(na.Type.GetElementType(), exprs);
+						return Expr.NewArrayInit(na.Type.GetElementType(), exprs);
 					}
 					else
 					{
-						return System.Linq.Expressions.Expression.NewArrayBounds(na.Type.GetElementType(), exprs);
+						return Expr.NewArrayBounds(na.Type.GetElementType(), exprs);
 					}
 				}
 				return na;
@@ -2733,7 +2851,7 @@ namespace ExoModel
 				Expression expr = this.Visit(iv.Expression);
 				if (args != iv.Arguments || expr != iv.Expression)
 				{
-					return System.Linq.Expressions.Expression.Invoke(expr, args);
+					return Expr.Invoke(expr, args);
 				}
 				return iv;
 			}

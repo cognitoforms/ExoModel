@@ -79,6 +79,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="IReflectionModelProperty.cs" />
+    <Compile Include="IReflectionModelType.cs" />
+    <Compile Include="ModelExpression.cs" />
     <Compile Include="ModelFormatAttribute.cs" />
     <Compile Include="ModelStepList.cs" />
     <Compile Include="DynamicModelTypeProvider.cs" />

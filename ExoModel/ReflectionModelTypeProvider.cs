@@ -206,7 +206,7 @@ namespace ExoModel
 		/// Concrete subclass of <see cref="ModelType"/> that represents a specific <see cref="Type"/>.
 		/// </summary>
 		[Serializable]
-		public abstract class ReflectionModelType : ModelType
+		public abstract class ReflectionModelType : ModelType, IReflectionModelType
 		{
 			protected internal ReflectionModelType(string @namespace, Type type, string scope, string format)
 				: base(@namespace + type.Name, type.AssemblyQualifiedName, GetBaseType(type), scope, format, type.GetCustomAttributes(false).Cast<Attribute>().ToArray())
@@ -404,7 +404,7 @@ namespace ExoModel
 		#region ReflectionValueProperty
 
 		[Serializable]
-		public class ReflectionValueProperty : ModelValueProperty
+		public class ReflectionValueProperty : ModelValueProperty, IReflectionModelProperty
 		{
 				protected internal ReflectionValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 				: base(declaringType, name, label, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
@@ -412,7 +412,7 @@ namespace ExoModel
 				this.PropertyInfo = property;
 			}
 
-			protected internal PropertyInfo PropertyInfo { get; private set; }
+			public PropertyInfo PropertyInfo { get; private set; }
 
 			protected internal override object GetValue(object instance)
 			{
@@ -440,7 +440,7 @@ namespace ExoModel
 		#region ReflectionReferenceProperty
 
 		[Serializable]
-		public class ReflectionReferenceProperty : ModelReferenceProperty
+		public class ReflectionReferenceProperty : ModelReferenceProperty, IReflectionModelProperty
 		{
 				protected internal ReflectionReferenceProperty(ModelType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 				: base(declaringType, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
@@ -448,7 +448,7 @@ namespace ExoModel
 				this.PropertyInfo = property;
 			}
 
-			protected internal PropertyInfo PropertyInfo { get; private set; }
+			public PropertyInfo PropertyInfo { get; private set; }
 
 			protected internal override object GetValue(object instance)
 			{

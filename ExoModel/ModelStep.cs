@@ -100,11 +100,11 @@ namespace ExoModel
 			if (Property == null)
 				return "?";
 			else if (NextSteps == null || NextSteps.Count == 0)
-				return Property.Name + "<" + (Filter == null ? Property.DeclaringType.Name : Filter.Name) + ">";
+				return Property.Name + (Filter == null ? "" : "<" + Filter.Name + ">");
 			else if (NextSteps.Count == 1)
-				return Property.Name + "<" + (Filter == null ? Property.DeclaringType.Name : Filter.Name) + ">" + "." + NextSteps.First();
+				return Property.Name + (Filter == null ? "" : "<" + Filter.Name + ">") + "." + NextSteps.First();
 			else
-				return Property.Name + "<" + (Filter == null ? Property.DeclaringType.Name : Filter.Name) + ">" + "{" + NextSteps.Aggregate("", (p, s) => p.Length > 0 ? p + "," + s : s.ToString()) + "}";
+				return Property.Name + (Filter == null ? "" : "<" + Filter.Name + ">") + "{" + NextSteps.Aggregate("", (p, s) => p.Length > 0 ? p + "," + s : s.ToString()) + "}";
 		}
 
 		#endregion
