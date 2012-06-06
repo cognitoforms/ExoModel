@@ -1,19 +1,42 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <package>
 	<metadata>
-		<id>ExoModel.EntityFramework</id>
+		<id>ExoModel.</id>
 		<version>1.0.0</version>
-		<authors>Jamie Thomas</authors>
-		<description>ExoModel.EntityFramework</description>
-		<summary>ExoModel.EntityFrameworky</summary>
-		<projectUrl>http://exosuite.com/</projectUrl>
-		<licenseUrl>http://exosuite.com/license</licenseUrl>
+		<authors>Jamie Thomas, Bryan Matthews, Matt Hooper, Bobby Dimmick and many others at VC3</authors>
+		<summary>Exo, including ExoModel, ExoRule, and ExoWeb configured for Code First EF projects and MVC Razor apps.</summary>
+		<description>Exo is a set of open source .NET libraries that make dynamic web programming both fun and compelling.  Exo represents a model-centric programming paradigm that seemlessly allows you to manipulate your domain model both on the server in comfortable .NET languages and on the client as a rich Javascript model without the compromises and limitations found in today's web frameworks.</description>
+		<projectUrl>http://exosuite.org/</projectUrl>
+		<licenseUrl>http://exosuite.org/license</licenseUrl>
 		<dependencies>
-			<dependency id="ExoModel" version="1.0.0" />
-		  <dependency id="Afterthought" version="1.0.6" />
+			<dependency id="EntityFramework" version="4.3.1" />
+			<dependency id="NuGetPowerTools" version="0.29" />
 		</dependencies>
 	</metadata>
 	<files>
-		<file src="..\bin\Debug\ExoModel.EntityFramework.dll" target="lib"/>
+		<file src="ExoModel\ExoModel\bin\Debug\ExoModel.dll" target="lib"/>
+		<file src="ExoModel\ExoModel\bin\Debug\ExoModel.pdb" target="lib"/>
+		<file src="ExoModel\ExoModel.EntityFramework\bin\Debug\ExoModel.EntityFramework.dll" target="lib"/>
+		<file src="ExoModel\ExoModel.EntityFramework\bin\Debug\ExoModel.EntityFramework.pdb" target="lib"/>
+		<file src="ExoRule\ExoRule\bin\Debug\ExoRule.dll" target="lib"/>
+		<file src="ExoRule\ExoRule\bin\Debug\ExoRule.pdb" target="lib"/>
+		<file src="ExoRule\ExoRule.DataAnnotations\bin\Debug\ExoRule.DataAnnotations.dll" target="lib"/>
+		<file src="ExoRule\ExoRule.DataAnnotations\bin\Debug\ExoRule.DataAnnotations.pdb" target="lib"/>
+		<file src="ExoWeb\ExoWeb\bin\ExoWeb.dll" target="lib"/>
+		<file src="ExoWeb\ExoWeb\bin\ExoWeb.pdb" target="lib"/>
+		<file src="ExoWeb\ExoWeb\Dependencies\Jurassic.dll" target="lib"/>
+		<file src="ExoWeb\ExoWeb\Dependencies\Jurassic.pdb" target="lib"/>
+		<file src="ExoWeb\ExoWeb\Nuget\Web.config.transform" target="content" />
+		<file src="ExoWeb\ExoWeb\Nuget\Views\Web.config.transform" target="content\Views" />
+		<file src="ExoWeb\ExoWeb\Client\dist\exoweb-msajax.js" target="content\Scripts" />
+		<file src="ExoWeb\ExoWeb\Client\dist\exoweb-templates.htm" target="content\Scripts" />
+		<file src="ExoWeb\ExoWeb\Client\ref\aspnetajax\MicrosoftAjax.debug.js" target="content\Scripts" />
+		<file src="ExoWeb\ExoWeb\Client\ref\aspnetajax\MicrosoftAjaxTemplates.debug.js" target="content\Scripts" />
+		<file src="ExoModel\ExoModel.EntityFramework\Dependencies\Afterthought.Amender.exe" target="tools"/>
+		<file src="ExoModel\ExoModel.EntityFramework\Dependencies\Afterthought.Amender.pdb" target="tools"/>
+		<file src="ExoModel\ExoModel.EntityFramework\Dependencies\Afterthought.dll" target="tools"/>
+		<file src="ExoModel\ExoModel.EntityFramework\Dependencies\Afterthought.pdb" target="tools"/>
+		<file src="Exo.targets" target="tools"/>
+		<file src="Install.ps1" target="tools" />
 	</files>
 </package>

@@ -45,7 +45,7 @@ namespace ExoModel.EntityFramework
 					// Public Read/Write
 					p.PropertyInfo != null && p.PropertyInfo.CanRead && p.PropertyInfo.CanWrite && p.PropertyInfo.GetGetMethod().IsPublic &&
 					// Mapped
-					!p.PropertyInfo.GetCustomAttributes(typeof(NotMappedAttribute), true).Any() &&
+					IsMapped(p.PropertyInfo) &&
 					// Reference
 					entityTypes.Contains(p.Type))
 				.Get(EntityAdapter.GetReference)
@@ -56,8 +56,8 @@ namespace ExoModel.EntityFramework
 				.Where(p =>
 					// Public Read/Write
 					p.PropertyInfo != null && p.PropertyInfo.CanRead && p.PropertyInfo.CanWrite && p.PropertyInfo.GetGetMethod().IsPublic &&
-					// Mapped
-					p.PropertyInfo.GetCustomAttributes(typeof(NotMappedAttribute), true).Any())
+					// Not Mapped
+					!IsMapped(p.PropertyInfo))
 				.BeforeGet(EntityAdapter.BeforeGetReferenceUnmapped)
 				.AfterSet(EntityAdapter.AfterSetReferenceUnmapped);
 
@@ -74,7 +74,7 @@ namespace ExoModel.EntityFramework
 			// Mapped Value Properties
 			Properties
 				.Where(p =>
-					p.PropertyInfo != null && p.PropertyInfo.CanRead && p.PropertyInfo.CanWrite && p.PropertyInfo.GetGetMethod().IsPublic && !p.PropertyInfo.GetCustomAttributes(typeof(NotMappedAttribute), true).Any() &&
+					p.PropertyInfo != null && p.PropertyInfo.CanRead && p.PropertyInfo.CanWrite && p.PropertyInfo.GetGetMethod().IsPublic && IsMapped(p.PropertyInfo) &&
 					!entityTypes.Contains(p.Type) &&
 						// Not List
 					!(p.Type.IsGenericType && p.Type.GetGenericTypeDefinition() == typeof(ICollection<>) && entityTypes.Contains(p.Type.GetGenericArguments()[0])))
@@ -86,13 +86,23 @@ namespace ExoModel.EntityFramework
 			Properties
 				.Where(p =>
 					// Public Read/Write
-					p.PropertyInfo != null && p.PropertyInfo.CanRead && p.PropertyInfo.CanWrite && p.PropertyInfo.GetGetMethod().IsPublic && p.PropertyInfo.GetCustomAttributes(typeof(NotMappedAttribute), true).Any() &&
+					p.PropertyInfo != null && p.PropertyInfo.CanRead && p.PropertyInfo.CanWrite && p.PropertyInfo.GetGetMethod().IsPublic && !IsMapped(p.PropertyInfo) &&
 						// Not Reference
 					!entityTypes.Contains(p.Type) &&
 						// Not List
 					!(p.Type.IsGenericType && p.Type.GetGenericTypeDefinition() == typeof(ICollection<>) && entityTypes.Contains(p.Type.GetGenericArguments()[0])))
 				.BeforeGet(EntityAdapter.BeforeGetValue)
 				.AfterSet(EntityAdapter.AfterSetValueUnmapped);
+		}
+
+		/// <summary>
+		/// Determines whether the specified property is considered mapped by EF.
+		/// </summary>
+		/// <param name="property"></param>
+		/// <returns></returns>
+		bool IsMapped(PropertyInfo property)
+		{
+			return !property.GetCustomAttributes(true).Any(a => a.GetType().FullName == "System.ComponentModel.DataAnnotations.NotMappedAttribute");
 		}
 	}
 }

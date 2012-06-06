@@ -7,7 +7,11 @@ namespace ExoModel.EntityFramework
 {
 	public static class EntityAdapter
 	{
-		static MethodInfo getRelatedEnd = typeof(RelationshipManager).GetMethod("GetRelatedEnd", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance, null, new System.Type[] { typeof(string) }, null);
+		static MethodInfo getRelatedEnd = 
+			typeof(RelationshipManager).GetMethod("GetRelatedEnd", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance, null, new System.Type[] { typeof(string) }, null) ??
+			typeof(RelationshipManager).GetMethod("GetRelatedEnd", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance, null, new System.Type[] { typeof(string), typeof(bool) }, null);
+
+		static bool oneParamRelatedEnd = getRelatedEnd.GetParameters().Length == 1;
 
 		/// <summary>
 		/// Creates a new <see cref="ModelInstance"/> for the specified instance.
@@ -23,12 +27,22 @@ namespace ExoModel.EntityFramework
 		public static ObjectContext GetObjectContext(IEntityContext context, string property)
 		{
 			// Lazy-load EF 4.1 or 4.2
-			var contextAdapter = Type.GetType("System.Data.Entity.Infrastructure.IObjectContextAdapter, EntityFramework, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089");
-			if (contextAdapter == null)
-				contextAdapter = Type.GetType("System.Data.Entity.Infrastructure.IObjectContextAdapter, EntityFramework, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089");
-			if (contextAdapter.IsAssignableFrom(context.GetType()))
+			var contextAdapter = Type.GetType("System.Data.Entity.Infrastructure.IObjectContextAdapter, EntityFramework, Version=4.3.1.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", false);
+			if (contextAdapter != null && contextAdapter.IsAssignableFrom(context.GetType()))
 				return (ObjectContext)contextAdapter.GetProperty("ObjectContext").GetValue(context, null);
-			return context as ObjectContext;
+                
+			contextAdapter = Type.GetType("System.Data.Entity.Infrastructure.IObjectContextAdapter, EntityFramework, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", false);
+			if (contextAdapter != null && contextAdapter.IsAssignableFrom(context.GetType()))
+				return (ObjectContext)contextAdapter.GetProperty("ObjectContext").GetValue(context, null);
+
+			contextAdapter = Type.GetType("System.Data.Entity.Infrastructure.IObjectContextAdapter, EntityFramework, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", false);
+			if (contextAdapter != null && contextAdapter.IsAssignableFrom(context.GetType()))
+				return (ObjectContext)contextAdapter.GetProperty("ObjectContext").GetValue(context, null);
+
+			if (context is ObjectContext)
+				return context as ObjectContext;
+
+			throw new InvalidOperationException("An object context could not be obtained from the specified entity context.");
 		}
 
 		public static int AfterSaveChanges(IEntityContext context, int result)
@@ -61,6 +75,13 @@ namespace ExoModel.EntityFramework
 			instance.IsInitialized = true;
 		}
 
+		static IRelatedEnd GetRelatedEnd(IModelEntity instance, string property)
+		{
+			return oneParamRelatedEnd ?
+				(IRelatedEnd)getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property }) :
+				(IRelatedEnd)getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property, false });
+		}
+
 		/// <summary>
 		/// Gets a navigation property reference for the specified property.
 		/// </summary>
@@ -73,7 +94,7 @@ namespace ExoModel.EntityFramework
 			instance.Instance.OnPropertyGet(property);
 
 			// Return the property reference
-			var reference = ((IRelatedEnd) getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property })).GetEnumerator();
+			var reference = GetRelatedEnd(instance, property).GetEnumerator();
 			reference.MoveNext();
 			return reference.Current;
 		}
@@ -102,7 +123,7 @@ namespace ExoModel.EntityFramework
 			instance.Instance.OnPropertyGet(property);
 
 			// Get the property reference
-			var reference = (IRelatedEnd)getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property });
+			var reference = GetRelatedEnd(instance, property);
 
 			// Load the reference if necessary
 			if (!reference.IsLoaded && !(instance.ChangeTracker.EntityState == System.Data.EntityState.Added 
@@ -132,7 +153,7 @@ namespace ExoModel.EntityFramework
 			}
 
 			// Get the entity reference
-			var reference = (IRelatedEnd)getRelatedEnd.Invoke(instance.RelationshipManager, new object[] { property });
+			var reference = GetRelatedEnd(instance, property);
 
 			// Track the current value
 			var set = reference.GetEnumerator();
