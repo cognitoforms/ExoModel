@@ -735,7 +735,7 @@ namespace ExoModel
 		{
 			object reference = property.GetValue(instance);
 			if (reference != null)
-				return Type.GetModelInstance(reference);
+				return property.PropertyType.GetModelInstance(reference);
 			return null;
 		}
 

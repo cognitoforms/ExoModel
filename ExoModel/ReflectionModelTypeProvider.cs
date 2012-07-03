@@ -252,24 +252,26 @@ namespace ExoModel
 					if (ModelContext.Current.GetModelType(property.DeclaringType) == null || (isNewProperty[property.Name] && property.DeclaringType != UnderlyingType))
 						continue;
 
+					ModelType referenceType;
+
 					// Copy properties inherited from base model types
 					if (BaseType != null && BaseType.Properties.Contains(property.Name) && !(isNewProperty[property.Name] || property.GetGetMethod().IsStatic))
 						AddProperty(BaseType.Properties[property.Name]);
 
 					// Create references based on properties that relate to other instance types
-					else if (provider.supportedTypes.Contains(property.PropertyType))
+					else if ((referenceType = Context.GetModelType(property.PropertyType)) != null)
 					{
 						var format = property.GetCustomAttributes(true).OfType<ModelFormatAttribute>().Select(a => a.Format).FirstOrDefault();
-						ModelReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, format, property.GetGetMethod().IsStatic, Context.GetModelType(property.PropertyType), false, property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						ModelReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, format, property.GetGetMethod().IsStatic, referenceType, false, property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (reference != null)
 							AddProperty(reference);
 					}
 
 					// Create references based on properties that are lists of other instance types
-					else if (TryGetListItemType(property.PropertyType, out listItemType) && provider.supportedTypes.Contains(listItemType))
+					else if (TryGetListItemType(property.PropertyType, out listItemType) && (referenceType = Context.GetModelType(listItemType)) != null)
 					{
 						var format = property.GetCustomAttributes(true).OfType<ModelFormatAttribute>().Select(a => a.Format).FirstOrDefault();
-						ModelReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, format, property.GetGetMethod().IsStatic, Context.GetModelType(listItemType), true, false, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						ModelReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, format, property.GetGetMethod().IsStatic, referenceType, true, false, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (reference != null)
 							AddProperty(reference);
 					}

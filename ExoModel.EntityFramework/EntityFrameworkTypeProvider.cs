@@ -308,6 +308,9 @@ namespace ExoModel.EntityFramework
 				OwnerProperties = new Dictionary<ModelReferenceProperty, ModelReferenceProperty>();
 				foreach (var property in Properties.OfType<EntityReferenceProperty>().Where(p => p.IsList))
 				{
+					if (!(property.PropertyType is EntityModelType))
+						continue;
+
 					var relatedEntityType = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(entityNamespace + "." + ((EntityModelType)property.PropertyType).UnderlyingType.Name, DataSpace.OSpace);
 					NavigationProperty manyNavProp;
 					if (!entityType.NavigationProperties.TryGetValue(property.Name, false, out manyNavProp))

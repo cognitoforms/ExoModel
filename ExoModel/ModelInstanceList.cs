@@ -284,7 +284,7 @@ namespace ExoModel
 			if (list != null)
 			{
 				foreach (object instance in list)
-					yield return property.DeclaringType.GetModelInstance(instance);
+					yield return property.PropertyType.GetModelInstance(instance);
 			}
 		}
 

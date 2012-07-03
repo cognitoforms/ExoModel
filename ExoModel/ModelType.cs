@@ -864,11 +864,14 @@ namespace ExoModel
 
 				// Notify subscribers that a reference property has changed
 				else
+				{
+					var modelRefProp = (ModelReferenceProperty)property;
 					new ModelReferenceChangeEvent(
-						instance, (ModelReferenceProperty)property,
-						oldValue == null ? null : GetModelInstance(oldValue),
-						newValue == null ? null : GetModelInstance(newValue)
+						instance, modelRefProp,
+						oldValue == null ? null : modelRefProp.PropertyType.GetModelInstance(oldValue),
+						newValue == null ? null : modelRefProp.PropertyType.GetModelInstance(newValue)
 					).Notify();
+				}
 			}
 
 			// Otherwise, notify subscribers that a value property has changed
