@@ -37,14 +37,24 @@ namespace ExoModel.Json
 
 		public JsonInstance GetInstance(ModelType type, string id)
 		{
-			Dictionary<string, JsonInstance> instances;
-			if (Instances.TryGetValue(type, out instances))
+			if (id != null)
 			{
-				JsonInstance instance;
-				if (instances.TryGetValue(id, out instance))
-					return instance;
+				Dictionary<string, JsonInstance> instances;
+				if (Instances.TryGetValue(type, out instances))
+				{
+					JsonInstance instance;
+					if (instances.TryGetValue(id, out instance))
+						return instance;
+				}
+
+				//the id was not null and could not be found so return a null object
+				return null;
 			}
-			return null;
+			else
+			{
+				//we need to create a new isntance
+				return new JsonInstance(type);
+			}
 		}
 
 		public Dictionary<string, JsonInstance> GetInstances(ModelType type)
