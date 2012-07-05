@@ -1353,7 +1353,7 @@ namespace ExoModel
 					{
 						var modelType = ModelContext.Current.GetModelType(member.DeclaringType);
 						if (modelType != null)
-							return new PropertyGet(instance, ModelContext.Current.GetModelType(member.DeclaringType).Properties[member.Name]);
+							return new PropertyGet(instance, modelType.Properties[member.Name]);
 						else
 							return Expr.Property(instance, (PropertyInfo)member);
 					}
