@@ -16,7 +16,7 @@ namespace ExoModel
 		HashSet<ModelContext> pool = new HashSet<ModelContext>();
 
 		[ThreadStatic]
-		Storage context;
+		static Storage context;
 
 		/// <summary>
 		/// Creates a new <see cref="ModelContextProvider"/> and automatically assigns the instance
