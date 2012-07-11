@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using ExoModel;
 using System.Reflection;
+using System.ComponentModel.DataAnnotations;
 
 namespace ExoModel.UnitTest
 {
@@ -12,20 +13,84 @@ namespace ExoModel.UnitTest
 	/// </summary>
 	public class TestModelTypeProvider : ReflectionModelTypeProvider
 	{
+		#region Fields
+
+		[ThreadStatic]
+		static WeakReference current;
+
 		Dictionary<Type, List<TestEntity>> entities = new Dictionary<Type, List<TestEntity>>();
 
+		#endregion
+
+		#region Constructors
+
 		public TestModelTypeProvider()
-			: this(Assembly.GetExecutingAssembly())
+			: this("", Assembly.GetExecutingAssembly())
 		{ }
 
+		public TestModelTypeProvider(string @namespace)
+			: this(@namespace, Assembly.GetExecutingAssembly())
+		{
+			Current = this;
+		}
+
 		public TestModelTypeProvider(Assembly assembly)
-			: base(assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(TestEntity))))
-		{ }
+			: this("", assembly)
+		{
+			Current = this;
+		}
+
+		public TestModelTypeProvider(string @namespace, Assembly assembly)
+			: base(@namespace, assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(TestEntity))))
+		{
+			Current = this;
+		}
+
+		#endregion
+
+		#region Properties
+
+		/// <summary>
+		/// Gets or sets the current <see cref="TestModelTypeProvider"/> for the current thread of execution.
+		/// </summary>
+		internal static TestModelTypeProvider Current
+		{
+			get
+			{
+				return current != null && current.IsAlive ? (TestModelTypeProvider)current.Target : null;
+			}
+			set
+			{
+				if (value == null)
+					current = null;
+				else
+					current = new WeakReference(value);
+			}
+		}
+
+		#endregion
+
+		#region Methods
+
+		public List<TestEntity> GetEntities(Type entityType)
+		{
+			return entities.ContainsKey(entityType) ? entities[entityType] : new List<TestEntity>();
+		}
 
 		protected override ReflectionModelTypeProvider.ReflectionModelType CreateModelType(string @namespace, Type type, string format)
 		{
 			return new TestModelType(@namespace, type, format);
 		}
+
+		protected override ModelValueProperty CreateValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, System.ComponentModel.TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		{
+			format = format ?? attributes.OfType<DisplayFormatAttribute>().Select(f => f.DataFormatString).FirstOrDefault();
+			return base.CreateValueProperty(declaringType, property, name, label, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes);
+		}
+
+		#endregion
+
+		#region TestModelType
 
 		class TestModelType : ReflectionModelType
 		{
@@ -128,5 +193,7 @@ namespace ExoModel.UnitTest
 				throw new NotImplementedException();
 			}
 		}
+
+		#endregion
 	}
 }

@@ -31,6 +31,11 @@ namespace ExoModel.UnitTest
 
 		internal int? Id { get; set; }
 
+		protected static ICollection<TEntity> All<TEntity>()
+		{
+			return TestModelTypeProvider.Current.GetEntities(typeof(TEntity)).OfType<TEntity>().ToList();
+		}
+
 		protected TValue Get<TValue>(Expression<Func<TValue>> property)
 		{
 			// Get the name of the property being fetched
@@ -66,6 +71,11 @@ namespace ExoModel.UnitTest
 		ModelInstance IModelInstance.Instance
 		{
 			get { return instance; }
+		}
+
+		public override string ToString()
+		{
+			return instance.ToString();
 		}
 	}
 }

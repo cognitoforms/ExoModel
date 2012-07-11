@@ -60,6 +60,7 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="Microsoft.VisualStudio.QualityTools.UnitTestFramework, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
@@ -78,25 +79,34 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Category.cs" />
     <Compile Include="FormatTests.cs" />
-    <Compile Include="JsonModel\JsonGraphTypeProvider.cs" />
-    <Compile Include="JsonModel\ProviderTest.cs" />
-    <Compile Include="JsonModel\JsonInstance.cs" />
-    <Compile Include="JsonModel\JsonModel.cs" />
-    <Compile Include="Priority.cs" />
-    <Compile Include="Request.cs" />
-    <Compile Include="User.cs" />
-    <Compile Include="GraphProviderTest.cs" />
-    <Compile Include="ICategory.cs" />
-    <Compile Include="IPriority.cs" />
-    <Compile Include="IRequest.cs" />
-    <Compile Include="IUser.cs" />
+    <Compile Include="ModelExpressionTest.cs" />
+    <Compile Include="ModelProviderTest.cs" />
+    <Compile Include="Models\Movies\Actor.cs" />
+    <Compile Include="Models\Movies\Director.cs" />
+    <Compile Include="Models\Movies\Genre.cs" />
+    <Compile Include="Models\Movies\Model.cs" />
+    <Compile Include="Models\Movies\Movie.cs" />
+    <Compile Include="Models\Movies\NamedItem.cs" />
+    <Compile Include="Models\Movies\Person.cs" />
+    <Compile Include="Models\Movies\Role.cs" />
+    <Compile Include="Models\Requests\Category.cs" />
+    <Compile Include="Models\Requests\ICategory.cs" />
+    <Compile Include="Models\Requests\IPriority.cs" />
+    <Compile Include="Models\Requests\IRequest.cs" />
+    <Compile Include="Models\Requests\IUser.cs" />
+    <Compile Include="Models\Requests\Priority.cs" />
+    <Compile Include="Models\Requests\Request.cs" />
+    <Compile Include="Models\Requests\User.cs" />
+    <Compile Include="TestModelTypeProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TestEntity.cs" />
-    <Compile Include="TestGraphTypeProvider.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\ExoModel.Json\ExoModel.Json.csproj">
+      <Project>{67E8A5CD-DEFB-47C7-9B2E-48A142EEC404}</Project>
+      <Name>ExoModel.Json</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ExoModel\ExoModel.csproj">
       <Project>{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}</Project>
       <Name>ExoModel</Name>
@@ -106,13 +116,13 @@
     <None Include="app.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="JsonModel\instances.js" />
+    <Content Include="Models\Movies\instances.js" />
+    <Content Include="Models\Movies\types.js" />
     <Content Include="RequestData.MDF">
     </Content>
     <Content Include="RequestData_log.ldf">
       <DependentUpon>RequestData.MDF</DependentUpon>
     </Content>
-    <Content Include="JsonModel\types.js" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.0">
@@ -140,6 +150,9 @@
       <ProductName>Windows Installer 3.1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="JsonModel\" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
