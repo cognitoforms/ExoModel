@@ -34,7 +34,8 @@ namespace ExoModel
 		{
 			get
 			{
-				ModelContext context = GetStorage().Context;
+				Storage storage = GetStorage();
+				ModelContext context = storage.Context;
 				if (context == null)
 				{
 					if (pool.Count > 0)
@@ -57,8 +58,10 @@ namespace ExoModel
 					{
 						OnCreateContext();
 					}
+
+					context = storage.Context;
 				}
-				return GetStorage().Context;
+				return context;
 			}
 			set
 			{
