@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace ExoModel
 {
@@ -8,7 +9,10 @@ namespace ExoModel
 	/// </summary>
 	public class ModelSource
 	{
-		string[] sourcePath;
+		SourceStep [] steps;
+		static Regex pathValidation = new Regex(@"^(?<Property>[a-zA-Z0-9_]+)(\[(?<Index>\d+)\])?(\.(?<Property>[a-zA-Z0-9_]+)(\[(?<Index>\d+)\])?)*$", RegexOptions.Compiled);
+		static Regex tokenizer = new Regex(@"(?<Property>[a-zA-Z0-9_]+)(\[(?<Index>\d+)\])?", RegexOptions.Compiled);
+		static Regex arraySyntaxRegex = new Regex(@"\[\d+\]", RegexOptions.Compiled);
 
 		ModelSource()
 		{ }
@@ -20,7 +24,7 @@ namespace ExoModel
 		/// <param name="path">The source path, which is either an instance path or a static path</param>
 		public ModelSource(ModelPath path)
 		{
-			InitializeFromModelPath(path);
+			InitializeFromModelPath(path, path.Path);
 		}
 
 		/// <summary>
@@ -30,6 +34,10 @@ namespace ExoModel
 		/// <param name="path">The source path, which is either an instance path or a static path</param>
 		public ModelSource(ModelType rootType, string path)
 		{
+			// Raise an error if the specified path is not valid
+			if (!pathValidation.IsMatch(path))
+				throw new ArgumentException("The specified path, '" + path + "', was not valid path syntax.");
+
 			// Raise an error if the specified path is not valid
 			if (!InitializeFromTypeAndPath(rootType, path))
 				throw new ArgumentException("The specified path, '" + path + "', was not valid for the root type of '" + rootType.Name + "'.", "path");
@@ -63,9 +71,12 @@ namespace ExoModel
 		{
 			// Instance Path
 			ModelPath instancePath;
-			if (rootType != null && rootType.TryGetPath(path, out instancePath))
+
+			//clean up any array indices
+			string indexFreePath = arraySyntaxRegex.Replace(path, "");
+			if (rootType != null && rootType.TryGetPath(indexFreePath, out instancePath))
 			{
-				InitializeFromModelPath(instancePath);
+				InitializeFromModelPath(instancePath, path);
 				return true;
 			}
 
@@ -87,8 +98,6 @@ namespace ExoModel
 					}
 				}
 			}
-
-			// Otherwise, return false to indicate that the source path is not valid
 			return false;
 		}
 
@@ -96,21 +105,29 @@ namespace ExoModel
 		/// Initialize the source from a valid <see cref="ModelPath"/>
 		/// </summary>
 		/// <param name="instancePath"></param>
-		private void InitializeFromModelPath(ModelPath instancePath)
+		private void InitializeFromModelPath(ModelPath instancePath, string path)
 		{
-			this.Path = instancePath.Path;
+			this.Path = path;
 			this.IsStatic = false;
-
 			this.RootType = instancePath.RootType.Name;
-			this.sourcePath = instancePath.Path.Split('.');
-			this.sourcePath = sourcePath.Take(sourcePath.Length - 1).ToArray();
+			var tokens = tokenizer.Matches(path);
+			this.steps = new SourceStep[tokens.Count];
+			var CurrentStepPropertyType = instancePath.RootType;
+			int i = 0;
+			foreach(Match token in tokens)
+			{
+				ModelProperty prop = CurrentStepPropertyType.Properties[token.Groups["Property"].Value];
+				int index;
+				if (!Int32.TryParse(token.Groups["Index"].Value, out index))
+					index = -1;
 
-			// Get the last property along the path
-			ModelStep step = instancePath.FirstSteps.First();
-			while (step.NextSteps.Any())
-				step = step.NextSteps.First();
-			this.SourceProperty = step.Property.Name;
-			this.SourceType = step.Property.DeclaringType.Name;
+				steps[i] = new SourceStep() { Property = prop.Name, Index = index, DeclaringType = prop.DeclaringType.Name, IsReferenceProperty = prop is ModelReferenceProperty };
+				CurrentStepPropertyType = prop is ModelReferenceProperty ? ((ModelReferenceProperty)prop).PropertyType : null;
+				i++;
+			}
+
+			this.SourceProperty = steps.Last().Property;
+			this.SourceType = steps.Last().DeclaringType;
 		}
 
 		/// <summary>
@@ -119,7 +136,7 @@ namespace ExoModel
 		public string RootType { get; private set; }
 
 		/// <summary>
-		/// Gets the source path represented by the current instance.
+		/// Gets the source path represented by the current instance.  array indices removed.
 		/// </summary>
 		public string Path { get; private set; }
 
@@ -147,6 +164,18 @@ namespace ExoModel
 		{
 			IModelPropertySource source = GetSource(root);
 			return source == null ? null : source[SourceProperty];
+		}
+
+		public bool SetValue(ModelInstance root, object value)
+		{
+			return SetValue(root, value, (i, p, n) => false);
+		}
+
+		public bool SetValue(ModelInstance root, object value, Func<ModelInstance, ModelReferenceProperty, int, bool> whenNull)
+		{
+			IModelPropertySource sourceInstance = GetSource(root, whenNull);
+			sourceInstance[SourceProperty] = value;
+			return true;
 		}
 
 		/// <summary>
@@ -203,19 +232,42 @@ namespace ExoModel
 
 		public IModelPropertySource GetSource(ModelInstance root)
 		{
+			return GetSource(root, (i, p, n) => false);
+		}
+
+		public IModelPropertySource GetSource(ModelInstance root, Func<ModelInstance, ModelReferenceProperty, int, bool> whenNull)
+		{
 			// Return the source type for static paths
 			if (IsStatic)
 				return ModelContext.Current.GetModelType(SourceType);
 
-			// Otherwise, walk the source path to find the source instance
-			foreach (string step in sourcePath)
+			//walk the path performing whenNull if an entity is null
+			//if an entity is null and whenNull returns false
+			//then exit out of SetValue returning false
+			foreach (SourceStep step in this.steps.Take(this.steps.Length - 1))
 			{
-				if (root == null)
-					return null;
-				root = root.GetReference(step);
+				ModelReferenceProperty stepProp = (ModelReferenceProperty)ModelContext.Current.GetModelType(step.DeclaringType).Properties[step.Property];
+				if (stepProp.IsList)
+				{
+					ModelInstanceList list = root.GetList(stepProp);
+					if (list.Count < step.Index + 1 && !whenNull(root, stepProp, step.Index))
+						return null;
+
+					root = list[step.Index];
+				}
+				else
+				{
+					root = root.GetReference(step.Property);
+					if (root == null && !whenNull(root, stepProp, step.Index))
+						return null;
+					else
+					{
+						//reinitializing the object because whenNull may change the value the instance.
+						root = root.GetReference(step.Property);
+					}
+				}
 			}
 
-			// Return the source instance
 			return root;
 		}
 
@@ -249,5 +301,13 @@ namespace ExoModel
 		{
 			return Path;
 		}
+	}
+
+	class SourceStep
+	{
+		internal string Property { get; set; }
+		internal int Index { get; set; }
+		internal string DeclaringType { get; set; }
+		internal bool IsReferenceProperty { get; set; }
 	}
 }

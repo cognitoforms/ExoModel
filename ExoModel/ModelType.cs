@@ -459,7 +459,7 @@ namespace ExoModel
 		/// <returns></returns>
 		public ModelExpression GetExpression(string expression)
 		{
-			return GetExpression(null, expression);
+			return GetExpression(typeof(object), expression);
 		}
 
 		/// <summary>

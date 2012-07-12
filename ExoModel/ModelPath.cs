@@ -260,7 +260,7 @@ namespace ExoModel
 		}
 
 		/// <summary>
-		/// Parses query paths into tokens for processing
+		/// Parses query paths into steps for processing
 		/// </summary>
 		static Regex pathParser = new Regex(@"[a-zA-Z0-9_]+|[{}.,]|\<[a-zA-Z0-9_.]+\>", RegexOptions.Compiled);
 
@@ -372,9 +372,9 @@ namespace ExoModel
 				return p;
 			}
 
-			protected override Expression VisitPropertyGet(ModelExpression.PropertyGet m)
+			protected override Expression VisitModelMember(ModelExpression.ModelMemberExpression m)
 			{
-				base.VisitPropertyGet(m);
+				base.VisitModelMember(m);
 				ModelStep step;
 				if (steps.TryGetValue(m.Expression, out step) && !(step.Property is ModelValueProperty))
 				{

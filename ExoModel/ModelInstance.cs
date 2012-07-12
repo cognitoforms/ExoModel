@@ -691,10 +691,10 @@ namespace ExoModel
 		}
 		
 		/// <summary>
-		/// Recursively clones the current instance based on the specified model steps,
+		/// Recursively clones the current instance based on the specified model tokens,
 		/// storing the clones in the specified mapping dictionary.
 		/// </summary>
-		/// <param name="steps"></param>
+		/// <param name="tokens"></param>
 		/// <param name="mapping"></param>
 		void CloneInstance(IEnumerable<ModelStep> steps, IDictionary<ModelInstance, ModelInstance> mapping, List<Cloner.FilterInfo> filters, List<Cloner.WhereInfo> wheres, List<Cloner.PathFuncInfo> pathFuncs)
 		{

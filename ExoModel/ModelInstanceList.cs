@@ -30,6 +30,11 @@ namespace ExoModel
 
 		#region Methods
 
+		public ModelInstance this[int index]
+		{
+			get { return property.PropertyType.GetModelInstance(GetList()[index]); }
+			set { GetList()[index] = value.Instance; }
+		}
 		/// <summary>
 		/// Gets the underlying list and coerces it into a valid <see cref="IList"/> implementation.
 		/// </summary>
@@ -90,7 +95,7 @@ namespace ExoModel
 			//return source.Provider.CreateQuery(
 			//    Expression.Call(
 			//        typeof(Queryable), "Where",
-			//        new Type[] { source.ElementType },
+			//        new CurrentStepPropertyType[] { source.ElementType },
 			//        source.Expression, Expression.Quote(lambda)));
 		}
 
@@ -103,7 +108,7 @@ namespace ExoModel
 			//return source.Provider.CreateQuery(
 			//    Expression.Call(
 			//        typeof(Queryable), "Select",
-			//        new Type[] { source.ElementType, lambda.Body.Type },
+			//        new CurrentStepPropertyType[] { source.ElementType, lambda.Body.CurrentStepPropertyType },
 			//        source.Expression, Expression.Quote(lambda)));
 		}
 
@@ -123,7 +128,7 @@ namespace ExoModel
 			//{
 			//    queryExpr = Expression.Call(
 			//        typeof(Queryable), o.Ascending ? methodAsc : methodDesc,
-			//        new Type[] { source.ElementType, o.Selector.Type },
+			//        new CurrentStepPropertyType[] { source.ElementType, o.Selector.CurrentStepPropertyType },
 			//        queryExpr, Expression.Quote(Expression.Lambda(o.Selector, parameters)));
 			//    methodAsc = "ThenBy";
 			//    methodDesc = "ThenByDescending";
@@ -142,7 +147,7 @@ namespace ExoModel
 			//return source.Provider.CreateQuery(
 			//    Expression.Call(
 			//        typeof(Queryable), "GroupBy",
-			//        new Type[] { source.ElementType, keyLambda.Body.Type, elementLambda.Body.Type },
+			//        new CurrentStepPropertyType[] { source.ElementType, keyLambda.Body.CurrentStepPropertyType, elementLambda.Body.CurrentStepPropertyType },
 			//        source.Expression, Expression.Quote(keyLambda), Expression.Quote(elementLambda)));
 		}
 

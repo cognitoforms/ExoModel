@@ -37,13 +37,16 @@ namespace ExoModel
 			this.RootType = rootType;
 
 			// Parse the expression
-			this.Expression = ModelExpression.ParseLambda(rootType is IReflectionModelType ? ((IReflectionModelType)rootType).UnderlyingType : typeof(object), resultType, expression);
+			var parameters = new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") };
+			var resultExpression = new ExpressionParser(parameters, expression).Parse(new ModelExpressionType(resultType));
 
 			// Determine the model property paths referenced by the expression
-			this.Path = rootType.GetPath(this.Expression);
+			this.Path = rootType.GetPath(resultExpression);
 
 			// Compile the expression to make it executable
-			this.Expression = (LambdaExpression)ModelExpression.ExpressionCompiler.Compile(this.Expression);
+			var parameterMapping = new Dictionary<ModelParameterExpression,ParameterExpression>();
+			resultExpression = ModelExpression.ExpressionCompiler.Compile(resultExpression, parameterMapping);
+			this.Expression = Expr.Lambda(resultExpression, parameters.Select(p => parameterMapping[p]).ToArray());
 		}
 
 		#endregion
@@ -60,26 +63,10 @@ namespace ExoModel
 
 		#region Methods
 
-		internal static Expression Parse(Type resultType, string expression, params object[] values)
+		internal static Expression Parse(ModelExpressionType resultType, string expression, params object[] values)
 		{
 			ExpressionParser parser = new ExpressionParser(null, expression, values);
 			return parser.Parse(resultType);
-		}
-
-		internal static LambdaExpression ParseLambda(Type itType, Type resultType, string expression, params object[] values)
-		{
-			return ParseLambda(new ParameterExpression[] { Expr.Parameter(itType, "") }, resultType, expression, values);
-		}
-
-		internal static LambdaExpression ParseLambda(ParameterExpression[] parameters, Type resultType, string expression, params object[] values)
-		{
-			ExpressionParser parser = new ExpressionParser(parameters, expression, values);
-			return Expr.Lambda(parser.Parse(resultType), parameters);
-		}
-
-		internal static Expression<Func<T, S>> ParseLambda<T, S>(string expression, params object[] values)
-		{
-			return (Expression<Func<T, S>>)ParseLambda(typeof(T), typeof(S), expression, values);
 		}
 
 		internal static Type CreateClass(params DynamicProperty[] properties)
@@ -94,25 +81,94 @@ namespace ExoModel
 
 		#endregion
 
-		#region PropertyGet
+		#region IModelTypeExpression
 
-		public class PropertyGet : Expression
+		public interface IExpressionType
 		{
-			public PropertyGet(Expression expression, ModelProperty property)
+			ModelType ModelType { get; }
+
+			Type Type { get; }
+
+			bool IsList { get; }
+		}
+
+		#endregion
+		
+		#region ModelExpressionType
+
+		public class ModelExpressionType : IExpressionType
+		{
+			public ModelExpressionType(ModelType modelType, bool isList)
+			{
+				this.ModelType = modelType;
+				this.Type = modelType is IReflectionModelType ? ((IReflectionModelType)modelType).UnderlyingType : typeof(object);
+				this.Name = modelType.Name;
+				this.IsList = isList;
+			}
+
+			public ModelExpressionType(Type type)
+			{
+				this.Type = type;
+				this.Name = type == null ? "" : type.Name;
+				this.IsList = false;
+			}
+
+			public ModelType ModelType { get; private set; }
+
+			public Type Type { get; private set; }
+
+			public string Name { get; private set; }
+
+			public bool IsList { get; private set; }
+		}
+
+		#endregion
+
+		#region ModelParameterExpression
+
+		public class ModelParameterExpression : Expression, IExpressionType
+		{
+			public ModelParameterExpression(IExpressionType type, string name)
+				: base(ExpressionType.Parameter, type.Type)
+			{
+				this.ModelType = type.ModelType;
+				this.Name = name;
+				this.IsList = type.IsList;
+			}
+
+			public ModelType ModelType { get; private set; }
+
+			public string Name { get; private set; }
+
+			public bool IsList { get; private set; }
+		}
+
+		#endregion
+
+		#region ModelMemberExpression
+
+		public class ModelMemberExpression : Expression, IExpressionType
+		{
+			public ModelMemberExpression(Expression expression, ModelProperty property)
 				: base(ExpressionType.Call,
 					property is ModelValueProperty ? ((ModelValueProperty)property).PropertyType :
-					property is ReflectionModelTypeProvider.ReflectionReferenceProperty ?
-						((ReflectionModelTypeProvider.ReflectionReferenceProperty)property).PropertyInfo.PropertyType :
+					property is IReflectionModelProperty ?
+						((IReflectionModelProperty)property).PropertyInfo.PropertyType :
 						typeof(object))
 			{
 				this.Expression = expression;
-
 				this.Property = property;
+				this.ModelType = property is ModelReferenceProperty ? ((ModelReferenceProperty)property).PropertyType : null;
+				this.IsList = property is ModelReferenceProperty ? ((ModelReferenceProperty)property).IsList : false;
 			}
 
 			public Expression Expression { get; private set; }
 
 			public new ModelProperty Property { get; private set; }
+
+			public ModelType ModelType { get; private set; }
+
+			public bool IsList { get; private set; }
 		}
 
 		#endregion
@@ -665,14 +721,14 @@ namespace ExoModel
 			Dictionary<string, object> symbols;
 			IDictionary<string, object> externals;
 			Dictionary<Expression, string> literals;
-			ParameterExpression it;
+			ModelParameterExpression it;
 			string text;
 			int textPos;
 			int textLen;
 			char ch;
 			Token token;
 
-			public ExpressionParser(ParameterExpression[] parameters, string expression, object[] values)
+			public ExpressionParser(ModelParameterExpression[] parameters, string expression, params object[] values)
 			{
 				if (expression == null) throw new ArgumentNullException("expression");
 				if (keywords == null) keywords = CreateKeywords();
@@ -686,9 +742,9 @@ namespace ExoModel
 				NextToken();
 			}
 
-			void ProcessParameters(ParameterExpression[] parameters)
+			void ProcessParameters(ModelParameterExpression[] parameters)
 			{
-				foreach (ParameterExpression pe in parameters)
+				foreach (ModelParameterExpression pe in parameters)
 					if (!String.IsNullOrEmpty(pe.Name))
 						AddSymbol(pe.Name, pe);
 				if (parameters.Length == 1 && String.IsNullOrEmpty(parameters[0].Name))
@@ -718,12 +774,12 @@ namespace ExoModel
 				symbols.Add(name, value);
 			}
 
-			public Expression Parse(Type resultType)
+			public Expression Parse(ModelExpressionType resultType)
 			{
 				int exprPos = token.pos;
 				Expression expr = ParseExpression();
 				if (resultType != null)
-					if ((expr = PromoteExpression(expr, resultType, true)) == null)
+					if ((expr = PromoteExpression(expr, resultType.Type, true)) == null)
 						throw ParseError(exprPos, Res.ExpressionTypeMismatch, GetTypeName(resultType));
 				ValidateToken(TokenId.End, Res.SyntaxError);
 				return expr;
@@ -1112,7 +1168,7 @@ namespace ExoModel
 				object value;
 				if (keywords.TryGetValue(token.text, out value))
 				{
-					if (value is Type) return ParseTypeAccess((Type)value);
+					if (value is Type) return ParseTypeAccess(new ModelExpressionType((Type)value));
 					if (value == (object)keywordIt) return ParseIt();
 					if (value == (object)keywordIif) return ParseIif();
 					if (value == (object)keywordNew) return ParseNew();
@@ -1234,26 +1290,26 @@ namespace ExoModel
 				return Expr.Invoke(lambda, args);
 			}
 
-			Expression ParseTypeAccess(Type type)
+			Expression ParseTypeAccess(IExpressionType type)
 			{
 				int errorPos = token.pos;
 				NextToken();
 				if (token.id == TokenId.Question)
 				{
-					if (!type.IsValueType || IsNullableType(type))
+					if (!type.Type.IsValueType || IsNullableType(type.Type))
 						throw ParseError(errorPos, Res.TypeHasNoNullableForm, GetTypeName(type));
-					type = typeof(Nullable<>).MakeGenericType(type);
+					type = new ModelExpressionType(typeof(Nullable<>).MakeGenericType(type.Type));
 					NextToken();
 				}
 				if (token.id == TokenId.OpenParen)
 				{
 					Expression[] args = ParseArgumentList();
 					MethodBase method;
-					switch (FindBestMethod(type.GetConstructors(), ref args, out method))
+					switch (FindBestMethod(type.Type.GetConstructors(), ref args, out method))
 					{
 						case 0:
 							if (args.Length == 1)
-								return GenerateConversion(args[0], type, errorPos);
+								return GenerateConversion(args[0], type.Type, errorPos);
 							throw ParseError(errorPos, Res.NoMatchingConstructor, GetTypeName(type));
 						case 1:
 							return Expr.New((ConstructorInfo)method, args);
@@ -1283,12 +1339,12 @@ namespace ExoModel
 					exprType.IsInterface || type.IsInterface)
 					return Expr.Convert(expr, type);
 				throw ParseError(errorPos, Res.CannotConvertValue,
-					GetTypeName(exprType), GetTypeName(type));
+					GetTypeName(expr), GetTypeName(new ModelExpressionType(type)));
 			}
 
-			Expression ParseMemberAccess(Type type, Expression instance)
+			Expression ParseMemberAccess(IExpressionType type, Expression instance)
 			{
-				if (instance != null) type = instance.Type;
+				if (instance != null) type = (instance as IExpressionType) ?? new ModelExpressionType(instance.Type);
 				int errorPos = token.pos;
 				string id = GetIdentifier();
 				NextToken();
@@ -1296,16 +1352,26 @@ namespace ExoModel
 				{
 					if (instance != null && type != typeof(string))
 					{
-						Type enumerableType = FindGenericType(typeof(IEnumerable<>), type);
-						if (enumerableType != null)
+						if (type.ModelType != null)
 						{
-							Type elementType = enumerableType.GetGenericArguments()[0];
-							return ParseAggregate(instance, elementType, id, errorPos);
+							if (type.IsList)
+							{
+								return ParseAggregate(instance, type, id, errorPos);
+							}
+						}
+						else
+						{
+							Type enumerableType = FindGenericType(typeof(IEnumerable<>), type.Type);
+							if (enumerableType != null)
+							{
+								Type elementType = enumerableType.GetGenericArguments()[0];
+								return ParseAggregate(instance, new ModelExpressionType(elementType), id, errorPos);
+							}
 						}
 					}
 					Expression[] args = ParseArgumentList();
 					MethodBase mb;
-					switch (FindMethod(type, id, instance == null, ref args, out mb))
+					switch (FindMethod(type.Type, id, instance == null, ref args, out mb))
 					{
 						case 0:
 							throw ParseError(errorPos, Res.NoApplicableMethod,
@@ -1313,10 +1379,10 @@ namespace ExoModel
 						case 1:
 							MethodInfo method = (MethodInfo)mb;
 							if (!IsPredefinedType(method.DeclaringType))
-								throw ParseError(errorPos, Res.MethodsAreInaccessible, GetTypeName(method.DeclaringType));
+								throw ParseError(errorPos, Res.MethodsAreInaccessible, GetTypeName(new ModelExpressionType(method.DeclaringType)));
 							if (method.ReturnType == typeof(void))
 								throw ParseError(errorPos, Res.MethodIsVoid,
-									id, GetTypeName(method.DeclaringType));
+									id, GetTypeName(new ModelExpressionType(method.DeclaringType)));
 
 							// Handle boxing of value types
 							var parameters = method.GetParameters();
@@ -1332,33 +1398,46 @@ namespace ExoModel
 				}
 				else
 				{
-					MemberInfo member = FindPropertyOrField(type, id, instance == null);
-					if (member == null)
+					if(type.ModelType != null)
 					{
-						MethodBase mb;
-						var args = new Expression[0];
-						if (FindMethod(type, id, instance == null, ref args, out mb) == 1)
-						{
-							MethodInfo method = (MethodInfo)mb;
-							if (method.ReturnType == typeof(void))
-								throw ParseError(errorPos, Res.MethodIsVoid,
-									id, GetTypeName(method.DeclaringType));
-							return Expr.Call(instance, method, new Expression[0]);
-						}
-						throw ParseError(errorPos, Res.UnknownPropertyOrField,
-							id, GetTypeName(type));
-					}
+						ModelProperty property = type.ModelType.Properties[id];
 
-					if (member is PropertyInfo)
-					{
-						var modelType = ModelContext.Current.GetModelType(member.DeclaringType);
-						if (modelType != null)
-							return new PropertyGet(instance, modelType.Properties[member.Name]);
+						if(property != null)
+						{
+							return new ModelMemberExpression(instance, property);
+						}
 						else
-							return Expr.Property(instance, (PropertyInfo)member);
+						{
+							throw ParseError(errorPos, Res.UnknownPropertyOrField,
+								id, GetTypeName(type));
+						}
 					}
 					else
-						return Expr.Field(instance, (FieldInfo)member);
+					{
+						MemberInfo member = FindPropertyOrField(type.Type, id, instance == null);
+						if (member == null)
+						{
+							MethodBase mb;
+							var args = new Expression[0];
+							if (FindMethod(type.Type, id, instance == null, ref args, out mb) == 1)
+							{
+								MethodInfo method = (MethodInfo)mb;
+								if (method.ReturnType == typeof(void))
+									throw ParseError(errorPos, Res.MethodIsVoid,
+										id, GetTypeName(new ModelExpressionType(method.DeclaringType)));
+								return Expr.Call(instance, method, new Expression[0]);
+							}
+							throw ParseError(errorPos, Res.UnknownPropertyOrField,
+								id, GetTypeName(type));
+						}
+
+						if (member is PropertyInfo)
+						{
+							return Expr.Property(instance, (PropertyInfo)member);
+						}
+						else
+							return Expr.Field(instance, (FieldInfo)member);
+					}
 					//return member is PropertyInfo ?
 					//    Expression.Property(instance, (PropertyInfo)member) :
 					//    Expression.Field(instance, (FieldInfo)member);
@@ -1383,10 +1462,10 @@ namespace ExoModel
 				return null;
 			}
 
-			Expression ParseAggregate(Expression instance, Type elementType, string methodName, int errorPos)
+			Expression ParseAggregate(Expression instance, IExpressionType elementType, string methodName, int errorPos)
 			{
-				ParameterExpression outerIt = it;
-				ParameterExpression innerIt = Expr.Parameter(elementType, "");
+				ModelParameterExpression outerIt = it;
+				ModelParameterExpression innerIt = new ModelParameterExpression(elementType, "");
 				it = innerIt;
 				Expression[] args = ParseArgumentList();
 				it = outerIt;
@@ -1396,11 +1475,11 @@ namespace ExoModel
 				Type[] typeArgs;
 				if (signature.Name == "Min" || signature.Name == "Max")
 				{
-					typeArgs = new Type[] { elementType, args[0].Type };
+					typeArgs = new Type[] { elementType.Type, args[0].Type };
 				}
 				else
 				{
-					typeArgs = new Type[] { elementType };
+					typeArgs = new Type[] { elementType.Type };
 				}
 				if (args.Length == 0)
 				{
@@ -1408,7 +1487,7 @@ namespace ExoModel
 				}
 				else
 				{
-					args = new Expression[] { instance, Expr.Lambda(args[0], innerIt) };
+					args = new Expression[] { instance, Expr.Lambda(args[0], Expr.Parameter(innerIt.Type, "")) };
 				}
 				return Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args);
 			}
@@ -1513,12 +1592,12 @@ namespace ExoModel
 					{
 						case 0:
 							throw ParseError(errorPos, Res.NoApplicableIndexer,
-								GetTypeName(expr.Type));
+								GetTypeName(expr));
 						case 1:
 							return Expr.Call(expr, (MethodInfo)mb, args);
 						default:
 							throw ParseError(errorPos, Res.AmbiguousIndexerInvocation,
-								GetTypeName(expr.Type));
+								GetTypeName(expr));
 					}
 				}
 			}
@@ -1539,11 +1618,29 @@ namespace ExoModel
 				return IsNullableType(type) ? type.GetGenericArguments()[0] : type;
 			}
 
-			static string GetTypeName(Type type)
+			static string GetTypeName(Expression expr)
 			{
-				Type baseType = GetNonNullableType(type);
+				if (expr is IExpressionType)
+				{
+					return GetTypeName(((IExpressionType)expr));
+				}
+
+				Type baseType = GetNonNullableType(expr.Type);
 				string s = baseType.Name;
-				if (type != baseType) s += '?';
+				if (expr.Type != baseType) s += '?';
+				return s;
+			}
+
+			static string GetTypeName(IExpressionType type)
+			{
+				if (type.ModelType != null)
+				{
+					return type.ModelType.Name;
+				}
+
+				Type baseType = GetNonNullableType(type.Type);
+				string s = baseType.Name;
+				if (type.Type != baseType) s += '?';
 				return s;
 			}
 
@@ -1599,7 +1696,7 @@ namespace ExoModel
 				MethodBase method;
 				if (FindMethod(signatures, "F", false, ref args, out method) != 1)
 					throw ParseError(errorPos, Res.IncompatibleOperand,
-						opName, GetTypeName(args[0].Type));
+						opName, GetTypeName(args[0]));
 				expr = args[0];
 			}
 
@@ -1616,7 +1713,7 @@ namespace ExoModel
 			Exception IncompatibleOperandsError(string opName, Expression left, Expression right, int pos)
 			{
 				return ParseError(pos, Res.IncompatibleOperands,
-					opName, GetTypeName(left.Type), GetTypeName(right.Type));
+					opName, GetTypeName(left), GetTypeName(right));
 			}
 
 			MemberInfo FindPropertyOrField(Type type, string memberName, bool staticAccess)
@@ -1834,17 +1931,17 @@ namespace ExoModel
 				}
 				//if (type == typeof(String))
 				//{
-				//    if (expr.Type.IsValueType)
+				//    if (expr.CurrentStepPropertyType.IsValueType)
 
 				//        // expr.ToString()
-				//        return Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
+				//        return Expr.Call(expr, typeof(object).GetMethod("ToString", CurrentStepPropertyType.EmptyTypes));
 				//    else
 
 				//        // expr == null ? "" : expr.ToString()
 				//        return Expr.Condition(
 				//            Expr.Equal(expr, Expr.Constant(null)),
 				//            Expr.Constant(""),
-				//            Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes)));
+				//            Expr.Call(expr, typeof(object).GetMethod("ToString", CurrentStepPropertyType.EmptyTypes)));
 				//}
 				return null;
 			}
@@ -2430,20 +2527,30 @@ namespace ExoModel
 
 		/// <summary>
 		/// Compiles an expression in preparation for direct usage against the model, which
-		/// involves stripping out <see cref="PropertyGet"/> expressions created by the <see cref="ExpressionParser"/>
+		/// involves stripping out <see cref="ModelMemberExpression"/> expressions created by the <see cref="ExpressionParser"/>
 		/// with either direct member invocations or property gets via <see cref="ModelInstance"/>.
 		/// </summary>
 		internal class ExpressionCompiler : ExpressionVisitor
 		{
+			Dictionary<ModelParameterExpression, ParameterExpression> parameterMapping;
+
 			ExpressionCompiler()
 			{ }
 
-			public static Expression Compile(Expression expression)
+			public static Expression Compile(Expression expression, Dictionary<ModelParameterExpression, ParameterExpression> parameterMapping)
 			{
-				return new ExpressionCompiler().Visit(expression);
+				return new ExpressionCompiler() { parameterMapping = parameterMapping }.Visit(expression);
 			}
 
-			protected override Expression VisitPropertyGet(PropertyGet m)
+			protected override Expr VisitModelParameter(ModelParameterExpression m)
+			{
+				ParameterExpression p;
+				if (!parameterMapping.TryGetValue(m, out p))
+					parameterMapping[m] = p = Expr.Parameter(m.Type, m.Name);
+				return p;
+			}
+
+			protected override Expression VisitModelMember(ModelMemberExpression m)
 			{
 				// Attempt to coerce the property get into a simple member invocation
 				if (m.Property is IReflectionModelProperty)
@@ -2541,12 +2648,15 @@ namespace ExoModel
 					case ExpressionType.Constant:
 						return this.VisitConstant((ConstantExpression)exp);
 					case ExpressionType.Parameter:
-						return this.VisitParameter((ParameterExpression)exp);
+						if (exp is ModelExpression.ModelParameterExpression)
+							return this.VisitModelParameter((ModelExpression.ModelParameterExpression)exp);
+						else
+							return this.VisitParameter((ParameterExpression)exp);
 					case ExpressionType.MemberAccess:
 						return this.VisitMemberAccess((MemberExpression)exp);
 					case ExpressionType.Call:
-						if (exp is ModelExpression.PropertyGet)
-							return this.VisitPropertyGet((ModelExpression.PropertyGet)exp);
+						if (exp is ModelExpression.ModelMemberExpression)
+							return this.VisitModelMember((ModelExpression.ModelMemberExpression)exp);
 						else
 							return this.VisitMethodCall((MethodCallExpression)exp);
 					case ExpressionType.Lambda:
@@ -2649,11 +2759,16 @@ namespace ExoModel
 				return p;
 			}
 
-			protected virtual Expression VisitPropertyGet(ModelExpression.PropertyGet m)
+			protected virtual Expression VisitModelParameter(ModelExpression.ModelParameterExpression m)
+			{
+				return m;
+			}
+
+			protected virtual Expression VisitModelMember(ModelExpression.ModelMemberExpression m)
 			{
 				Expression exp = this.Visit(m.Expression);
 				if (exp != m.Expression)
-					return new ModelExpression.PropertyGet(exp, m.Property);
+					return new ModelExpression.ModelMemberExpression(exp, m.Property);
 				return m;
 			}
 

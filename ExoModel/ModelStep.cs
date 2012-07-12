@@ -43,7 +43,7 @@ namespace ExoModel
 			if (Filter != null && !Filter.IsInstanceOfType(instance))
 				return;
 
-			// Keep walking if there are more steps
+			// Keep walking if there are more tokens
 			if (PreviousStep != null)
 			{
 				foreach (ModelReference parentReference in instance.GetInReferences((ModelReferenceProperty)PreviousStep.Property))
@@ -92,7 +92,7 @@ namespace ExoModel
 		}
 
 		/// <summary>
-		/// Returns the name of the property and all child steps.
+		/// Returns the name of the property and all child tokens.
 		/// </summary>
 		/// <returns></returns>
 		public override string ToString()
