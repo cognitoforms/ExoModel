@@ -20,8 +20,7 @@ namespace ExoModel
 		/// <summary>
 		/// Creates a new <see cref="ModelSource"/> for the specified root type and path.
 		/// </summary>
-		/// <param name="rootType">The root type name, which is required for instance paths</param>
-		/// <param name="path">The source path, which is either an instance path or a static path</param>
+		/// <param name="path">The source model path</param>
 		public ModelSource(ModelPath path)
 		{
 			InitializeFromModelPath(path, path.Path);
@@ -112,17 +111,19 @@ namespace ExoModel
 			this.RootType = instancePath.RootType.Name;
 			var tokens = tokenizer.Matches(path);
 			this.steps = new SourceStep[tokens.Count];
-			var CurrentStepPropertyType = instancePath.RootType;
+			var rootType = instancePath.RootType;
 			int i = 0;
 			foreach(Match token in tokens)
 			{
-				ModelProperty prop = CurrentStepPropertyType.Properties[token.Groups["Property"].Value];
+				ModelProperty prop = rootType.Properties[token.Groups["Property"].Value];
+				if (prop == null)
+					throw new ArgumentException(String.Format("Property {0} is not valid for type {1} in path {2}.", token.Groups["Property"].Value, rootType.Name, path));
 				int index;
 				if (!Int32.TryParse(token.Groups["Index"].Value, out index))
 					index = -1;
 
 				steps[i] = new SourceStep() { Property = prop.Name, Index = index, DeclaringType = prop.DeclaringType.Name, IsReferenceProperty = prop is ModelReferenceProperty };
-				CurrentStepPropertyType = prop is ModelReferenceProperty ? ((ModelReferenceProperty)prop).PropertyType : null;
+				rootType = prop is ModelReferenceProperty ? ((ModelReferenceProperty)prop).PropertyType : null;
 				i++;
 			}
 
