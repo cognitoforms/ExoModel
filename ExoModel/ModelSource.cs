@@ -257,7 +257,6 @@ namespace ExoModel
 				}
 				else
 				{
-					root = root.GetReference(step.Property);
 					if (root == null && !whenNull(root, stepProp, step.Index))
 						return null;
 					else
