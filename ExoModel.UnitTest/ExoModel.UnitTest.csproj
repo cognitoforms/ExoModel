@@ -81,6 +81,7 @@
   <ItemGroup>
     <Compile Include="FormatTests.cs" />
     <Compile Include="ModelExpressionTest.cs" />
+    <Compile Include="ModelInstanceListTests.cs" />
     <Compile Include="ModelProviderTest.cs" />
     <Compile Include="Models\Movies\Actor.cs" />
     <Compile Include="Models\Movies\Director.cs" />
