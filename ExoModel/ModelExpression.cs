@@ -46,7 +46,8 @@ namespace ExoModel
 			// Compile the expression to make it executable
 			var parameterMapping = new Dictionary<ModelParameterExpression,ParameterExpression>();
 			resultExpression = ModelExpression.ExpressionCompiler.Compile(resultExpression, parameterMapping);
-			this.Expression = Expr.Lambda(resultExpression, parameters.Select(p => parameterMapping[p]).ToArray());
+
+			this.Expression = parameterMapping.Count > 0 ? Expr.Lambda(resultExpression, parameters.Select(p => parameterMapping[p]).ToArray()) : Expr.Lambda(resultExpression);
 		}
 
 		#endregion
@@ -1335,13 +1336,14 @@ namespace ExoModel
 						(IsNumericType(type)) || IsEnumType(type))
 						return Expr.ConvertChecked(expr, type);
 				}
+
 				if (exprType.IsAssignableFrom(type) || type.IsAssignableFrom(exprType) ||
 					exprType.IsInterface || type.IsInterface)
 					return Expr.Convert(expr, type);
 				throw ParseError(errorPos, Res.CannotConvertValue,
 					GetTypeName(expr), GetTypeName(new ModelExpressionType(type)));
 			}
-
+			
 			Expression ParseMemberAccess(IExpressionType type, Expression instance)
 			{
 				if (instance != null) type = (instance as IExpressionType) ?? new ModelExpressionType(instance.Type);
@@ -1350,7 +1352,7 @@ namespace ExoModel
 				NextToken();
 				if (token.id == TokenId.OpenParen)
 				{
-					if (instance != null && type != typeof(string))
+					if (instance != null && type != typeof(string) && type.Type != typeof(string))
 					{
 						if (type.ModelType != null)
 						{

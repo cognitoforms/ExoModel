@@ -258,11 +258,11 @@ namespace ExoModel
 				}
 				else
 				{
-					if (root == null && !whenNull(root, stepProp, step.Index))
+					if (root.GetReference(stepProp) == null && !whenNull(root, stepProp, step.Index))
 						return null;
 					else
 					{
-						//reinitializing the object because whenNull may change the value the instance.
+						//advance to the next step in the chain.
 						root = root.GetReference(step.Property);
 					}
 				}
