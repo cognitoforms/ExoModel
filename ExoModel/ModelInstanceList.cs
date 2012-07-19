@@ -183,7 +183,9 @@ namespace ExoModel
 				property.DeclaringType.InitializeList(owner, property);
 				list = GetList();
 			}
-			list.Add(item.Instance);
+			object instance = item.Instance;
+			if (!list.Contains(instance))
+				list.Add(instance);
 		}
 
 		/// <summary>
