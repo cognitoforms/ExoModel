@@ -155,9 +155,9 @@ namespace ExoModel.ETL
 
 						//check and see if any parameters exist on the expression to pass to it
 						if (exp.Expression.Parameters.Count == 0)
-							valueFromSource = exp.Expression.Compile().DynamicInvoke();
+							valueFromSource = exp.CompiledExpression.DynamicInvoke();
 						else
-							valueFromSource = exp.Expression.Compile().DynamicInvoke(sourceInstance.Instance);
+							valueFromSource = exp.CompiledExpression.DynamicInvoke(sourceInstance.Instance);
 
 						ModelSource evalPath = new ModelSource(destination.Type, map.PropertyPath);
 

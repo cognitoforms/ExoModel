@@ -24,6 +24,8 @@ namespace ExoModel
 	{
 		#region Constructors
 
+		private Delegate compiledExp = null;
+
 		public ModelExpression(ModelType rootType, LambdaExpression expression)
 		{
 			this.RootType = rootType;
@@ -55,6 +57,17 @@ namespace ExoModel
 		#region Properties
 
 		public LambdaExpression Expression { get; private set; }
+
+		public Delegate CompiledExpression 
+		{
+			get
+			{
+				if (compiledExp == null)
+					compiledExp = Expression.Compile();
+
+				return compiledExp;
+			}
+		}
 
 		public ModelType RootType { get; private set; }
 
