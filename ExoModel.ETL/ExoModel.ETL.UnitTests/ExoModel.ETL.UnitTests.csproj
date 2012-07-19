@@ -56,11 +56,11 @@
     <Compile Include="RowModelTypeProviderSuite.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\ExoModel\ExoModel.Json\ExoModel.Json.csproj">
+    <ProjectReference Include="..\..\ExoModel.Json\ExoModel.Json.csproj">
       <Project>{67E8A5CD-DEFB-47C7-9B2E-48A142EEC404}</Project>
       <Name>ExoModel.Json</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\ExoModel\ExoModel\ExoModel.csproj">
+    <ProjectReference Include="..\..\ExoModel\ExoModel.csproj">
       <Project>{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}</Project>
       <Name>ExoModel</Name>
     </ProjectReference>

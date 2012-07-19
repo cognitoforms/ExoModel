@@ -12,9 +12,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		TraceAndTestImpact.testsettings = TraceAndTestImpact.testsettings
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoModel", "..\ExoModel\ExoModel\ExoModel.csproj", "{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoModel", "..\ExoModel\ExoModel.csproj", "{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoModel.Json", "..\ExoModel\ExoModel.Json\ExoModel.Json.csproj", "{67E8A5CD-DEFB-47C7-9B2E-48A142EEC404}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoModel.Json", "..\ExoModel.Json\ExoModel.Json.csproj", "{67E8A5CD-DEFB-47C7-9B2E-48A142EEC404}"
 EndProject
 Global
 	GlobalSection(TeamFoundationVersionControl) = preSolution
@@ -28,12 +28,12 @@ Global
 		SccProjectUniqueName2 = ExoModel.ETL.UnitTests\\ExoModel.ETL.UnitTests.csproj
 		SccProjectName2 = ExoModel.ETL.UnitTests
 		SccLocalPath2 = ExoModel.ETL.UnitTests
-		SccProjectUniqueName3 = ..\\ExoModel\\ExoModel\\ExoModel.csproj
-		SccProjectName3 = ../ExoModel/ExoModel
-		SccLocalPath3 = ..\\ExoModel\\ExoModel
-		SccProjectUniqueName4 = ..\\ExoModel\\ExoModel.Json\\ExoModel.Json.csproj
-		SccProjectName4 = ../ExoModel/ExoModel.Json
-		SccLocalPath4 = ..\\ExoModel\\ExoModel.Json
+		SccProjectUniqueName3 = ..\\ExoModel\\ExoModel.csproj
+		SccProjectName3 = ../ExoModel
+		SccLocalPath3 = ..\\ExoModel
+		SccProjectUniqueName4 = ..\\ExoModel.Json\\ExoModel.Json.csproj
+		SccProjectName4 = ../ExoModel.Json
+		SccLocalPath4 = ..\\ExoModel.Json
 	EndGlobalSection
 	GlobalSection(TestCaseManagementSettings) = postSolution
 		CategoryFile = ExoModel.ETL.vsmdi

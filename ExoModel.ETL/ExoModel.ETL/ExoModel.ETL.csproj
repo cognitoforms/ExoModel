@@ -60,7 +60,7 @@
     <Compile Include="RowModelTypeProvider.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\ExoModel\ExoModel\ExoModel.csproj">
+    <ProjectReference Include="..\..\ExoModel\ExoModel.csproj">
       <Project>{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}</Project>
       <Name>ExoModel</Name>
     </ProjectReference>
