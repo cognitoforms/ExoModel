@@ -15,6 +15,7 @@ namespace ExoModel.ETL.UnitTests
 	{
 		private RowModelTypeProvider dynamicProvider;
 		private ITranslator translator;
+		private readonly string testFilePath = "..\\..\\..\\ExoModel.ETL.UnitTests\\TestData\\TestExcelData.xlsx";
 
 		[TestInitialize()]
 		public void Before()
@@ -32,8 +33,8 @@ namespace ExoModel.ETL.UnitTests
 		public void TestTypeCreation()
 		{
 			//Read a test excel file as a byte array
-			byte[] fileData = File.ReadAllBytes("..\\..\\..\\ExoModel.ETL.UnitTests\\TestData\\TestExcelData.xlsx");
-			ExcelFile file = new ExcelFile(fileData, dynamicProvider, "C:\\Temp\\" + Guid.NewGuid().ToString() + ".xlsx");
+			FileStream fileStream = new FileStream(testFilePath, FileMode.Open, FileAccess.Read);
+			ExcelFile file = new ExcelFile(fileStream, dynamicProvider);
 
 			//verify the types were created successfully.
 			Assert.AreEqual("Data", ModelContext.Current.GetModelType("Data").Name);
@@ -44,8 +45,8 @@ namespace ExoModel.ETL.UnitTests
 		public void TestTypeStorage()
 		{
 			//Read a test excel file as a byte array
-			byte[] fileData = File.ReadAllBytes("..\\..\\..\\ExoModel.ETL.UnitTests\\TestData\\TestExcelData.xlsx");
-			ExcelFile file = new ExcelFile(fileData, dynamicProvider, "C:\\Temp\\" + Guid.NewGuid().ToString() + ".xlsx");
+			FileStream fileStream = new FileStream(testFilePath, FileMode.Open, FileAccess.Read);
+			ExcelFile file = new ExcelFile(fileStream, dynamicProvider);
 
 			//verify the types were created successfully.
 			//and stored in the file object correctly
@@ -57,8 +58,8 @@ namespace ExoModel.ETL.UnitTests
 		public void TestFirstColumnIsId()
 		{
 			//Read a test excel file as a byte array
-			byte[] fileData = File.ReadAllBytes("..\\..\\..\\ExoModel.ETL.UnitTests\\TestData\\TestExcelData.xlsx");
-			ExcelFile file = new ExcelFile(fileData, dynamicProvider, "C:\\Temp\\" + Guid.NewGuid().ToString() + ".xlsx");
+			FileStream fileStream = new FileStream(testFilePath, FileMode.Open, FileAccess.Read);
+			ExcelFile file = new ExcelFile(fileStream, dynamicProvider);
 
 			//verify the types were created successfully.
 			Assert.AreEqual("100024", file.GetInstances(ModelContext.Current.GetModelType("Data")).ElementAt(0).Id );
@@ -71,8 +72,8 @@ namespace ExoModel.ETL.UnitTests
 		public void TestInstanceDataCreation()
 		{
 			//Read a test excel file as a byte array
-			byte[] fileData = File.ReadAllBytes("..\\..\\..\\ExoModel.ETL.UnitTests\\TestData\\TestExcelData.xlsx");
-			ExcelFile file = new ExcelFile(fileData, dynamicProvider, "C:\\Temp\\" + Guid.NewGuid().ToString() + ".xlsx");
+			FileStream fileStream = new FileStream(testFilePath, FileMode.Open, FileAccess.Read);
+			ExcelFile file = new ExcelFile(fileStream, dynamicProvider);
 
 			//verify the first instance was created
 			//need to use the translated property name
