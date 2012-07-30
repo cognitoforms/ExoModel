@@ -13,8 +13,6 @@ namespace ExoModel
 	/// </summary>
 	public class ModelContextProvider : IModelContextProvider
 	{
-		HashSet<ModelContext> pool = new HashSet<ModelContext>();
-
 		[ThreadStatic]
 		static Storage context;
 
@@ -25,6 +23,9 @@ namespace ExoModel
 		public ModelContextProvider()
 		{
 			ModelContext.Provider = this;
+			
+			// Defaults:
+			ContextPool = new ModelContextDefaultPool();
 		}
 
 		/// <summary>
@@ -34,32 +35,33 @@ namespace ExoModel
 		{
 			get
 			{
+				// has the context already be bound to this thread/request?
 				Storage storage = GetStorage();
 				ModelContext context = storage.Context;
+				
 				if (context == null)
 				{
-					if (pool.Count > 0)
+					// Context has not yet be bound.
+
+
+					// Try to get a context from the pool
+					context = ContextPool.Get();
+
+					if (context != null)
 					{
-						lock (pool)
-						{
-							if (pool.Count > 0)
-							{
-								Context = pool.First();
-								Context.Reset();
-								pool.Remove(Context);
-							}
-							else
-							{
-								OnCreateContext();
-							}
-						}
+						// Use a pooled context
+						Context = context;
+						context.Reset();
 					}
 					else
 					{
+						// Nothing in the pool. OnCreateContext will set storage.Context.
 						OnCreateContext();
-					}
+						context = storage.Context;
 
-					context = storage.Context;
+						if (context == null)
+							throw new InvalidOperationException("The CreateContext event handler did not set a Context but should have.");
+					}
 				}
 				return context;
 			}
@@ -74,13 +76,10 @@ namespace ExoModel
 		/// </summary>
 		/// <param name="context">The <see cref="ModelContext"/> to add.</param>
 		/// <returns>True if the context was added to the pool, false if the context was already present.</returns>
-		public static bool AddToPool(ModelContext context)
+		public static void AddToPool(ModelContext context)
 		{
 			var provider = (ModelContextProvider)ModelContext.Provider;
-			lock (provider.pool)
-			{
-				return provider.pool.Add(context);
-			}
+			provider.ContextPool.Put(context);
 		}
 
 		/// <summary>
@@ -89,24 +88,26 @@ namespace ExoModel
 		public static void FlushPool()
 		{
 			var provider = (ModelContextProvider)ModelContext.Provider;
-			lock (provider.pool)
-			{
-				provider.pool.Clear();
-			}
+			provider.ContextPool.Clear();
 		}
 
 		/// <summary>
 		/// Specifies the minimum number of contexts that should
 		/// be available in the pool or in use.
 		/// </summary>
-		public void EnsureContexts(int count)
+		public void EnsureContexts(int minimumNumber)
 		{
-			for (int i = 0, difference = count - (pool.Count); i < difference; i++)
+			while (minimumNumber - ContextPool.Count > 0)
 			{
 				OnCreateContext();
 				AddToPool(GetStorage().Context);
 			}
 		}
+
+		/// <summary>
+		/// <see cref="IModelContextPool"/> that will be used to track and re-use contexts
+		/// </summary>
+		public IModelContextPool ContextPool {get; set;}
 
 		/// <summary>
 		/// Event which allows subscribers to create a new <see cref="ModelContext"/> on behalf
