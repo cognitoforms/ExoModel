@@ -28,8 +28,10 @@ namespace ExoModel
 		void Clear();
 
 		/// <summary>
-		/// Number of contexts in the pool
+		/// Ensures that the specified number of contexts exist in the pool.
 		/// </summary>
-		int Count { get; }
+		/// <param name="minimumNumber">Number of contexts to ensure</param>
+		/// <param name="createContext">Factory method to create a new context</param>
+		void EnsureContexts(int minimumNumber, Func<ModelContext> createContext);
 	}
 }

@@ -97,10 +97,19 @@ namespace ExoModel
 		/// </summary>
 		public void EnsureContexts(int minimumNumber)
 		{
-			while (minimumNumber - ContextPool.Count > 0)
+			ModelContext originalContext = GetStorage().Context;
+
+			try
 			{
-				OnCreateContext();
-				AddToPool(GetStorage().Context);
+				var provider = (ModelContextProvider)ModelContext.Provider;
+				provider.ContextPool.EnsureContexts(minimumNumber, () => { 
+					OnCreateContext();
+					return GetStorage().Context;
+				});
+			}
+			finally
+			{
+				GetStorage().Context = originalContext;
 			}
 		}
 

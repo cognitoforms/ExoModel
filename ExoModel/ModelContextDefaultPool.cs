@@ -44,9 +44,15 @@ namespace ExoModel
 			}
 		}
 
-		int IModelContextPool.Count
+		void IModelContextPool.EnsureContexts(int minimumNumber, Func<ModelContext> createContext)
 		{
-			get { return pool.Count; }
+			lock (pool)
+			{
+				while (minimumNumber - pool.Count > 0)
+				{
+					pool.Add(createContext());
+				}
+			}
 		}
 	}
 }
