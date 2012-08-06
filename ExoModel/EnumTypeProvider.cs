@@ -151,6 +151,9 @@ namespace ExoModel
 
 				// Name
 				AddProperty(new EnumValueProperty<string>(this, "Name", e => e.ToString()));
+
+				// All
+				AddProperty(new EnumAllProperty(this));
 			}
 
 			protected internal override System.Collections.IList ConvertToList(ModelReferenceProperty property, object list)
@@ -197,6 +200,28 @@ namespace ExoModel
 			{
 				throw new NotSupportedException();
 			}
+
+			#region EnumValueProperty
+
+			[Serializable]
+			public class EnumAllProperty : ModelReferenceProperty
+			{
+				protected internal EnumAllProperty(EnumModelType declaringType)
+					: base(declaringType, "All", null, null, true, declaringType, true, true, false, new Attribute[] { })
+				{ }
+
+				protected internal override object GetValue(object instance)
+				{
+					return ((EnumModelType)this.DeclaringType).values.Values.ToArray();
+				}
+
+				protected internal override void SetValue(object instance, object value)
+				{
+					throw new NotSupportedException();
+				}
+			}
+
+			#endregion
 		}
 
 		#endregion
