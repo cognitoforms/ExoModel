@@ -2575,20 +2575,17 @@ namespace ExoModel
 				else
 					return
 
-						// (PropertyType)ModelContext.Current.GetModelInstance(instance)["PropertyName"]
+						// (PropertyType)ModelInstance.GetModelInstance(instance)["PropertyName"]
 						Expr.Convert(
 
-							// ModelContext.Current.GetModelInstance(instance)["PropertyName"]
+							// ModelInstance.GetModelInstance(instance)["PropertyName"]
 							Expr.Call(
 
-								// ModelContext.Current.GetModelInstance(instance)
+								// ModelInstance.GetModelInstance(instance)
 								Expr.Call(
 
-									// ModelContext.Current
-									Expr.Property(null, typeof(ModelContext).GetProperty("Current")),
-
 									// GetModelInstance()
-									typeof(ModelContext).GetMethod("GetModelInstance"),
+									typeof(ModelInstance).GetMethod("GetModelInstance"),
 
 									// instance
 									Visit(m.Expression)

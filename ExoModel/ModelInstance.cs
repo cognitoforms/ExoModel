@@ -61,14 +61,18 @@ namespace ExoModel
 		/// Creates a new <see cref="ModelInstance"/> for the specified <see cref="ModelType"/>
 		/// and id, but does not yet represent a real <see cref="ModelInstance"/>.
 		/// </summary>
-		/// <param name="modelType"></param>
+		/// <param name="type"></param>
 		/// <param name="id"></param>
-		internal ModelInstance(ModelType type, string id)
+		protected internal ModelInstance(ModelType type, string id)
 		{
 			this.id = id;
 			this.type = type;
 			this.hasBeenAccessed = new BitArray(type.Properties.Count);
 			this.isBeingAccessed = new BitArray(type.Properties.Count);
+			
+			// Assume subclasses implementing IModelInstance are the underlying instance
+			if (this is IModelInstance)
+				this.instance = this;
 		}
 
 		#endregion
@@ -941,6 +945,19 @@ namespace ExoModel
 
 			// Delegate to the type to format the instance
 			return Type.FormatInstance(this, format);
+		}
+
+		/// <summary>
+		/// Gets the <see cref="ModelInstance"/> associated with the specified real instance.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <returns></returns>
+		public static ModelInstance GetModelInstance(object instance)
+		{
+			var modelInstance = instance as IModelInstance;
+			if (modelInstance != null)
+				return modelInstance.Instance;
+			return ModelContext.Current.GetModelInstance(instance);
 		}
 
 		#endregion
