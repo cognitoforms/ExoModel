@@ -10,108 +10,148 @@ using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace ExoModel.ETL
 {
-	public class ExcelFile : IImportFile
+	/// <summary>
+	/// Loads an XLSX file into memory and exposes each worksheet as a table of string values.
+	/// </summary>
+	public class ExcelFile : ITabularImportFile, IDisposable
 	{
-		private IRowTypeProvider provider;
-		private Dictionary<ModelType, string> generatedTypes;
-		DataSet fileResults;
+		SpreadsheetDocument spreadsheetDocument;
+		SharedStringTable sharedStrings;
+		Workbook workbook;
 
 		/// <summary>
-		/// Using the byte data build a representation of the Excel file.
+		/// Create a new <see cref="ExcelFile"/> from the specified stream.
 		/// </summary>
-		/// <param name="fileData">The excel file as a byte array.</param>
-		/// <param name="isXmlFormat">Whether or not the Excel file is 2007 format or greater.</param>
-		/// <param name="provider">The type provider to create the Types from the Excel file.</param>
-		public ExcelFile(Stream file, IRowTypeProvider provider)
+		/// <param name="file">The excel file as a binary stream.</param>
+		public ExcelFile(Stream file)
 		{
-			this.provider = provider;
-			this.fileResults = new DataSet();
-			generatedTypes = new Dictionary<ModelType, string>();
-
-			using (SpreadsheetDocument spreadsheetDocument = SpreadsheetDocument.Open(file, false))
-			{
-				var sharedStrings = spreadsheetDocument.WorkbookPart.SharedStringTablePart.SharedStringTable;
-				Workbook book = spreadsheetDocument.WorkbookPart.Workbook;
-
-				foreach (Sheet sheet in book.Descendants<Sheet>())
-				{
-					var worksheet = (WorksheetPart)spreadsheetDocument.WorkbookPart.GetPartById(sheet.Id);
-
-					foreach (Row row in worksheet.Worksheet.Descendants<Row>())
-					{
-						IEnumerable<String> textValues =
-							from cell in row.Descendants<Cell>()
-							where cell.CellValue != null
-							select
-							  (cell.DataType != null
-								&& cell.DataType.HasValue
-								&& cell.DataType == CellValues.SharedString
-							  ? sharedStrings.ChildElements[
-								int.Parse(cell.CellValue.InnerText)].InnerText
-							  : 
-								cell.CellValue.InnerText)
-							;
-
-						//create the type if if is the first column
-						if (row.RowIndex == 1)
-						{
-							ModelType temp;
-							provider.CreateType(textValues, out temp, sheet.Name);
-							generatedTypes.Add(temp, sheet.Name);
-							fileResults.Tables.Add(new DataTable(sheet.Name));
-							foreach(string name in textValues)
-							{
-								fileResults.Tables[sheet.Name].Columns.Add(name, typeof(string));
-							}
-						}
-						else
-						{
-							//add the row data
-							DataTable dt = fileResults.Tables[sheet.Name];
-							dt.Rows.Add(textValues.ToArray());
-						}
-					}
-				}
-			}
+			this.spreadsheetDocument = SpreadsheetDocument.Open(file, false);
+			this.sharedStrings = spreadsheetDocument.WorkbookPart.SharedStringTablePart.SharedStringTable;
+			this.workbook = spreadsheetDocument.WorkbookPart.Workbook;
 		}
 
 		/// <summary>
 		/// Returns a list of all the types generated from the Excel file.
 		/// </summary>
 		/// <returns></returns>
-		public IEnumerable<ModelType> GetTypesGenerated()
+		public IEnumerable<string> GetTableNames()
 		{
-			return generatedTypes.Keys;
+			return workbook.Descendants<Sheet>().Select(s => s.Name.Value);
 		}
 
 		/// <summary>
-		/// This function will generate a ModelInstance of the
-		/// dynamic type representative of the Excel file.
+		/// Gets the table names for the current data set.
 		/// </summary>
-		/// <param name="type">The type of entities you want to retrieve from the file.</param>
 		/// <returns></returns>
-		public IEnumerable<ModelInstance> GetInstances(ModelType type)
+		IEnumerable<string> ITabularImportFile.GetTableNames()
 		{
-			//get the table name associated with this type
-			string selectedTableName = generatedTypes[type];
+			return workbook.Descendants<Sheet>().Select(s => s.Name.Value);
+		}
 
-			DataTable table = fileResults.Tables[selectedTableName];
+		/// <summary>
+		/// Gets the column names for the specified table.
+		/// </summary>
+		/// <param name="table"></param>
+		/// <returns></returns>
+		IEnumerable<string> ITabularImportFile.GetColumnNames(string table)
+		{
+			var firstRow = GetWorksheet(table).Descendants<Row>().First();
 
-			//now start generating instances
-			foreach (DataRow row in table.Rows)
+			uint column = 1;
+			foreach (var cell in firstRow.Descendants<Cell>())
 			{
-				//first make sure this instance has not already been created 
-				//in multiple calls to getinstances, some instances may have
-				//already been loaded.
-				ModelInstance testIsExists = provider.GetModelInstance(type, row.ItemArray[0].ToString());
-				if(testIsExists == null)
-				{
-					provider.CreateInstance(type, row.ItemArray);
-					testIsExists = provider.GetModelInstance(type, row.ItemArray[0].ToString());
-				}
-
-				yield return testIsExists;
+				if (cell.CellReference.Value == GetCellReference(column++, 1))
+					yield return GetCellValue(cell);
+				else
+					break;
 			}
+		}
+
+		/// <summary>
+		/// Gets the row data for the specified table.
+		/// </summary>
+		/// <param name="table"></param>
+		/// <returns></returns>
+		IEnumerable<string[]> ITabularImportFile.GetRows(string table)
+		{
+			// Determine the number of columns
+			int columns = ((ITabularImportFile)this).GetColumnNames(table).Count();
+
+			// Read each row
+			foreach (var row in GetWorksheet(table).Descendants<Row>().Skip(1))
+			{
+				var values = new string[columns];
+				uint column = 0;
+				foreach (var cell in row.Descendants<Cell>())
+				{
+					while (column < columns && cell.CellReference.Value != GetCellReference(column + 1, row.RowIndex.Value))
+						values[column++] = "";
+					if (column < columns)
+						values[column++] = GetCellValue(cell);
+					if (column >= columns)
+						break;
+				}
+				while (column < columns)
+					values[column++] = "";
+				yield return values;
+			}
+		}
+
+		/// <summary>
+		/// Gets the worksheet with the specified name.
+		/// </summary>
+		/// <param name="name"></param>
+		/// <returns></returns>
+		Worksheet GetWorksheet(string name)
+		{
+			var sheet = workbook.Descendants<Sheet>().FirstOrDefault(s => s.Name.Value == name);
+			if (sheet == null)
+				return null;
+
+			return ((WorksheetPart)spreadsheetDocument.WorkbookPart.GetPartById(sheet.Id)).Worksheet;
+		}
+
+		/// <summary>
+		/// Gets the text value of the specified cell.
+		/// </summary>
+		/// <param name="cell"></param>
+		/// <returns></returns>
+		string GetCellValue(Cell cell)
+		{
+			// Shared String
+			if (cell.DataType != null && cell.DataType.HasValue && cell.DataType == CellValues.SharedString)
+				return sharedStrings.ChildElements[int.Parse(cell.CellValue.InnerText)].InnerText;
+			
+			// Number
+			double d;
+			if (Double.TryParse(cell.CellValue.InnerText, out d) && cell.StyleIndex != null)
+			{
+				var format = spreadsheetDocument.WorkbookPart.WorkbookStylesPart.Stylesheet.CellFormats.ChildElements[int.Parse(cell.StyleIndex.InnerText)] as CellFormat;
+				if (format.NumberFormatId >= 14 && format.NumberFormatId <= 22)
+					return DateTime.FromOADate(d).ToString("G");
+				else
+					return d.ToString();
+			}
+			else
+				return cell.CellValue.InnerText;
+		}
+
+		/// <summary>
+		/// Gets the cell reference for the specified column and row indexes.
+		/// </summary>
+		/// <param name="column"></param>
+		/// <param name="row"></param>
+		/// <returns></returns>
+		string GetCellReference(uint column, uint row)
+		{
+			return column <= 26 ? 
+				(char)('A' + column - 1) + row.ToString() : 
+				(char)('A' + (column / 26) - 1) + (char)('A' + (column % 26) - 1) + row.ToString();
+		}
+
+		void IDisposable.Dispose()
+		{
+			spreadsheetDocument.Close();
 		}
 	}
 }

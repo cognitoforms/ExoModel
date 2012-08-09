@@ -10,119 +10,59 @@ using System.Text.RegularExpressions;
 namespace ExoModel.ETL
 {
 	/// <summary>
-	/// Represents a complete dynamic model based on Row type and instance data, based on the Row
-	/// format used by ExoWeb for sending type and instance data to web clients.
+	/// Represents a complete dynamic model based on a tabular import file.
 	/// </summary>
-	public class RowModelTypeProvider : IModelTypeProvider, IRowTypeProvider
+	public class RowModelTypeProvider : IModelTypeProvider
 	{
-		Dictionary<ModelType, Dictionary<string, RowInstance>> Instances { get; set; }
-		public Dictionary<string, ModelType> Types { get; private set; }
-		private ITranslator Translator { get; set; }
+		Dictionary<string, ModelType> types = new Dictionary<string, ModelType>();
+		Dictionary<ModelType, Dictionary<string, RowInstance>> instances = new Dictionary<ModelType, Dictionary<string, RowInstance>>();
+		Regex nameRegex = new Regex(@"[^a-zA-Z0-9]", RegexOptions.Compiled);
 
 		/// <summary>
 		/// Initialize provider with default values.
 		/// </summary>
-		public RowModelTypeProvider(ITranslator translator)
+		public RowModelTypeProvider(string @namespace, ITabularImportFile data)
 		{
-			this.Instances = new Dictionary<ModelType, Dictionary<string, RowInstance>>();
-			this.Types = new Dictionary<string, ModelType>();
-			this.Translator = translator;
-		}
-
-		/// <summary>
-		/// This function is responsible for build a new dynamic type
-		/// from the column header information provided.  It will also
-		/// handle converting any invalid property names into
-		/// valid names and keeping track of the corresponding mapping.
-		/// </summary>
-		/// <param name="columnHeaders">A list of strings that represent the column headers of the row based file.</param>
-		/// <param name="dynamicType">The new dynamically generated type.</param>
-		/// <returns></returns>
-		public IRowTypeProvider CreateType(IEnumerable<string> columnHeaders, out ModelType dynamicType, string typeName)
-		{
-			//generate a name for the dyanmic type
-			string dynamicTypeName = typeName == null || Types.ContainsKey(typeName) ? GenerateUniqueTypeName() : typeName;
-
-			if (ModelContext.Current.GetModelType(dynamicTypeName) == null)
+			// Create types for each table in the data set
+			foreach (string table in data.GetTableNames())
 			{
-				dynamicType = new RowModelType(dynamicTypeName, dynamicTypeName, null, null, null, null);
+				var typeName = String.IsNullOrEmpty(@namespace) ? table : @namespace + "." + table;
+				var type = new RowModelType(typeName, typeName, null, null, null, null);
+				this.types[typeName] = type;
 
-				this.Types.Add(dynamicType.Name, dynamicType);
-
-				IEnumerable<ModelProperty> typeProperties = BuildPropertiesList(dynamicType, columnHeaders);
-				((RowModelType)dynamicType).AddProperties(typeProperties);
-			}
-			else
-			{
-				dynamicType = ModelContext.Current.GetModelType(dynamicTypeName);
-			}
-
-			return this;
-		}
-
-		/// <summary>
-		/// Creates a new row instance based on the data provided and stores it 
-		/// in the providers collection of instances.  The first object in Row
-		/// should be the id of the new object to create.
-		/// </summary>
-		/// <param name="type">The type generated using the LoadType function</param>
-		/// <param name="Row">The data needed to instantiate the new RowInstance</param>
-		/// <returns></returns>
-		public IRowTypeProvider CreateInstance(ModelType type, IEnumerable<object> Row)
-		{
-			RowInstance instance = new RowInstance(type, Row.First().ToString());
-			int index = 0;
-
-			//the instances values are in order
-			//the first value should be the record id
-			foreach (var value in Row)
-			{
-				var newValue = value;
-				ModelProperty property = type.Properties.ElementAt(index);
-
-				if (newValue == null)
-					continue;
-
-				var valueType = ((ModelValueProperty)property).PropertyType;
-				if (valueType == typeof(DateTime))
-					newValue = DateTime.Parse((string)value);
-
-				instance[property] = newValue;
-
-				index++;
-			}
-
-			if(Instances.ContainsKey(type))
-			{
-				if (!this.Instances[type].ContainsKey(instance.Id))
-				{
-					this.Instances[type].Add(instance.Id, instance);
-				}
-				else
-				{
-					throw new Exception("An instance of type " + type.Name + " already exist with an id of " + instance.Id);
-				}
-			}
-			else
-			{
-				var tempDict = new Dictionary<string,RowInstance>();
-				tempDict.Add(instance.Id, instance);
-				this.Instances.Add(type, tempDict);	
-			}
+				// Create properties for each column in the table
+				type.AddProperties(data.GetColumnNames(table).Select(column =>
+					new RowModelValueProperty(type, nameRegex.Replace(column, ""), column, null, false, typeof(string), false, false, false)));
 			
-			return this;
+				// Create instances for each row in the table
+				instances[type] = data.GetRows(table).ToDictionary(r => r[0], r => new RowInstance(type, r[0], r));
+			}
 		}
 
+		/// <summary>
+		/// Gets the <see cref="ModelType"/> instances represented by the type provider.
+		/// </summary>
+		/// <returns></returns>
+		public IEnumerable<ModelType> GetTypes()
+		{
+			return types.Values;
+		}
+
+		/// <summary>
+		/// Gets the module instance for the specified <see cref="ModelType"/> and identifier.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <param name="id"></param>
+		/// <returns></returns>
 		public ModelInstance GetModelInstance(ModelType type, string id)
 		{
-			var temp = GetInstance(type, id);
-			if (temp != null)
-				return ModelContext.Current.GetModelInstance(temp);
+			var instance = GetInstance(type, id);
+			if (instance != null)
+				return ((IModelInstance)instance).Instance;
 			else
 				return null;
 		}
 
-		#region Helpers
 		/// <summary>
 		/// Helper method to retrieve an instance of type based id
 		/// </summary>
@@ -131,23 +71,16 @@ namespace ExoModel.ETL
 		/// <returns></returns>
 		public RowInstance GetInstance(ModelType type, string id)
 		{
-			if (id != null)
-			{
-				Dictionary<string, RowInstance> instances;
-				if (Instances.TryGetValue(type, out instances))
-				{
-					RowInstance instance;
-					if (instances.TryGetValue(id, out instance))
-						return instance;
-				}
+			// Get the existing instance if an identifer was specified
+			if (id != null) {
+				RowInstance instance;
+				GetInstances(type).TryGetValue(id, out instance);
+				return instance;
+			}
 
-				return null;
-			}
+			// Otherwise, create a new instance
 			else
-			{
-				//create a new instance
 				return new RowInstance(type);
-			}
 		}
 
 		/// <summary>
@@ -157,9 +90,9 @@ namespace ExoModel.ETL
 		/// <returns></returns>
 		public Dictionary<string, RowInstance> GetInstances(ModelType type)
 		{
-			Dictionary<string, RowInstance> instances;
-			if (Instances.TryGetValue(type, out instances))
-				return instances;
+			Dictionary<string, RowInstance> typeInstances;
+			if (instances.TryGetValue(type, out typeInstances))
+				return typeInstances;
 			return new Dictionary<string, RowInstance>();
 		}
 
@@ -170,47 +103,12 @@ namespace ExoModel.ETL
 		/// <returns></returns>
 		public IEnumerable<ModelInstance> GetModelInstances(ModelType type)
 		{
-			IList<ModelInstance> retInstances = new List<ModelInstance>();
-			Dictionary<string, RowInstance> localInstances;
+			Dictionary<string, RowInstance> typeInstances;
+			if (instances.TryGetValue(type, out typeInstances))
+				return typeInstances.Values.Select(i => ((IModelInstance)i).Instance);
 
-			if (Instances.TryGetValue(type, out localInstances))
-			{
-				foreach (KeyValuePair<string, RowInstance> instance in localInstances)
-				{
-					retInstances.Add(ModelContext.Current.GetModelInstance(instance.Value));
-				}
-			}
-
-			return retInstances;
+			return new ModelInstance[0];
 		}
-		
-		/// <summary>
-		/// Builds a list of of valid property names for the newly created ModelType.
-		/// </summary>
-		/// <param name="type">The dynamically created type.</param>
-		/// <param name="columnHeaders">A list of property names to add to the type.</param>
-		/// <returns></returns>
-		private IEnumerable<ModelProperty> BuildPropertiesList(ModelType type, IEnumerable<string> columnHeaders)
-		{
-			IList<RowModelValueProperty> builtProperties = new List<RowModelValueProperty>();
-			foreach (string propName in columnHeaders)
-			{
-				string translatedName = Translator.AddTranslation(propName);
-				builtProperties.Add(new RowModelValueProperty(type, translatedName, null, null, false, typeof(string), false, false, false));
-			}
-
-			return builtProperties;
-		}
-
-		/// <summary>
-		/// Generates a new type name that will be guaranteed to be unique.
-		/// </summary>
-		/// <returns>A unique type name to be utilized for the new dynamic type.</returns>
-		private string GenerateUniqueTypeName()
-		{
-			return "_" + Guid.NewGuid().ToString();
-		}
-		#endregion
 
 		#region IModelTypeProvider
 
@@ -229,9 +127,8 @@ namespace ExoModel.ETL
 		ModelType IModelTypeProvider.CreateModelType(string typeName)
 		{
 			ModelType type;
-			if (Types.TryGetValue(typeName, out type))
-				return type;
-			return null;
+			types.TryGetValue(typeName, out type);
+			return type;
 		}
 
 		#endregion
@@ -265,12 +162,12 @@ namespace ExoModel.ETL
 
 			public override ModelInstance GetModelInstance(object instance)
 			{
-				return ((IModelInstance)instance).Instance;
+				return (ModelInstance)instance;
 			}
 
 			protected override string GetId(object instance)
 			{
-				return ((RowInstance)instance).Id;
+				return ((RowInstance)instance).OriginalId;
 			}
 
 			protected override object GetInstance(string id)

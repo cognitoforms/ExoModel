@@ -13,56 +13,34 @@ namespace ExoModel.ETL
 	/// Represents a concrete dynamic model instance, relying on the <see cref="ModelInstance"/>
 	/// metadata to expose dynamic properties and behavior.
 	/// </summary>
-	public class RowInstance : IModelInstance
+	public class RowInstance : ModelInstance, IModelInstance
 	{
-		ModelInstance instance;
-		object[] instanceProperties;
+		string[] values;
 
 		internal RowInstance(ModelType type)
-			: this(type, null)
+			: this(type, null, new string[type.Properties.Count])
 		{ }
 
-		internal RowInstance(ModelType type, string id)
+		internal RowInstance(ModelType type, string id, string[] values)
+			: base(type, id)
 		{
-			this.Type = type;
-			this.Id = id;
-			this.instance = new ModelInstance(this);
-			instanceProperties = new object[Type.Properties.Count];
+			this.values = values;
 		}
 
 		ModelInstance IModelInstance.Instance
 		{
-			get { return instance; }
+			get { return this; }
 		}
 
-		internal string Id { get; private set; }
-
-		internal ModelType Type { get; private set; }
-
-		public object this[string property]
+		public new object this[ModelProperty property]
 		{
 			get
 			{
-				return this[Type.Properties[property]];
+				return values[property.Index];
 			}
 			set
 			{
-				this[instance.Type.Properties[property]] = value;
-			}
-		}
-
-		public object this[ModelProperty property]
-		{
-			get
-			{
-				var value = instanceProperties[property.Index];
-				if (value == null && property is ModelReferenceProperty && property.IsList)
-					instanceProperties[property.Index] = value = new ObservableCollection<RowInstance>();
-				return value;
-			}
-			set
-			{
-				instanceProperties[property.Index] = value;
+				values[property.Index] = value as string;
 			}
 		}
 	}

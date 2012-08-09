@@ -47,14 +47,10 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AbstractMapping.cs" />
     <Compile Include="ExcelFile.cs" />
-    <Compile Include="IImportFile.cs" />
-    <Compile Include="IMapping.cs" />
-    <Compile Include="IRowTypeProvider.cs" />
-    <Compile Include="ITranslator.cs" />
-    <Compile Include="JsonMapping.cs" />
-    <Compile Include="MapBasedTranslator.cs" />
+    <Compile Include="ITabularImportFile.cs" />
+    <Compile Include="PropertyMapping.cs" />
+    <Compile Include="ModelTranslator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RowInstance.cs" />
     <Compile Include="RowModelTypeProvider.cs" />
