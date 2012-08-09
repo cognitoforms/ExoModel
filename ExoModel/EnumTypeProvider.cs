@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace ExoModel
 {
@@ -109,7 +110,7 @@ namespace ExoModel
 				return null;
 
 			// Get the default reference format for the type
-			string format = "[Name]";
+			string format = "[DisplayName]";
 
 			// Create the new model type
 			return new EnumModelType(@namespace, type, format);
@@ -151,6 +152,9 @@ namespace ExoModel
 
 				// Name
 				AddProperty(new EnumValueProperty<string>(this, "Name", e => e.ToString()));
+
+				// Display Name
+				AddProperty(new EnumValueProperty<string>(this, "DisplayName", e => e.GetDisplayName()));
 
 				// All
 				AddProperty(new EnumAllProperty(this));
@@ -263,7 +267,16 @@ namespace ExoModel
 
 			#endregion
 		}
+	}
 
+	public static class EnumExtensions
+	{
+		static Regex nameRegex = new Regex(@"(^[a-z]+|[A-Z]{2,}(?=[A-Z][a-z]|$)|[A-Z][a-z]*)", RegexOptions.Singleline | RegexOptions.Compiled);
 
+		public static string GetDisplayName(this Enum value)
+		{
+			// TODO: look for display attribute on the value itself
+			return nameRegex.Replace(value.ToString(), " $1");
+		}
 	}
 }
