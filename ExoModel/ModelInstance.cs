@@ -129,7 +129,7 @@ namespace ExoModel
 				}
 				return id;
 			}
-			internal set
+			protected internal set
 			{
 				id = value;
 			}

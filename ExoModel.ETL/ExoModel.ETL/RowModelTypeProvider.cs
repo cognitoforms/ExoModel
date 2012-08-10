@@ -21,7 +21,7 @@ namespace ExoModel.ETL
 		/// <summary>
 		/// Initialize provider with default values.
 		/// </summary>
-		public RowModelTypeProvider(string @namespace, ITabularImportFile data)
+		public RowModelTypeProvider(string @namespace, ITabularImportFile data, string identifierExpression)
 		{
 			// Create types for each table in the data set
 			foreach (string table in data.GetTableNames())
@@ -33,9 +33,17 @@ namespace ExoModel.ETL
 				// Create properties for each column in the table
 				type.AddProperties(data.GetColumnNames(table).Select(column =>
 					new RowModelValueProperty(type, nameRegex.Replace(column, ""), column, null, false, typeof(string), false, false, false)));
-			
+
+				// Replace property labels with property names in mapping expressions
+				foreach (var property in type.Properties)
+					identifierExpression = identifierExpression
+						.Replace("[" + property.Label + "]", property.Name)
+						.Replace(property.Label, property.Name);
+
+				type.IdentifierExpression = type.GetExpression(identifierExpression);
+
 				// Create instances for each row in the table
-				instances[type] = data.GetRows(table).ToDictionary(r => r[0], r => new RowInstance(type, r[0], r));
+				instances[type] = data.GetRows(table).ToDictionary(r => r[0], r => new RowInstance(type, r));
 			}
 		}
 
@@ -147,6 +155,8 @@ namespace ExoModel.ETL
 					AddProperty(property);
 			}
 
+			internal ModelExpression IdentifierExpression { get; set; }
+
 			protected override void OnInit()
 			{ }
 
@@ -167,7 +177,9 @@ namespace ExoModel.ETL
 
 			protected override string GetId(object instance)
 			{
-				return ((RowInstance)instance).OriginalId;
+				return IdentifierExpression.Expression.Parameters.Count == 0 ?
+								IdentifierExpression.CompiledExpression.DynamicInvoke().ToString() :
+								IdentifierExpression.CompiledExpression.DynamicInvoke(instance).ToString();
 			}
 
 			protected override object GetInstance(string id)

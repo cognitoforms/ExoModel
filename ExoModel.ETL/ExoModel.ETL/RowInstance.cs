@@ -18,11 +18,11 @@ namespace ExoModel.ETL
 		string[] values;
 
 		internal RowInstance(ModelType type)
-			: this(type, null, new string[type.Properties.Count])
+			: this(type, new string[type.Properties.Count])
 		{ }
 
-		internal RowInstance(ModelType type, string id, string[] values)
-			: base(type, id)
+		internal RowInstance(ModelType type, string[] values)
+			: base(type, "")
 		{
 			this.values = values;
 		}
