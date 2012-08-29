@@ -13,7 +13,7 @@ namespace ExoModel.ETL
 	/// <summary>
 	/// Loads an XLSX file into memory and exposes each worksheet as a table of string values.
 	/// </summary>
-	public class ExcelFile : ITabularImportFile, IDisposable
+	public class ExcelFile : ITabularImportFile
 	{
 		SpreadsheetDocument spreadsheetDocument;
 		SharedStringTable sharedStrings;

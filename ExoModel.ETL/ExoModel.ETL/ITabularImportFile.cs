@@ -6,7 +6,7 @@ using ExoModel;
 
 namespace ExoModel.ETL
 {
-	public interface ITabularImportFile
+	public interface ITabularImportFile : IDisposable
 	{
 		IEnumerable<string> GetTableNames();
 		IEnumerable<string> GetColumnNames(string table);

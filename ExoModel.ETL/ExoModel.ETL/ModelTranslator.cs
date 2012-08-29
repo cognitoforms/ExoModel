@@ -76,45 +76,54 @@ namespace ExoModel.ETL
 		{
 			// Translate all source instances
 			foreach (ModelInstance source in sourceInstances)
+				yield return Translate(source, createDestinationInstance);
+		}
+
+		/// <summary>
+		/// Translates the specified instance of the source type into the destination type.
+		/// </summary>
+		/// <param name="source"></param>
+		/// <param name="createDestinationInstance"></param>
+		/// <returns></returns>
+		public ModelInstance Translate(ModelInstance source, Func<ModelInstance, ModelInstance> createDestinationInstance)
+		{
+			// Create the destination instance
+			var destination = createDestinationInstance(source);
+
+			// Apply each property transaction from source to destination
+			foreach (var translation in Translations)
 			{
-				// Create the destination instance
-				var destination = createDestinationInstance(source);
+				// Invoke the source expression for the mapping
+				var value =
+					translation.SourceExpression.Expression.Parameters.Count == 0 ?
+						translation.SourceExpression.CompiledExpression.DynamicInvoke() :
+						translation.SourceExpression.CompiledExpression.DynamicInvoke(source.Instance);
 
-				// Apply each property transaction from source to destination
-				foreach (var translation in Translations)
-				{
-					// Invoke the source expression for the mapping
-					var value =
-						translation.SourceExpression.Expression.Parameters.Count == 0 ?
-							translation.SourceExpression.CompiledExpression.DynamicInvoke() :
-							translation.SourceExpression.CompiledExpression.DynamicInvoke(source.Instance);
+				// Handle conversion of value properties
+				if (value != null && translation.ValueConverter != null)
+					value = translation.ValueConverter.ConvertFrom(value);
 
-					// Handle conversion of value properties
-					if (value != null && translation.ValueConverter != null)
-						value = translation.ValueConverter.ConvertFrom(value);
+				// Set the value on the destination instance
+				translation.DestinationSource.SetValue(destination, value,
 
-					// Set the value on the destination instance
-					translation.DestinationSource.SetValue(destination, value,
-
-						// Ensure the destination instance path is valid when nulls are encountered along the path
-						(instance, property, index) =>
+					// Ensure the destination instance path is valid when nulls are encountered along the path
+					(instance, property, index) =>
+					{
+						if (property.IsList)
 						{
-							if (property.IsList)
-							{
-								ModelInstanceList list = instance.GetList(property);
-								for (int i = list.Count; i <= index; i++)
-									list.Add(property.PropertyType.Create());
-							}
-							else
-								instance.SetReference(property, property.PropertyType.Create());
+							ModelInstanceList list = instance.GetList(property);
+							for (int i = list.Count; i <= index; i++)
+								list.Add(property.PropertyType.Create());
+						}
+						else
+							instance.SetReference(property, property.PropertyType.Create());
 
-							return true;
-						});
-				}
-
-				// Return the translated destination instance
-				yield return destination;
+						return true;
+					});
 			}
+
+			// Return the translated instance
+			return destination;
 		}
 
 		/// <summary>
