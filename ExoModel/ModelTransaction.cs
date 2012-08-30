@@ -210,18 +210,9 @@ namespace ExoModel
 		/// </summary>
 		public void Condense()
 		{
-			// Exit immediately if the transaction is too small to condense
-			if (events.Count < 2)
-				return;
-
-			// Merge events
 			var node = events.First;
-			while (node != null && node.Next != null)
+			while (node != null)
 			{
-				// Remove mergable events
-				if (node.Value.Merge(node.Next.Value))
-					events.Remove(node.Next);
-
 				// Remove invalid events
 				if (!node.Value.IsValid)
 				{
@@ -229,8 +220,15 @@ namespace ExoModel
 					events.Remove(node);
 					node = next;
 				}
+				// Attempt to merge events that follow
 				else
+				{
+					// Remove mergable events
+					while (node.Next != null && node.Value.Merge(node.Next.Value))
+						events.Remove(node.Next);
+
 					node = node.Next;
+				}
 			}
 		}
 
