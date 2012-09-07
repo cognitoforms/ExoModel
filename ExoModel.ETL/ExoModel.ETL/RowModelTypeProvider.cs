@@ -12,23 +12,17 @@ namespace ExoModel.ETL
 	/// <summary>
 	/// Represents a complete dynamic model based on a tabular import file.
 	/// </summary>
-	public class RowModelTypeProvider : IModelTypeProvider, IDisposable
+	public class RowModelTypeProvider : IModelTypeProvider
 	{
 		Dictionary<string, ModelType> types = new Dictionary<string, ModelType>();
 		Dictionary<ModelType, Dictionary<string, RowInstance>> instances = new Dictionary<ModelType, Dictionary<string, RowInstance>>();
 		Regex nameRegex = new Regex(@"[^a-zA-Z0-9]", RegexOptions.Compiled);
-		ITabularImportFile data;
-		string @namespace;
 
 		/// <summary>
 		/// Initialize provider with default values.
 		/// </summary>
 		public RowModelTypeProvider(string @namespace, ITabularImportFile data, string identifierExpression)
 		{
-			// Store the namespace and data file
-			this.@namespace = @namespace;
-			this.data = data;
-
 			// Create types for each table in the data set
 			foreach (string table in data.GetTableNames())
 			{
@@ -107,11 +101,9 @@ namespace ExoModel.ETL
 		public Dictionary<string, RowInstance> GetInstances(ModelType type)
 		{
 			Dictionary<string, RowInstance> typeInstances;
-			if (!instances.TryGetValue(type, out typeInstances))
-				instances[type] = typeInstances = data
-					.GetRows(String.IsNullOrEmpty(@namespace) ? type.Name : type.Name.Substring(@namespace.Length + 1))
-					.ToDictionary(r => r[0], r => new RowInstance(type, r));
-			return typeInstances;
+			if (instances.TryGetValue(type, out typeInstances))
+				return typeInstances;
+			return new Dictionary<string, RowInstance>();
 		}
 
 		/// <summary>
@@ -126,8 +118,8 @@ namespace ExoModel.ETL
 			if (instances.TryGetValue(type, out typeInstances))
 				return typeInstances.Values.Select(i => ((IModelInstance)i).Instance);
 
-			// Otherwise, process the rows iteratively
-			return data.GetRows(String.IsNullOrEmpty(@namespace) ? type.Name : type.Name.Substring(@namespace.Length + 1)).Select(r => new RowInstance(type, r));
+			// Otherwise, return no instances
+			return new ModelInstance[0];
 		}
 
 		#region IModelTypeProvider
@@ -263,12 +255,6 @@ namespace ExoModel.ETL
 		}
 
 		#endregion
-
-
-		void IDisposable.Dispose()
-		{
-			data.Dispose();
-		}
 	}
 
 	/// <summary>

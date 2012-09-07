@@ -49,7 +49,6 @@
   <ItemGroup>
     <Compile Include="ExcelFile.cs" />
     <Compile Include="ITabularImportFile.cs" />
-    <Compile Include="PropertyMapping.cs" />
     <Compile Include="ModelTranslator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RowInstance.cs" />

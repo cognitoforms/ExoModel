@@ -27,7 +27,18 @@ namespace ExoModel.ETL
 		/// <param name="sourceType"></param>
 		/// <param name="destinationType"></param>
 		/// <param name="mappings"></param>
-		public ModelTranslator(ModelType sourceType, ModelType destinationType, IEnumerable<PropertyMapping> mappings)
+		public ModelTranslator(ModelType sourceType, ModelType destinationType, params string[] mappings)
+			: this(sourceType, destinationType, (IEnumerable<string>)mappings)
+		{ }
+
+		/// <summary>
+		/// Creates a new <see cref="ModelTranslator"/> to support translation from the specified source <see cref="ModelType"/> 
+		/// to the specified destination <see cref="ModelType"/> with a specified set of property mappings.
+		/// </summary>
+		/// <param name="sourceType"></param>
+		/// <param name="destinationType"></param>
+		/// <param name="mappings"></param>
+		public ModelTranslator(ModelType sourceType, ModelType destinationType, IEnumerable<string> mappings)
 		{
 			this.SourceType = sourceType;
 			this.DestinationType = destinationType;
@@ -35,7 +46,12 @@ namespace ExoModel.ETL
 			// Create a compiled translation for each property mapping
 			this.Translations = mappings.Select(m =>
 			{
-				var sourceExpression = m.SourceExpression;
+				var index = m.IndexOf("=");
+				if (index < 0)
+					throw new ArgumentException("Invalid mapping expression: must be in the form of 'Destination Path = Source Expression'.");
+
+				var sourceExpression = m.Substring(index + 1).Trim();
+				var destinationPath = m.Substring(0, index).Trim();
 
 				// Replace property labels with property names in mapping expressions
 				foreach (var property in sourceType.Properties)
@@ -44,13 +60,15 @@ namespace ExoModel.ETL
 						.Replace(property.Label, property.Name);
 
 				// Create a translation containing compiled source expressions and destination sources
-				var destinationSource = new ModelSource(destinationType, m.DestinationProperty);
+				var destinationSource = new ModelSource(destinationType, destinationPath);
 				var destinationProperty = destinationType.Context.GetModelType(destinationSource.SourceType).Properties[destinationSource.SourceProperty];
 				return new PropertyTranslation() {
 					SourceExpression = sourceType.GetExpression(sourceExpression),
 					DestinationSource = destinationSource,
 					DestinationProperty = destinationProperty,
-					ValueConverter = destinationProperty is ModelValueProperty ? ((ModelValueProperty)destinationProperty).Converter : null
+					ValueConverter = 
+						destinationProperty is ModelValueProperty && ((ModelValueProperty)destinationProperty).Converter.CanConvertTo(typeof(object)) 
+						? ((ModelValueProperty)destinationProperty).Converter : null
 				};
 			})
 			.ToArray();
