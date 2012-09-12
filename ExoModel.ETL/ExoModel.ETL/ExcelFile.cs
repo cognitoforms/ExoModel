@@ -118,22 +118,29 @@ namespace ExoModel.ETL
 		/// <returns></returns>
 		string GetCellValue(Cell cell)
 		{
-			// Shared String
-			if (cell.DataType != null && cell.DataType.HasValue && cell.DataType == CellValues.SharedString)
-				return sharedStrings.ChildElements[int.Parse(cell.CellValue.InnerText)].InnerText;
-			
-			// Number
-			double d;
-			if (Double.TryParse(cell.CellValue.InnerText, out d) && cell.StyleIndex != null)
+			if (cell.CellValue != null)
 			{
-				var format = spreadsheetDocument.WorkbookPart.WorkbookStylesPart.Stylesheet.CellFormats.ChildElements[int.Parse(cell.StyleIndex.InnerText)] as CellFormat;
-				if (format.NumberFormatId >= 14 && format.NumberFormatId <= 22)
-					return DateTime.FromOADate(d).ToString("G");
+				// Shared String
+				if (cell.DataType != null && cell.DataType.HasValue && cell.DataType == CellValues.SharedString)
+					return sharedStrings.ChildElements[int.Parse(cell.CellValue.InnerText)].InnerText;
+
+				// Number
+				double d;
+				if (Double.TryParse(cell.CellValue.InnerText, out d) && cell.StyleIndex != null)
+				{
+					var format = spreadsheetDocument.WorkbookPart.WorkbookStylesPart.Stylesheet.CellFormats.ChildElements[int.Parse(cell.StyleIndex.InnerText)] as CellFormat;
+					if (format.NumberFormatId >= 14 && format.NumberFormatId <= 22)
+						return DateTime.FromOADate(d).ToString("G");
+					else
+						return d.ToString();
+				}
 				else
-					return d.ToString();
+					return cell.CellValue.InnerText;
 			}
 			else
-				return cell.CellValue.InnerText;
+			{
+				return null;
+			}
 		}
 
 		/// <summary>
