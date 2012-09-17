@@ -467,6 +467,23 @@ namespace ExoModel
 				}
 				return m;
 			}
+
+			protected override Expression VisitUnary(UnaryExpression u)
+			{
+				Expression exp = base.VisitUnary(u);
+
+				if (u.NodeType != ExpressionType.Convert && 
+					u.NodeType != ExpressionType.ConvertChecked && 
+					u.NodeType != ExpressionType.TypeAs)
+					return exp;
+
+				ModelStep step;
+				if (u.Operand != null && steps.TryGetValue(u.Operand, out step))
+				{
+					steps.Add(u, step);
+				}
+				return exp;
+			}
 		}
 
 		#endregion
