@@ -505,7 +505,10 @@ namespace ExoModel.EntityFramework
 
 				// Mark the instance as pending delete
 				if (isPendingDelete)
+				{
 					state.ChangeState(EntityState.Deleted);
+					((IModelEntity)instance).IsInitialized = false;
+				}
 
 				// Mark the instance as added if the instance is new and is no longer being marked for deletion
 				else if (GetId(instance) == null)
