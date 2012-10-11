@@ -45,7 +45,8 @@ namespace ExoModel.ETL
 				// Create instances for each row in the table
 				instances[type] = data
 					.GetRows(String.IsNullOrEmpty(@namespace) ? type.Name : type.Name.Substring(@namespace.Length + 1))
-					.ToDictionary(r => r[0], r => new RowInstance(type, r));
+					.Select(r => new RowInstance(type, r))
+					.ToDictionary(r => r.Id);
 			}
 		}
 

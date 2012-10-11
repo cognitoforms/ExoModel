@@ -24,7 +24,16 @@ namespace ExoModel.ETL
 		internal RowInstance(ModelType type, string[] values)
 			: base(type, "")
 		{
-			this.values = values;
+			// Handle situations where the source array is smaller than the expected row size
+			if (values.Length < type.Properties.Count)
+			{
+				this.values = new string[type.Properties.Count];
+				values.CopyTo(this.values, 0);
+				for (var i = values.Length; i < this.values.Length; i++)
+					this.values[i] = String.Empty;
+			}
+			else
+				this.values = values;
 		}
 
 		ModelInstance IModelInstance.Instance

@@ -67,7 +67,7 @@ namespace ExoModel.ETL
 					DestinationSource = destinationSource,
 					DestinationProperty = destinationProperty,
 					ValueConverter = 
-						destinationProperty is ModelValueProperty && ((ModelValueProperty)destinationProperty).Converter.CanConvertTo(typeof(object)) 
+						destinationProperty is ModelValueProperty 
 						? ((ModelValueProperty)destinationProperty).Converter : null
 				};
 			})
