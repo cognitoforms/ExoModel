@@ -1,6 +1,7 @@
 ﻿using System.Data.Objects.DataClasses;
 using System.Reflection;
 using System.Data.Objects;
+using System.Linq;
 using System;
 
 namespace ExoModel.EntityFramework
@@ -166,7 +167,13 @@ namespace ExoModel.EntityFramework
 				if (oldValue != null)
 					reference.Remove((IModelEntity)oldValue);
 				if (value != null)
+				{
+					// Mark the instance as not pending delete if it is being assigned back to the graph
+					if (instance.Instance.IsPendingDelete && (((EntityFrameworkModelTypeProvider.EntityModelType)instance.Instance.Type).OwnerProperties.Values.Any(p => p.Name == property)))
+						instance.Instance.IsPendingDelete = false;
+
 					reference.Add((IModelEntity)value);
+			}
 
 				// Raise property change notifications
 				instance.Instance.OnPropertyChanged(property, oldValue, value);
