@@ -11,6 +11,7 @@ using System.Web;
 using System.ComponentModel.DataAnnotations;
 using System.Collections;
 using System.Reflection;
+using System.Collections.ObjectModel;
 
 namespace ExoModel.EntityFramework
 {
@@ -246,6 +247,38 @@ namespace ExoModel.EntityFramework
 					return null;
 				var property = declaringType.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
 				return property ?? GetProperty(declaringType.BaseType, name);
+			}
+
+			/// <summary>
+			/// Initializes null list properties when updated via a call to <see cref="ModelInstanceList.Add"/> or <see cref="ModelInstanceList.Update"/>.
+			/// </summary>
+			/// <param name="instance"></param>
+			/// <param name="property"></param>
+			/// <returns></returns>
+			protected override void InitializeList(ModelInstance instance, ModelReferenceProperty property)
+			{
+				if (property is ReflectionReferenceProperty)
+				{
+					// Ensure the property is a writable BusinessObjectList property
+					var propertyInfo = ((ReflectionReferenceProperty)property).PropertyInfo;
+					var listType = propertyInfo.PropertyType;
+
+					if(!listType.IsGenericType || listType.GetGenericTypeDefinition() != typeof(ICollection<>))
+						throw new NotSupportedException("List initialization is only supported for lists of type ICollection<T>.");
+
+					if (!propertyInfo.CanWrite)
+						throw new NotSupportedException("List initialization is only supported for writeable properties.");
+
+					var itemType = ((ReflectionModelType)property.PropertyType).UnderlyingType;
+
+					// Create the list
+					var list = typeof(ObservableCollection<>).MakeGenericType(itemType).GetConstructor(Type.EmptyTypes).Invoke(null);
+
+					// Assign the list to the property
+					propertyInfo.SetValue(instance.Instance, list, null);
+				}
+				else
+					throw new NotSupportedException("List initialization is only supported for reflection-based properties.");
 			}
 
 			/// <summary>
