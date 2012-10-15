@@ -61,12 +61,11 @@ namespace ExoModel.EntityFramework
 				.BeforeGet(EntityAdapter.BeforeGetReferenceUnmapped)
 				.AfterSet(EntityAdapter.AfterSetReferenceUnmapped);
 
-
-			// List Properties
+			// Mapped List Properties
 			Properties
 				.Where(p =>
 					// Public Read/Write
-					p.PropertyInfo != null && p.PropertyInfo.CanRead && p.PropertyInfo.CanWrite && p.PropertyInfo.GetGetMethod().IsPublic &&
+					p.PropertyInfo != null && p.PropertyInfo.CanRead && p.PropertyInfo.CanWrite && p.PropertyInfo.GetGetMethod().IsPublic && IsMapped(p.PropertyInfo) &&
 						// List
 					(p.Type.IsGenericType && p.Type.GetGenericTypeDefinition() == typeof(ICollection<>) && entityTypes.Contains(p.Type.GetGenericArguments()[0])))
 				.Get(EntityAdapter.GetList);
