@@ -33,5 +33,11 @@ namespace ExoModel
 		/// <param name="minimumNumber">Number of contexts to ensure</param>
 		/// <param name="createContext">Factory method to create a new context</param>
 		void EnsureContexts(int minimumNumber, Func<ModelContext> createContext);
+
+		/// <summary>
+		/// Called after context creation.
+		/// </summary>
+		/// <param name="context"></param>
+		void OnContextCreated(ModelContext context);
 	}
 }

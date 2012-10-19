@@ -58,6 +58,7 @@ namespace ExoModel
 						// Nothing in the pool. OnCreateContext will set storage.Context.
 						OnCreateContext();
 						context = storage.Context;
+						ContextPool.OnContextCreated(context);
 
 						if (context == null)
 							throw new InvalidOperationException("The CreateContext event handler did not set a Context but should have.");
@@ -235,7 +236,7 @@ namespace ExoModel
 			{
 				Storage storage = (Storage)((HttpApplication)sender).Context.Items[typeof(ModelContextProvider)];
 
-				if (storage != null)
+				if (storage != null && storage.Context != null)
 				{
 					AddToPool(storage.Context);
 					storage.Context = null;

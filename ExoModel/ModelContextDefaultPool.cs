@@ -54,5 +54,9 @@ namespace ExoModel
 				}
 			}
 		}
+
+		public void OnContextCreated(ModelContext context)
+		{
+		}
 	}
 }
