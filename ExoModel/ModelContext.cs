@@ -228,6 +228,27 @@ namespace ExoModel
 		/// </summary>
 		/// <param name="typeName"></param>
 		/// <returns></returns>
+		public static object Create(Type type)
+		{
+			return Current.GetModelType(type).Create().Instance;
+		}
+
+		/// <summary>
+		/// Creates an existing instance of the specified type.
+		/// </summary>
+		/// <param name="typeName"></param>
+		/// <param name="id"></param>
+		/// <returns></returns>
+		public static object Create(Type type, string id)
+		{
+			return Current.GetModelType(type).Create(id).Instance;
+		}
+
+		/// <summary>
+		/// Creates a new instance of the specified type.
+		/// </summary>
+		/// <param name="typeName"></param>
+		/// <returns></returns>
 		public static object Create(string typeName)
 		{
 			return Current.GetModelType(typeName).Create().Instance;
