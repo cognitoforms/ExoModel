@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.ComponentModel;
 
 namespace ExoModel
 {
@@ -275,8 +276,12 @@ namespace ExoModel
 
 		public static string GetDisplayName(this Enum value)
 		{
-			// TODO: look for display attribute on the value itself
-			return nameRegex.Replace(value.ToString(), " $1");
+			var displayAttribute = value.GetType().GetField(value.ToString()).GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault();
+
+			if (displayAttribute == null)
+				return nameRegex.Replace(value.ToString(), " $1");
+			else
+				return ((DescriptionAttribute)displayAttribute).Description;
 		}
 	}
 }
