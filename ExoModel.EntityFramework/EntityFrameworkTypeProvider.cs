@@ -596,7 +596,7 @@ namespace ExoModel.EntityFramework
 			DisplayAttribute displayAttribute;
 
 			internal EntityValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-				: base(declaringType, property, name, label, format ?? attributes.OfType<DisplayFormatAttribute>().Select(f => f.DataFormatString).FirstOrDefault(), isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
+				: base(declaringType, property, name, label, GetFormat(propertyType, attributes), isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
 			{
 				displayAttribute = GetAttributes<DisplayAttribute>().FirstOrDefault();
 			}
@@ -611,6 +611,16 @@ namespace ExoModel.EntityFramework
 					return displayAttribute != null ? displayAttribute.GetName() : base.Label;
 				}
 			}
+
+			static string GetFormat(Type propertyType, Attribute[] attributes)
+			{
+				var format = attributes.OfType<DisplayFormatAttribute>().Select(f => f.DataFormatString).FirstOrDefault();
+				if (format == null && propertyType == typeof(int))
+					format = "N0";
+				
+				return format;
+			}
+
 		}
 
 		#endregion
