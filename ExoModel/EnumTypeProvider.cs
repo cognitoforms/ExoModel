@@ -141,9 +141,14 @@ namespace ExoModel
 				return true;
 			}
 
-			protected internal override IDisposable GetLock(object instance)
+			protected internal override void EnterLock(object instance, out bool acquired)
 			{
-				return new EnumLock();
+				// locking is not really implemented
+				acquired = true;
+			}
+
+			protected internal override void ExitLock(object instance, bool acquired)
+			{
 			}
 
 			protected internal override void OnInit()
@@ -256,18 +261,6 @@ namespace ExoModel
 		}
 
 		#endregion
-
-		class EnumLock : IDisposable
-		{
-			#region IDisposable Members
-
-			public void Dispose()
-			{
-				
-			}
-
-			#endregion
-		}
 	}
 
 	public static class EnumExtensions
@@ -279,7 +272,7 @@ namespace ExoModel
 			var displayAttribute = value.GetType().GetField(value.ToString()).GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault();
 
 			if (displayAttribute == null)
-				return nameRegex.Replace(value.ToString(), " $1");
+			return nameRegex.Replace(value.ToString(), " $1");
 			else
 				return ((DescriptionAttribute)displayAttribute).Description;
 		}

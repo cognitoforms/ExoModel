@@ -293,11 +293,19 @@ namespace ExoModel
 		public bool IsCached { get; private set; }
 
 		/// <summary>
-		/// Gets an object that be used by Monitor to synchronize multi-threaded access
+		/// Attempts to acquire a lock synchronize multi-threaded access
 		/// </summary>
-		public IDisposable Lock()
+		public void EnterLock(out bool acquired)
 		{
-			return Type.GetLock(Instance);
+			Type.EnterLock(Instance, out acquired);
+		}
+
+		/// <summary>
+		/// Releases a lock issued by <see cref="EnterLock" />
+		/// </summary>
+		public void ExitLock(bool acquired)
+		{
+			Type.ExitLock(Instance, acquired);
 		}
 		#endregion
 

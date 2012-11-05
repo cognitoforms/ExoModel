@@ -10,7 +10,7 @@ namespace ExoModel
 	/// </summary>
 	public class ModelContextDefaultPool : IModelContextPool
 	{
-		HashSet<ModelContext> pool = new HashSet<ModelContext>();
+		readonly Stack<ModelContext> pool = new Stack<ModelContext>();
 
 		ModelContext IModelContextPool.Get()
 		{
@@ -20,8 +20,7 @@ namespace ExoModel
 			{
 				if (pool.Count > 0)
 				{
-					context = pool.First();
-					pool.Remove(context);
+					context = pool.Pop();
 				}
 			}
 
@@ -32,7 +31,8 @@ namespace ExoModel
 		{
 			lock (pool)
 			{
-				pool.Add(context);
+				if(!pool.Contains(context))
+					pool.Push(context);
 			}
 		}
 
@@ -48,9 +48,17 @@ namespace ExoModel
 		{
 			lock (pool)
 			{
-				while (minimumNumber - pool.Count > 0)
+				if (pool.Count < minimumNumber)
 				{
-					pool.Add(createContext());
+					List<ModelContext> existing = pool.Reverse().ToList();
+					pool.Clear();
+
+					while (minimumNumber - pool.Count - existing.Count > 0)
+					{
+						pool.Push(createContext());
+					}
+
+					existing.ForEach(c => pool.Push(c));
 				}
 			}
 		}

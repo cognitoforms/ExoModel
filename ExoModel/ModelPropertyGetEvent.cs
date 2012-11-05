@@ -1,4 +1,5 @@
-﻿namespace ExoModel
+﻿using System;
+namespace ExoModel
 {
 	/// <summary>
 	/// Represents the retrieval of a property in the model.
@@ -17,26 +18,64 @@
 
 		protected override void OnNotify()
 		{
-			// Lock cached objects before notifying to prevent multi-threaded rule execution
-			using(Instance.IsCached ? Instance.Lock() : null)
+			// Determine first access after lock has been acquired to ensure
+			// that no more than one event will be treated as first access.
+			IsFirstAccess = !Instance.HasBeenAccessed(Property);
+
+			// Perform special processing if this is the first time the property has been accessed
+			if (IsFirstAccess)
 			{
-				// Determine first access after lock has been acquired to ensure
-				// that no more than one event will be treated as first access.
-				this.IsFirstAccess = !Instance.HasBeenAccessed(Property);
-	
-				var context = Instance.Type.Context;
-
-				// Abort if property get notifications have been suspended
-				if (Instance.IsPropertyBeingAccessed(Property))
-					return;
-
-				try
+				if (Instance.IsCached)
 				{
-					// Prevent gets from recursively raising get notifications
-					Instance.SetIsPropertyBeingAccessed(Property, true);
+					bool locked = false;
+					try
+					{
+						Instance.EnterLock(out locked);
 
-					// Perform special processing if this is the first time the property has been accessed
-					if (IsFirstAccess)
+						// Abort if property get notifications have been suspended
+						if (Instance.IsPropertyBeingAccessed(Property))
+							return;
+
+						Instance.SetIsPropertyBeingAccessed(Property, true);
+						try
+						{
+							IsFirstAccess = !Instance.HasBeenAccessed(Property);
+
+							if (IsFirstAccess)
+							{
+								// Notify the instance that it is being accessed
+								Instance.OnAccess();
+
+								// Raise property get notifications
+								RaisePropertyGet();
+
+								// Perform special initialization if this is the first time the property has been accessed
+								Instance.OnFirstAccess(Property);
+							}
+							else   // dont bother checking PropertyGetHasSubscriptions
+							{
+								// Raise property get notifications
+								RaisePropertyGet();
+							}
+						}
+						finally
+						{
+							Instance.SetIsPropertyBeingAccessed(Property, false);
+						}
+					}
+					finally
+					{
+						Instance.ExitLock(locked);
+					}
+				}
+				else
+				{
+					// Abort if property get notifications have been suspended
+					if (Instance.IsPropertyBeingAccessed(Property))
+						return;
+
+					Instance.SetIsPropertyBeingAccessed(Property, true);
+					try
 					{
 						// Notify the instance that it is being accessed
 						Instance.OnAccess();
@@ -47,15 +86,74 @@
 						// Perform special initialization if this is the first time the property has been accessed
 						Instance.OnFirstAccess(Property);
 					}
+					finally
+					{
+						Instance.SetIsPropertyBeingAccessed(Property, false);
+					}
+				}
+			}
 
-					// Otherwise, just raise property get notifications
-					else
-						RaisePropertyGet();
+			// Otherwise, just raise property get notifications
+			else if (Instance.IsCached)
+			{
+				if (PropertyGetHasSubscriptions)
+				{
+					bool locked = false;
+					try
+					{
+						Instance.EnterLock(out locked);
+						if (Instance.IsPropertyBeingAccessed(Property))
+							return;
+
+						Instance.SetIsPropertyBeingAccessed(Property, true);
+						try
+						{
+							RaisePropertyGet();
+						}
+						finally
+						{
+							Instance.SetIsPropertyBeingAccessed(Property, false);
+						}
+					}
+					finally
+					{
+						Instance.ExitLock(locked);
+					}
+				}
+			}
+			else
+			{
+				if (Instance.IsPropertyBeingAccessed(Property))
+					return;
+
+				Instance.SetIsPropertyBeingAccessed(Property, true);
+				try
+				{
+					RaisePropertyGet();
 				}
 				finally
 				{
 					Instance.SetIsPropertyBeingAccessed(Property, false);
 				}
+			}
+		}
+
+		bool PropertyGetHasSubscriptions
+		{
+			get
+			{
+				// Raise property get on all types in the inheritance hierarchy
+				for (ModelType type = Instance.Type; type != null; type = type.BaseType)
+				{
+					if (type.PropertyGetHasSubscriptions)
+						return true;
+
+					// Stop walking the type hierarchy if this is the type that declares the property that was accessed
+					if (type == Property.DeclaringType)
+						return false;
+				}
+
+				return false;
 			}
 		}
 

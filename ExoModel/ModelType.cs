@@ -29,6 +29,7 @@ namespace ExoModel
 		Dictionary<Type, object> extensions;
 
 		IList<Action> initializers = new List<Action>();
+		HashSet<string> invalidPaths = new HashSet<string>(); 
 
 		#endregion
 
@@ -255,6 +256,14 @@ namespace ExoModel
 		{
 			if (Delete != null)
 				Delete(this, deleteEvent);
+		}
+
+		internal bool PropertyGetHasSubscriptions
+		{
+			get
+			{
+				return PropertyGet != null;
+			}
 		}
 
 		internal void RaisePropertyGet(ModelPropertyGetEvent propertyGetEvent)
@@ -501,10 +510,16 @@ namespace ExoModel
 			if (modelPath != null)
 				return true;
 
+			if (invalidPaths.Contains(path))
+				return false;
+
 			// Otherwise, create and cache a new path
 			modelPath = ModelPath.CreatePath(this, path);
 			if (modelPath == null)
+			{
+				invalidPaths.Add(path);
 				return false;
+			}
 
 			Paths.Add(modelPath);
 			return true;
@@ -1004,10 +1019,17 @@ namespace ExoModel
 		/// Acquires a lock that can be used to synchronize multi-threaded access.  Its safe to assume
 		/// that IsCached(instance) is true.
 		/// </summary>
-		/// <returns></returns>
-		protected internal virtual IDisposable GetLock(object instance)
+		protected internal virtual void EnterLock(object instance, out bool acquired)
 		{
-			throw new InvalidOperationException(this.GetType() + " must implement GetLock() if IsCached() is overridden");
+			throw new InvalidOperationException(this.GetType() + " must implement EnterLock() if IsCached() is overridden");
+		}
+
+		/// <summary>
+		/// Releases a lock that acquired by calling EnterLock
+		/// </summary>
+		protected internal virtual void ExitLock(object instance, bool acquired)
+		{
+			throw new InvalidOperationException(this.GetType() + " must implement ExitLock() if EnterLock() is overridden");
 		}
 
 		/// <summary>
