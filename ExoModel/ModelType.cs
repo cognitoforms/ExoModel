@@ -783,7 +783,16 @@ namespace ExoModel
 		/// <param name="property"></param>
 		/// <param name="list"></param>
 		/// <returns></returns>
-		protected internal abstract IList ConvertToList(ModelReferenceProperty property, object list);
+		protected internal virtual IList ConvertToList(ModelReferenceProperty property, object list)
+		{
+			if (list == null)
+				return null;
+
+			if (list is IList)
+				return (IList)list;
+
+			throw new NotSupportedException("Unable to convert the specified list instance into a valid IList implementation.");
+		}
 
 		/// <summary>
 		/// Bulk updates the values of a list reference property to have the values of the specified enumeration.

@@ -166,11 +166,6 @@ namespace ExoModel
 				AddProperty(new EnumAllProperty(this));
 			}
 
-			protected internal override System.Collections.IList ConvertToList(ModelReferenceProperty property, object list)
-			{
-				throw new NotImplementedException();
-			}
-
 			protected internal override void SaveInstance(ModelInstance modelInstance)
 			{
 				throw new NotSupportedException();
