@@ -211,13 +211,18 @@ namespace ExoModel
 			[Serializable]
 			public class EnumAllProperty : ModelReferenceProperty
 			{
+				object values;
+
 				protected internal EnumAllProperty(EnumModelType declaringType)
 					: base(declaringType, "All", null, null, true, declaringType, true, true, false, new Attribute[] { })
 				{ }
 
 				protected internal override object GetValue(object instance)
 				{
-					return ((EnumModelType)this.DeclaringType).values.Values.ToArray();
+					if (values == null)
+						values = ((EnumModelType)this.DeclaringType).values.Values.ToArray();
+
+					return values;
 				}
 
 				protected internal override void SetValue(object instance, object value)
