@@ -123,6 +123,20 @@ namespace ExoModel.ETL
 			return new ModelInstance[0];
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public int GetCount(ModelType type)
+		{
+			Dictionary<string, RowInstance> typeInstances;
+			if (instances.TryGetValue(type, out typeInstances))
+				return typeInstances.Count;
+
+			return -1;
+		}
+
 		#region IModelTypeProvider
 
 		string IModelTypeProvider.GetModelTypeName(object instance)
