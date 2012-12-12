@@ -533,6 +533,23 @@ namespace ExoModel.EntityFramework
 			/// <param name="isPendingDelete"></param>
 			protected override void SetIsPendingDelete(object instance, bool isPendingDelete)
 			{
+				// Flag child entities for deletion where the instance is an owner 
+				ModelInstance modelInstance = ModelInstance.GetModelInstance(instance);
+				foreach (var prop in ((EntityModelType)modelInstance.Type).Properties)
+				{
+					if (!prop.IsStatic && prop.IsList)
+					{
+						var modelRefProp = (ModelReferenceProperty)prop;
+						var entityModelType = (EntityModelType)modelRefProp.PropertyType;
+						if (entityModelType.OwnerProperties.Values.Any(x => x.PropertyType == modelInstance.Type))
+						{
+							foreach (var childInstance in modelRefProp.GetInstances(modelInstance).ToList())
+								childInstance.IsPendingDelete = true;
+						}
+					}
+				}
+
+
 				// Get the object state from the context
 				var state = GetObjectContext().ObjectContext.ObjectStateManager.GetObjectStateEntry(instance);
 
