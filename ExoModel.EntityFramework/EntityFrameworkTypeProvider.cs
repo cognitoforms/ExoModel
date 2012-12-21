@@ -540,11 +540,14 @@ namespace ExoModel.EntityFramework
 					if (!prop.IsStatic && prop.IsList)
 					{
 						var modelRefProp = (ModelReferenceProperty)prop;
-						var entityModelType = (EntityModelType)modelRefProp.PropertyType;
-						if (entityModelType.OwnerProperties.Values.Any(x => x.PropertyType == modelInstance.Type))
+						if (modelRefProp.PropertyType is EntityModelType)
 						{
-							foreach (var childInstance in modelRefProp.GetInstances(modelInstance).ToList())
-								childInstance.IsPendingDelete = true;
+							var entityModelType = (EntityModelType)modelRefProp.PropertyType;
+							if (entityModelType.OwnerProperties.Values.Any(x => x.PropertyType == modelInstance.Type || x.PropertyType.IsSubType(modelInstance.Type))) 
+							{
+								foreach (var childInstance in modelRefProp.GetInstances(modelInstance).ToList())
+									childInstance.IsPendingDelete = true;
+							}
 						}
 					}
 				}
