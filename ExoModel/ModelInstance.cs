@@ -13,7 +13,6 @@ namespace ExoModel
 	/// <summary>
 	/// Represents an instance of a <see cref="ModelType"/> in a physical model.
 	/// </summary>
-	[DataContract]
 	[Serializable]
 	public class ModelInstance : IModelPropertySource, IFormattable
 	{
@@ -92,23 +91,9 @@ namespace ExoModel
 			}
 		}
 
-		[DataMember(Name = "type", Order = 1)]
-		string TypeName
-		{
-			get
-			{
-				return Type.Name;
-			}
-			set
-			{
-				type = ModelContext.Current.GetModelType(value);
-			}
-		}
-
 		/// <summary>
 		/// Gets the identifier for persisted instances.
 		/// </summary>
-		[DataMember(Name = "id", Order = 2)]
 		public string Id
 		{
 			get

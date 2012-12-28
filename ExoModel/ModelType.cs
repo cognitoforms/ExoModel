@@ -13,7 +13,6 @@ namespace ExoModel
 	/// <summary>
 	/// Abstract base class for classes that represent a specific type in a model hierarchy.
 	/// </summary>
-	[DataContract]
 	[Serializable]
 	public abstract class ModelType : ISerializable, IModelPropertySource
 	{
