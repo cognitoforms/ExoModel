@@ -229,10 +229,10 @@ namespace ExoModel
 
 			void IHttpModule.Init(HttpApplication context)
 			{
-				context.ReleaseRequestState += new EventHandler(context_ReleaseRequestState);
+				context.EndRequest += new EventHandler(context_EndRequest);
 			}
 
-			void context_ReleaseRequestState(object sender, EventArgs e)
+			void context_EndRequest(object sender, EventArgs e)
 			{
 				Storage storage = (Storage)((HttpApplication)sender).Context.Items[typeof(ModelContextProvider)];
 
