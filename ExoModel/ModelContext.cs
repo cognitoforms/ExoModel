@@ -35,9 +35,9 @@ namespace ExoModel
 		List<IModelTypeProvider> typeProviders = new List<IModelTypeProvider>();
 
 		/// <summary>
-		/// Tracks the next auto-generated id assigned to new instances.
+		/// Tracks the last auto-generated id that was assigned to a new instance.
 		/// </summary>
-		int nextId;
+		int lastId;
 
 		/// <summary>
 		/// Queue to store a FIFO list of types to be initialized
@@ -180,7 +180,7 @@ namespace ExoModel
 		/// <returns></returns>
 		internal string GenerateId()
 		{
-			return "?" + ++nextId;
+			return "?" + ++lastId;
 		}
 
 		/// <summary>
@@ -188,7 +188,7 @@ namespace ExoModel
 		/// </summary>
 		internal void Reset()
 		{
-			nextId = 0;
+			lastId = 0;
 		}
 
 		/// <summary>
