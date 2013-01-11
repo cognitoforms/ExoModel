@@ -35,9 +35,14 @@ namespace ExoModel
 		List<IModelTypeProvider> typeProviders = new List<IModelTypeProvider>();
 
 		/// <summary>
+		/// Tracks the last auto-generated id that was assigned to a new instance that is cached.
+		/// </summary>
+		static int lastCachedInstanceId;
+
+		/// <summary>
 		/// Tracks the last auto-generated id that was assigned to a new instance.
 		/// </summary>
-		int lastId;
+		int lastNonCachedInstanceId;
 
 		/// <summary>
 		/// Queue to store a FIFO list of types to be initialized
@@ -104,7 +109,7 @@ namespace ExoModel
 		public event EventHandler<ModelEvent> Event;
 
 		/// <summary>
-		/// Notifies when new types are initialized within the current model context.
+		/// Notifies when new types are initialized within the current <see cref="ModelContext"/>.
 		/// </summary>
 		public event EventHandler<TypeInitEventArgs> TypeInit;
 
@@ -121,7 +126,8 @@ namespace ExoModel
 		/// Provides a default implementation for initializing and caching <see cref="ModelContext"/>
 		/// instances using the <see cref="ModelContextProvider"/> implementation of <see cref="IModelContextProvider"/>.
 		/// </summary>
-		/// <param name="createContext"></param>
+		/// <param name="contextInit"></param>
+		/// <param name="providers"></param>
 		public static void Init(Action contextInit, params IModelTypeProvider[] providers)
 		{
 			new ModelContextProvider().CreateContext +=
@@ -139,7 +145,7 @@ namespace ExoModel
 		/// Provides a default implementation for initializing and caching <see cref="ModelContext"/>
 		/// instances using the <see cref="ModelContextProvider"/> implementation of <see cref="IModelContextProvider"/>.
 		/// </summary>
-		/// <param name="createContext"></param>
+		/// <param name="providers"></param>
 		public static void Init(params IModelTypeProvider[] providers)
 		{
 			Init(null, providers);
@@ -177,10 +183,11 @@ namespace ExoModel
 		/// <summary>
 		/// Generates a unique identifier to assign to new instances that do not yet have an id.
 		/// </summary>
+		/// <param name="isCached"></param>
 		/// <returns></returns>
-		internal string GenerateId()
+		internal string GenerateId(bool isCached)
 		{
-			return "?" + ++lastId;
+			return isCached ? ("~" + ++lastCachedInstanceId) : ("?" + ++lastNonCachedInstanceId);
 		}
 
 		/// <summary>
@@ -188,7 +195,7 @@ namespace ExoModel
 		/// </summary>
 		internal void Reset()
 		{
-			lastId = 0;
+			lastNonCachedInstanceId = 0;
 		}
 
 		/// <summary>
@@ -226,7 +233,7 @@ namespace ExoModel
 		/// <summary>
 		/// Creates a new instance of the specified type.
 		/// </summary>
-		/// <param name="typeName"></param>
+		/// <param name="type"></param>
 		/// <returns></returns>
 		public static object Create(Type type)
 		{
@@ -236,7 +243,7 @@ namespace ExoModel
 		/// <summary>
 		/// Creates an existing instance of the specified type.
 		/// </summary>
-		/// <param name="typeName"></param>
+		/// <param name="type"></param>
 		/// <param name="id"></param>
 		/// <returns></returns>
 		public static object Create(Type type, string id)

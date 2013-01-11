@@ -24,8 +24,9 @@ namespace ExoModel
 		/// <param name="e"></param>
 		void context_Event(object sender, ModelEvent e)
 		{
-			// Only track events that change the model
-			if (e is ITransactedModelEvent)
+			// Only track events that change the model.
+			// Don't track changes to cached objects.
+			if (e is ITransactedModelEvent && !e.Instance.IsCached)
 			{
 				// Track id mappings for new instances created during the transaction
 				if (e is ModelInitEvent.InitNew)

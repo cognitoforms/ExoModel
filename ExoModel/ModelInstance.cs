@@ -107,7 +107,7 @@ namespace ExoModel
 							OnAccess();
 
 						// Return id assigned by first access (OnAccess), or assign on as needed
-						return this.id ?? (this.id = Type.GetId(instance) ?? Type.Context.GenerateId());
+						return this.id ?? (this.id = Type.GetId(instance) ?? Type.Context.GenerateId(IsCached));
 					}
 					else
 						return Type.GetId(instance) ?? id;
