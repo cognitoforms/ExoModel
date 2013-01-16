@@ -63,7 +63,7 @@ namespace ExoModel.ETL
 				var destinationSource = new ModelSource(destinationType, destinationPath);
 				var destinationProperty = destinationType.Context.GetModelType(destinationSource.SourceType).Properties[destinationSource.SourceProperty];
 				return new PropertyTranslation() {
-					SourceExpression = sourceType.GetExpression(sourceExpression),
+					SourceExpression = String.IsNullOrEmpty(sourceExpression) ? null : sourceType.GetExpression(sourceExpression),
 					DestinationSource = destinationSource,
 					DestinationProperty = destinationProperty,
 					ValueConverter = 
@@ -112,7 +112,7 @@ namespace ExoModel.ETL
 			foreach (var translation in Translations)
 			{
 				// Invoke the source expression for the mapping
-				var value =
+				var value = translation.SourceExpression == null ? null :
 					translation.SourceExpression.Expression.Parameters.Count == 0 ?
 						translation.SourceExpression.CompiledExpression.DynamicInvoke() :
 						translation.SourceExpression.CompiledExpression.DynamicInvoke(source.Instance);
