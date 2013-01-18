@@ -207,6 +207,11 @@ namespace ExoModel
 			return null;
 		}
 
+		protected virtual string GetHelpText(TPropertySource property)
+		{
+			return null;
+		}
+
 		protected virtual string GetFormat(TTypeSource type)
 		{
 			return null;
@@ -278,6 +283,9 @@ namespace ExoModel
 					// Get the label for the property
 					var label = provider.GetLabel(property);
 
+					// Get the help text for the property
+					var helptext = provider.GetHelpText(property);
+
 					// Get the format for the property
 					var format = provider.GetFormat(property);
 
@@ -303,12 +311,12 @@ namespace ExoModel
 					if (referenceType == null)
 						AddProperty(
 							new DynamicValueProperty(
-								this, property, name, label, format, isStatic, provider.GetValueType(property), provider.GetValueConverter(property), isList, isReadOnly, isPersisted, attributes)
+								this, property, name, label, helptext, format, isStatic, provider.GetValueType(property), provider.GetValueConverter(property), isList, isReadOnly, isPersisted, attributes)
 						);
 					else
 						AddProperty(
 							new DynamicReferenceProperty(
-								this, property, name, label, format, isStatic, referenceType, isList, isReadOnly, isPersisted, attributes)
+								this, property, name, label, helptext, format, isStatic, referenceType, isList, isReadOnly, isPersisted, attributes)
 						);
 
 				}
@@ -383,8 +391,8 @@ namespace ExoModel
 			[Serializable]
 			class DynamicValueProperty : ModelValueProperty
 			{
-				internal DynamicValueProperty(DynamicModelType declaringType, TPropertySource property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-					: base(declaringType, name, label, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
+				internal DynamicValueProperty(DynamicModelType declaringType, TPropertySource property, string name, string label, string helptext, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+					: base(declaringType, name, label, helptext, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
 				{
 					this.PropertySource = property;
 				}
@@ -418,8 +426,8 @@ namespace ExoModel
 			[Serializable]
 			class DynamicReferenceProperty : ModelReferenceProperty
 			{
-				internal DynamicReferenceProperty(DynamicModelType declaringType, TPropertySource property, string name, string label, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-					: base(declaringType, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
+				internal DynamicReferenceProperty(DynamicModelType declaringType, TPropertySource property, string name, string label, string helptext, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+					: base(declaringType, name, label, helptext, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
 				{
 					this.PropertySource = property;
 				}

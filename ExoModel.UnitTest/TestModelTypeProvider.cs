@@ -82,10 +82,10 @@ namespace ExoModel.UnitTest
 			return new TestModelType(@namespace, type, format);
 		}
 
-		protected override ModelValueProperty CreateValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, System.ComponentModel.TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		protected override ModelValueProperty CreateValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, Type propertyType, System.ComponentModel.TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
 			format = format ?? attributes.OfType<DisplayFormatAttribute>().Select(f => f.DataFormatString).FirstOrDefault();
-			return base.CreateValueProperty(declaringType, property, name, label, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes);
+			return base.CreateValueProperty(declaringType, property, name, label, helptext, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes);
 		}
 
 		#endregion

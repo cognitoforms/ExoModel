@@ -20,11 +20,12 @@ namespace ExoModel
 
 		#region Constructors
 
-		internal ModelProperty(ModelType declaringType, string name, string label, string format, bool isStatic, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		internal ModelProperty(ModelType declaringType, string name, string label, string helptext, string format, bool isStatic, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
 			this.DeclaringType = declaringType;
 			this.Name = name;
 			this.Label = label ?? labelRegex.Replace(Name, " $1").Substring(1);
+			this.HelpText = helptext;
 			this.Format = format;
 			this.IsStatic = isStatic;
 			this.IsList = isList;
@@ -41,6 +42,8 @@ namespace ExoModel
 		public string Name { get; private set; }
 
 		public virtual string Label { get; private set; }
+
+		public virtual string HelpText { get; private set; }
 
 		public virtual string Format { get; private set; }
 

@@ -10,8 +10,8 @@ namespace ExoModel
 	{
 		#region Constructors
 
-		protected internal ModelValueProperty(ModelType declaringType, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-			: base(declaringType, name, label, format, isStatic, isList, isReadOnly, isPersisted, attributes)
+		protected internal ModelValueProperty(ModelType declaringType, string name, string label, string helptext, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+			: base(declaringType, name, label, helptext, format, isStatic, isList, isReadOnly, isPersisted, attributes)
 		{
 			this.PropertyType = propertyType;
 			this.Converter = converter;

@@ -155,7 +155,7 @@ namespace ExoModel.EntityFramework
 		/// <param name="isList"></param>
 		/// <param name="attributes"></param>
 		/// <returns></returns>
-		protected override ModelReferenceProperty CreateReferenceProperty(ModelType declaringType, System.Reflection.PropertyInfo property, string name, string label, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		protected override ModelReferenceProperty CreateReferenceProperty(ModelType declaringType, System.Reflection.PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
 			// Fetch any attributes associated with a buddy-class
 			attributes = attributes.Union(GetBuddyClassAttributes(declaringType, property)).ToArray();
@@ -168,7 +168,7 @@ namespace ExoModel.EntityFramework
 			var type = context.ObjectContext.MetadataWorkspace.GetItem<EntityType>(((EntityModelType)declaringType).UnderlyingType.FullName, DataSpace.CSpace);
 			NavigationProperty navProp;
 			type.NavigationProperties.TryGetValue(name, false, out navProp);
-			return new EntityReferenceProperty(declaringType, navProp, property, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes);
+			return new EntityReferenceProperty(declaringType, navProp, property, name, label, helptext, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes);
 		}
 
 		/// <summary>
@@ -183,7 +183,7 @@ namespace ExoModel.EntityFramework
 		/// <param name="isList"></param>
 		/// <param name="attributes"></param>
 		/// <returns></returns>
-		protected override ModelValueProperty CreateValueProperty(ModelType declaringType, System.Reflection.PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		protected override ModelValueProperty CreateValueProperty(ModelType declaringType, System.Reflection.PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
 			// Do not include entity reference properties in the model
 			if (property.PropertyType.IsSubclassOf(typeof(EntityReference)))
@@ -195,7 +195,7 @@ namespace ExoModel.EntityFramework
 			// Mark properties that are not mapped as not persisted
 			isPersisted = !attributes.OfType<NotMappedAttribute>().Any();
 
-			return new EntityValueProperty(declaringType, property, name, label, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes);
+			return new EntityValueProperty(declaringType, property, name, label, helptext, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes);
 		}
 
 		#region Storage
@@ -615,8 +615,8 @@ namespace ExoModel.EntityFramework
 		{
 			DisplayAttribute displayAttribute;
 
-			internal EntityValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-				: base(declaringType, property, name, label, GetFormat(propertyType, attributes), isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
+			internal EntityValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+				: base(declaringType, property, name, label, helptext, GetFormat(propertyType, attributes), isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
 			{
 				displayAttribute = GetAttributes<DisplayAttribute>().FirstOrDefault();
 			}
@@ -654,8 +654,8 @@ namespace ExoModel.EntityFramework
 		{
 			DisplayAttribute displayAttribute;
 
-			internal EntityReferenceProperty(ModelType declaringType, NavigationProperty navProp, PropertyInfo property, string name, string label, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-				: base(declaringType, property, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
+			internal EntityReferenceProperty(ModelType declaringType, NavigationProperty navProp, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+				: base(declaringType, property, name, label, helptext, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
 			{
 				RelationshipName = navProp != null ? navProp.RelationshipType.Name : null;
 				TargetRoleName = navProp != null ? navProp.ToEndMember.Name : null;

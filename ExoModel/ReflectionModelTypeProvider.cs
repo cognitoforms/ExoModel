@@ -113,9 +113,9 @@ namespace ExoModel
 		/// <param name="propertyType">The <see cref="ModelType"/> of the property</param>
 		/// <param name="isList">Indicates whether the property represents a list of references or a single reference</param>
 		/// <param name="attributes">The attributes assigned to the property</param>
-		protected virtual ModelReferenceProperty CreateReferenceProperty(ModelType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		protected virtual ModelReferenceProperty CreateReferenceProperty(ModelType declaringType, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
-			return new ReflectionReferenceProperty(declaringType, property, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes);
+			return new ReflectionReferenceProperty(declaringType, property, name, label, helptext, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes);
 		}
 
 		/// <summary>
@@ -126,9 +126,9 @@ namespace ExoModel
 		/// <param name="propertyType">The <see cref="Type"/> of the property</param>
 		/// <param name="converter">The optional value type converter to use</param>
 		/// <param name="attributes">The attributes assigned to the property</param>
-		protected virtual ModelValueProperty CreateValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		protected virtual ModelValueProperty CreateValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 		{
-			return new ReflectionValueProperty(declaringType, property, name, label, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes);
+			return new ReflectionValueProperty(declaringType, property, name, label, helptext, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes);
 		}
 
 		protected virtual ModelMethod CreateMethod(ModelType declaringType, MethodInfo method, string name, bool isStatic, Attribute[] attributes)
@@ -262,7 +262,7 @@ namespace ExoModel
 					else if ((referenceType = Context.GetModelType(property.PropertyType)) != null)
 					{
 						var format = property.GetCustomAttributes(true).OfType<ModelFormatAttribute>().Select(a => a.Format).FirstOrDefault();
-						ModelReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, format, property.GetGetMethod().IsStatic, referenceType, false, property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						ModelReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, null, format, property.GetGetMethod().IsStatic, referenceType, false, property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (reference != null)
 							AddProperty(reference);
 					}
@@ -271,7 +271,7 @@ namespace ExoModel
 					else if (TryGetListItemType(property.PropertyType, out listItemType) && (referenceType = Context.GetModelType(listItemType)) != null)
 					{
 						var format = property.GetCustomAttributes(true).OfType<ModelFormatAttribute>().Select(a => a.Format).FirstOrDefault();
-						ModelReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, format, property.GetGetMethod().IsStatic, referenceType, true, false, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						ModelReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, null, format, property.GetGetMethod().IsStatic, referenceType, true, false, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (reference != null)
 							AddProperty(reference);
 					}
@@ -279,7 +279,7 @@ namespace ExoModel
 					// Create values for all other properties
 					else
 					{
-							var value = provider.CreateValueProperty(this, property, property.Name, null, null, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), TryGetListItemType(property.PropertyType, out listItemType), property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						var value = provider.CreateValueProperty(this, property, property.Name, null, null, null, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), TryGetListItemType(property.PropertyType, out listItemType), property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						
 					if (value != null)
 							AddProperty(value);
@@ -408,8 +408,8 @@ namespace ExoModel
 		[Serializable]
 		public class ReflectionValueProperty : ModelValueProperty, IReflectionModelProperty
 		{
-				protected internal ReflectionValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-				: base(declaringType, name, label, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
+				protected internal ReflectionValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+				: base(declaringType, name, label, helptext, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
 		{
 				this.PropertyInfo = property;
 			}
@@ -444,8 +444,8 @@ namespace ExoModel
 		[Serializable]
 		public class ReflectionReferenceProperty : ModelReferenceProperty, IReflectionModelProperty
 		{
-				protected internal ReflectionReferenceProperty(ModelType declaringType, PropertyInfo property, string name, string label, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-				: base(declaringType, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
+				protected internal ReflectionReferenceProperty(ModelType declaringType, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+				: base(declaringType, name, label, helptext, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
 		{
 				this.PropertyInfo = property;
 			}

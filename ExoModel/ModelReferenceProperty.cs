@@ -12,8 +12,8 @@ namespace ExoModel
 	{
 		#region Constructors
 
-		protected internal ModelReferenceProperty(ModelType declaringType, string name, string label, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-			: base(declaringType, name, label, format ?? propertyType.Format, isStatic, isList, isReadOnly, isPersisted, attributes)
+		protected internal ModelReferenceProperty(ModelType declaringType, string name, string label, string helptext, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+			: base(declaringType, name, label, helptext, format ?? propertyType.Format, isStatic, isList, isReadOnly, isPersisted, attributes)
 		{
 			this.PropertyType = propertyType;
 		}

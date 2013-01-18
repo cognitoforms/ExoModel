@@ -214,7 +214,7 @@ namespace ExoModel
 				object values;
 
 				protected internal EnumAllProperty(EnumModelType declaringType)
-					: base(declaringType, "All", null, null, true, declaringType, true, true, false, new Attribute[] { })
+					: base(declaringType, "All", null, null, null, true, declaringType, true, true, false, new Attribute[] { })
 				{ }
 
 				protected internal override object GetValue(object instance)
@@ -244,7 +244,7 @@ namespace ExoModel
 			Func<Enum, T> getValue;
 
 			protected internal EnumValueProperty(ModelType declaringType, string name, Func<Enum, T> getValue)
-				: base(declaringType, name, null, null, false, typeof(T), null, false, true, false, new Attribute[] { })
+				: base(declaringType, name, null, null, null, false, typeof(T), null, false, true, false, new Attribute[] { })
 			{
 				this.getValue = getValue;
 			}

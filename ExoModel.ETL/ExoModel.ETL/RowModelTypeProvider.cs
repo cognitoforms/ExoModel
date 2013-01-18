@@ -32,7 +32,7 @@ namespace ExoModel.ETL
 
 				// Create properties for each column in the table
 				type.AddProperties(data.GetColumnNames(table).Select(column =>
-					new RowModelValueProperty(type, nameRegex.Replace(column, ""), column, null, false, typeof(string), false, false, false)));
+					new RowModelValueProperty(type, nameRegex.Replace(column, ""), column, null, null, false, typeof(string), false, false, false)));
 
 				// Replace property labels with property names in mapping expressions
 				foreach (var property in type.Properties)
@@ -233,8 +233,8 @@ namespace ExoModel.ETL
 
 		internal class RowModelValueProperty : ModelValueProperty
 		{
-			internal RowModelValueProperty(ModelType declaringType, string name, string label, string format, bool isStatic, Type propertyType, bool isList, bool isReadOnly, bool isPersisted)
-				: base(declaringType, name, label, format, isStatic, propertyType, null, isList, isReadOnly, isPersisted, null)
+			internal RowModelValueProperty(ModelType declaringType, string name, string label, string helptext, string format, bool isStatic, Type propertyType, bool isList, bool isReadOnly, bool isPersisted)
+				: base(declaringType, name, label, helptext, format, isStatic, propertyType, null, isList, isReadOnly, isPersisted, null)
 			{ }
 
 			protected override object GetValue(object instance)
@@ -254,8 +254,8 @@ namespace ExoModel.ETL
 
 		internal class RowModelReferenceProperty : ModelReferenceProperty
 		{
-			internal RowModelReferenceProperty(ModelType declaringType, string name, string label, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted)
-				: base(declaringType, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, null)
+			internal RowModelReferenceProperty(ModelType declaringType, string name, string label, string helptext, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted)
+				: base(declaringType, name, label, helptext, format, isStatic, propertyType, isList, isReadOnly, isPersisted, null)
 			{ }
 
 			protected override object GetValue(object instance)

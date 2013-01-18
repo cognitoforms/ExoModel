@@ -98,6 +98,7 @@ namespace ExoModel.Json
 						var isStatic = options.Get<bool>("isStatic", false);
 						var isReadOnly = options.Get<bool>("isReadOnly", false);
 						var label = options.Get<string>("label", null);
+						var helptext = options.Get<string>("helptext", null);
 						var format = options.Get<string>("format", null);
 						var isList = options.Get<bool>("isList", false);
 						if (typeName.EndsWith("[]"))
@@ -107,9 +108,9 @@ namespace ExoModel.Json
 						}
 
 						if (valueTypes.ContainsKey(typeName))
-							return (ModelProperty)new JsonModelValueProperty(modelType, p.Key, label, format, isStatic, valueTypes[typeName], isList, isReadOnly, false);
+							return (ModelProperty)new JsonModelValueProperty(modelType, p.Key, label, helptext, format, isStatic, valueTypes[typeName], isList, isReadOnly, false);
 						else
-							return (ModelProperty)new JsonModelReferenceProperty(modelType, p.Key, label, format, isStatic, Types[typeName], isList, isReadOnly, false);
+							return (ModelProperty)new JsonModelReferenceProperty(modelType, p.Key, label, helptext, format, isStatic, Types[typeName], isList, isReadOnly, false);
 					})
 					.ToList();
 
@@ -295,8 +296,8 @@ namespace ExoModel.Json
 
 		internal class JsonModelValueProperty : ModelValueProperty
 		{
-			internal JsonModelValueProperty(ModelType declaringType, string name, string label, string format, bool isStatic, Type propertyType, bool isList, bool isReadOnly, bool isPersisted)
-				: base(declaringType, name, label, format, isStatic, propertyType, null, isList, isReadOnly, isPersisted, null)
+			internal JsonModelValueProperty(ModelType declaringType, string name, string label, string helptext, string format, bool isStatic, Type propertyType, bool isList, bool isReadOnly, bool isPersisted)
+				: base(declaringType, name, label, helptext, format, isStatic, propertyType, null, isList, isReadOnly, isPersisted, null)
 			{ }
 
 			protected override object GetValue(object instance)
@@ -316,8 +317,8 @@ namespace ExoModel.Json
 
 		internal class JsonModelReferenceProperty : ModelReferenceProperty
 		{
-			internal JsonModelReferenceProperty(ModelType declaringType, string name, string label, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted)
-				: base(declaringType, name, label, format, isStatic, propertyType, isList, isReadOnly, isPersisted, null)
+			internal JsonModelReferenceProperty(ModelType declaringType, string name, string label, string helptext, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted)
+				: base(declaringType, name, label, helptext, format, isStatic, propertyType, isList, isReadOnly, isPersisted, null)
 			{ }
 
 			protected override object GetValue(object instance)
