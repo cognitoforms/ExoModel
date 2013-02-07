@@ -89,6 +89,15 @@ namespace ExoModel
 					OnAccess();
 				return type ?? ModelContext.Current.GetModelType(typeName);
 			}
+			set
+			{
+				if (!isInitialized && type == ModelType.Unknown)
+				{
+					type = value;
+					OnAccess();
+				}
+			}
+
 		}
 
 		/// <summary>
@@ -493,21 +502,19 @@ namespace ExoModel
 
 				// Initialize the model type if necessary
 				if (type == ModelType.Unknown)
+					type = ModelContext.Current.GetModelType(instance);
+
+				hasBeenAccessed = new BitArray(type.PropertyCount);
+				isBeingAccessed = new BitArray(type.PropertyCount);
+				IsCached = type.IsCached(instance);
+				if (IsCached)
 				{
-					ModelType knownType = ModelContext.Current.GetModelType(instance);
-					hasBeenAccessed = new BitArray(knownType.PropertyCount);
-					isBeingAccessed = new BitArray(knownType.PropertyCount);
-					IsCached = knownType.IsCached(instance);
-					if (IsCached)
-					{
-						inReferences = null;
-						outReferences = null;
-						typeName = knownType.Name;
-						type = null;
-					}
-					else
-						type = knownType;
+					inReferences = null;
+					outReferences = null;
+					typeName = type.Name;
+					type = null;
 				}
+				
 
 				// Raise the appropriate init event
 				if (IsNew)

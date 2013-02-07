@@ -32,7 +32,7 @@ namespace ExoModel
 		/// <param name="namespace"></param>
 		/// <param name="create"></param>
 		public DescriptorModelTypeProvider(string @namespace, Func<string, T> create, Func<ModelInstance, string> getScopeName)
-			: base(@namespace, ModelContext.Current.GetModelType<T>().Name)
+			: base(@namespace, ModelContext.Current.GetModelType<T>().Name, true)
 		{
 			this.create = create;
 			this.getScopeName = getScopeName;

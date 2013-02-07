@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
@@ -28,8 +29,8 @@ namespace ExoModel
 		Dictionary<Type, object> extensions;
 
 		IList<Action> initializers = new List<Action>();
-		HashSet<string> invalidPaths = new HashSet<string>(); 
-
+		HashSet<string> invalidPaths = new HashSet<string>();
+		bool isInitialized = false;
 		#endregion
 
 		#region Contructors
@@ -92,7 +93,7 @@ namespace ExoModel
 
 		internal int PropertyCount { get; private set; }
 
-		protected internal IModelTypeProvider Provider { get; internal set; }
+		public IModelTypeProvider Provider { get; internal set; }
 
 		ModelPathList Paths { get; set; }
 
@@ -178,6 +179,7 @@ namespace ExoModel
 		/// <param name="context"></param>
 		internal void Initialize(ModelContext context)
 		{
+			if (isInitialized) return;
 			// Set the context the model type is registered with
 			this.Context = context;
 
@@ -193,7 +195,13 @@ namespace ExoModel
 
 			// Add to base type after all other initialization is complete
 			if (BaseType != null)
-				BaseType.SubTypes.Add(this);
+			{
+				ModelType subType = BaseType.SubTypes[this.Name];
+				if (subType == null)
+					BaseType.SubTypes.Add(this);
+			}
+
+			isInitialized = true;
 		}
 
 		/// <summary>

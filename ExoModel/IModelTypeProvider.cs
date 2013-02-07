@@ -27,5 +27,9 @@ namespace ExoModel
 		/// <param name="typeName"></param>
 		/// <returns></returns>
 		ModelType CreateModelType(string typeName);
+
+		bool IsCachable { get; }
+
+		string Namespace { get; }
 	}
 }

@@ -76,6 +76,10 @@ namespace ExoModel
 
 		#region IModelTypeProvider
 
+		bool IModelTypeProvider.IsCachable { get { return true; } }
+
+		string IModelTypeProvider.Namespace { get { return ""; } }
+
 		/// <summary>
 		/// Gets the unique name of the <see cref="ModelType"/> for the specified model object instance.
 		/// </summary>

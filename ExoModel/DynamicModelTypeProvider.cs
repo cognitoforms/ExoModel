@@ -19,6 +19,7 @@ namespace ExoModel
 		#region Fields
 
 		string @namespace;
+		bool isCacheable;
 		string baseType;
 
 		#endregion
@@ -30,20 +31,17 @@ namespace ExoModel
 		/// </summary>
 		/// <param name="@namespace"></param>
 		/// <param name="baseType"></param>
-		internal DynamicModelTypeProvider(string @namespace, string baseType)
+		/// <param name="isCacheable"></param>
+		internal DynamicModelTypeProvider(string @namespace, string baseType, bool isCacheable)
 		{
 			this.@namespace = string.IsNullOrEmpty(@namespace) ? string.Empty : @namespace + ".";
 			this.baseType = baseType;
+			this.isCacheable = isCacheable;
 		}
 
 		#endregion
 
 		#region Properties
-
-		protected string Namespace
-		{
-			get { return @namespace; }
-		}
 
 		protected string BaseType
 		{
@@ -66,11 +64,15 @@ namespace ExoModel
 		/// </summary>
 		/// <param name="typeName"></param>
 		/// <returns></returns>
-		protected abstract ModelType CreateModelType(string typeName);
+		protected abstract ModelType CreateModelType(string typeName, IModelTypeProvider provider = null);
 
 		#endregion
 
 		#region IModelTypeProvider
+
+		public bool IsCachable { get { return isCacheable; } }
+
+		public string Namespace { get { return @namespace; } }
 
 		/// <summary>
 		/// Gets the unique name of the <see cref="ModelType"/> for the specified model object instance.
@@ -126,10 +128,20 @@ namespace ExoModel
 		/// </summary>
 		/// <param name="@namespace"></param>
 		/// <param name="baseType"></param>
-		public DynamicModelTypeProvider(string @namespace, string baseType)
-			: base(@namespace, baseType)
+		/// <param name="isCachable"></param>
+		public DynamicModelTypeProvider(string @namespace, string baseType, bool isCachable)
+			: base(@namespace, baseType, isCachable)
 		{
 		}
+
+		/// <summary>
+		/// Creates a new <see cref="DynamicModelTypeProvider"/> based on the specified types.
+		/// </summary>
+		/// <param name="@namespace"></param>
+		/// <param name="baseType"></param>
+		public DynamicModelTypeProvider(string @namespace, string baseType)
+			: this(@namespace, baseType, true)
+		{}
 
 		#endregion
 
@@ -151,7 +163,7 @@ namespace ExoModel
 		/// </summary>
 		/// <param name="typeName"></param>
 		/// <returns></returns>
-		protected override ModelType CreateModelType(string typeName)
+		protected override ModelType CreateModelType(string typeName, IModelTypeProvider provider = null)
 		{
 			// Exit immediately if the requested type is from a different namespace.
 			if (!typeName.StartsWith(Namespace))
@@ -163,10 +175,10 @@ namespace ExoModel
 				return null;
 
 			// Return a new dynamic model type
-			return new DynamicModelType(typeName, GetBaseType(), GetFormat(type), GetTypeAttributes(type), GetProperties(type));
+			return new DynamicModelType(typeName, GetBaseType(), GetFormat(type), GetTypeAttributes(type), GetProperties(type), provider);
 		}
 
-		internal virtual ModelType GetBaseType()
+		protected virtual ModelType GetBaseType()
 		{
 			return ModelContext.Current.GetModelType(BaseType);
 		}
@@ -247,10 +259,11 @@ namespace ExoModel
 		{
 			IEnumerable<TPropertySource> properties;
 
-			internal DynamicModelType(string name, ModelType baseType, string format, Attribute[] attributes, IEnumerable<TPropertySource> properties)
+			internal DynamicModelType(string name, ModelType baseType, string format, Attribute[] attributes, IEnumerable<TPropertySource> properties, IModelTypeProvider provider = null)
 				: base(name, baseType.QualifiedName + "+" + name, baseType, baseType.Scope, format, attributes)
 			{
 				this.properties = properties;
+				base.Provider = provider;
 			}
 
 			protected internal new DynamicModelTypeProvider<TTypeSource, TPropertySource> Provider
@@ -476,11 +489,15 @@ namespace ExoModel
 	public abstract class DynamicModelTypeProvider<TBaseType, TTypeSource, TPropertySource> : DynamicModelTypeProvider<TTypeSource, TPropertySource>
         where TTypeSource : class
 	{
-		protected DynamicModelTypeProvider(string @namespace)
-			: base(@namespace, null)
+		protected DynamicModelTypeProvider(string @namespace, bool isCachable)
+			: base(@namespace, null, isCachable)
 		{ }
 
-		internal override ModelType GetBaseType()
+		protected DynamicModelTypeProvider(string @namespace)
+			: this(@namespace, true)
+		{ }
+
+		protected override ModelType GetBaseType()
 		{
 			return ModelContext.Current.GetModelType<TBaseType>();
 		}

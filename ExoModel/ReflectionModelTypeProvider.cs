@@ -20,6 +20,7 @@ namespace ExoModel
 		HashSet<Type> supportedTypes = new HashSet<Type>();
 		HashSet<Type> declaringTypes = new HashSet<Type>();
 		string @namespace;
+		bool isCacheable;
 
 		#endregion
 
@@ -41,7 +42,7 @@ namespace ExoModel
 			: this(@namespace,
 				assemblies
 				.SelectMany(a => a.GetTypes())
-				.Where(t => typeof(IModelInstance).IsAssignableFrom(t)), null)
+				.Where(t => typeof(IModelInstance).IsAssignableFrom(t)), null, true)
 		{ }
 
 		/// <summary>
@@ -49,7 +50,7 @@ namespace ExoModel
 		/// </summary>
 		/// <param name="types">The types to create model types from</param>
 		public ReflectionModelTypeProvider(IEnumerable<Type> types)
-			: this("", types, null)
+			: this("", types, null, true)
 		{ }
 
 		/// <summary>
@@ -57,7 +58,7 @@ namespace ExoModel
 		/// </summary>
 		/// <param name="types">The types to create model types from</param>
 		public ReflectionModelTypeProvider(string @namespace, IEnumerable<Type> types)
-			: this(@namespace, types, null)
+			: this(@namespace, types, null, true)
 		{ }
 
 		/// <summary>
@@ -66,13 +67,14 @@ namespace ExoModel
 		/// </summary>
 		/// <param name="types">The types to create model types from</param>
 		/// <param name="baseTypes">The base types that contain properties to include on model types</param>
-		public ReflectionModelTypeProvider(string @namespace, IEnumerable<Type> types, IEnumerable<Type> baseTypes)
+		public ReflectionModelTypeProvider(string @namespace, IEnumerable<Type> types, IEnumerable<Type> baseTypes, bool isCacheable)
 		{
 			// The list of types cannot be null
 			if (types == null)
 				throw new ArgumentNullException("types");
 
 			this.@namespace = string.IsNullOrEmpty(@namespace) ? string.Empty : @namespace + ".";
+			this.isCacheable = isCacheable;
 
 			// The list of base types is not required, so convert null to empty set
 			if (baseTypes == null)
@@ -144,6 +146,10 @@ namespace ExoModel
 		#endregion
 
 		#region IModelTypeProvider
+
+		bool IModelTypeProvider.IsCachable { get { return isCacheable; } }
+
+		string IModelTypeProvider.Namespace { get { return @namespace; } }
 
 		/// <summary>
 		/// Gets the unique name of the <see cref="ModelType"/> for the specified model object instance.

@@ -17,12 +17,14 @@ namespace ExoModel.ETL
 		Dictionary<string, ModelType> types = new Dictionary<string, ModelType>();
 		Dictionary<ModelType, Dictionary<string, RowInstance>> instances = new Dictionary<ModelType, Dictionary<string, RowInstance>>();
 		Regex nameRegex = new Regex(@"[^a-zA-Z0-9]", RegexOptions.Compiled);
+		string @namespace;
 
 		/// <summary>
 		/// Initialize provider with default values.
 		/// </summary>
 		public RowModelTypeProvider(string @namespace, ITabularImportFile data, string identifierExpression)
 		{
+			this.@namespace = @namespace;
 			// Create types for each table in the data set
 			foreach (string table in data.GetTableNames())
 			{
@@ -138,6 +140,10 @@ namespace ExoModel.ETL
 		}
 
 		#region IModelTypeProvider
+
+		bool IModelTypeProvider.IsCachable { get { return false; } }
+
+		string IModelTypeProvider.Namespace { get { return @namespace; } }
 
 		string IModelTypeProvider.GetModelTypeName(object instance)
 		{

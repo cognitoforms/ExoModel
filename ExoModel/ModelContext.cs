@@ -302,7 +302,9 @@ namespace ExoModel
 						type = provider.CreateModelType(typeName);
 						if (type != null)
 						{
-							type.Provider = provider;
+							if (type.Provider == null)
+								type.Provider = provider;
+
 							break;
 						}
 					}
@@ -362,6 +364,10 @@ namespace ExoModel
 							TypeInit(this, new TypeInitEventArgs(initializedTypeArray));
 						}
 					}
+
+					//once everything is initialized, check to see if this type should have been cached
+					if(!type.Provider.IsCachable)
+						modelTypes.Remove(type);
 				}
 				finally
 				{
