@@ -71,6 +71,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="EnumDescriptionTypeConverter.cs" />
     <Compile Include="EnumTypeProvider.cs" />
     <Compile Include="IModelContextPool.cs" />
     <Compile Include="IReflectionModelProperty.cs" />

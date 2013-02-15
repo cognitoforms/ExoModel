@@ -131,6 +131,19 @@ namespace ExoModel.ETL
 				if (value != null && translation.ValueConverter != null)
 					value = translation.ValueConverter.ConvertFrom(value);
 
+				//the destination property is an enum, see if it is a concrete type
+				//and has a converter associated with it.  This is handled outside
+				//the normal converter paradigm since enums are reference types in ExoModel
+				if (value != null && translation.DestinationProperty is IReflectionModelProperty &&
+					((IReflectionModelProperty)translation.DestinationProperty).PropertyInfo.PropertyType.BaseType == typeof(Enum))
+				{
+					var underlyingDestinationType =
+						((IReflectionModelProperty) translation.DestinationProperty).PropertyInfo.PropertyType;
+
+					var converter = TypeDescriptor.GetConverter(underlyingDestinationType);
+					value = converter.ConvertFrom(value);
+				}
+
 				// Set the value on the destination instance
 				translation.DestinationSource.SetValue(destination, value,
 
