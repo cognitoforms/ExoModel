@@ -211,7 +211,7 @@ namespace ExoModel
 			public Exception Exit { get; private set; }
 
 			/// <summary>
-			/// The exception that occured that triggered the scope to exit.
+			/// The exception that occurred that triggered the scope to exit.
 			/// </summary>
 			public Exception Original { get; private set; }
 		}

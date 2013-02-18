@@ -104,7 +104,7 @@ namespace ExoModel
 		/// <param name="e"></param>
 		void path_PathChanged(object sender, ModelPathChangeEvent e)
 		{
-			// Exit immediately if the path change occured on a different root
+			// Exit immediately if the path change occurred on a different root
 			if (e.Instance != root)
 				return;
 
