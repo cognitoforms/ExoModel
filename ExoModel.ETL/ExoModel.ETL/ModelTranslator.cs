@@ -137,11 +137,22 @@ namespace ExoModel.ETL
 				if (value != null && translation.DestinationProperty is IReflectionModelProperty &&
 					((IReflectionModelProperty)translation.DestinationProperty).PropertyInfo.PropertyType.BaseType == typeof(Enum))
 				{
-					var underlyingDestinationType =
-						((IReflectionModelProperty) translation.DestinationProperty).PropertyInfo.PropertyType;
+					switch (value.ToString())
+					{
+						//if the enum value is empty just set it to it's default value
+						case "":
+							value = 0;
+							break;
+						default:
+							{
+								var underlyingDestinationType =
+									((IReflectionModelProperty)translation.DestinationProperty).PropertyInfo.PropertyType;
 
-					var converter = TypeDescriptor.GetConverter(underlyingDestinationType);
-					value = converter.ConvertFrom(value);
+								var converter = TypeDescriptor.GetConverter(underlyingDestinationType);
+								value = converter.ConvertFrom(value);
+							}
+							break;
+					}
 				}
 
 				// Set the value on the destination instance
