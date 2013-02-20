@@ -372,6 +372,18 @@ namespace ExoModel
 				return p;
 			}
 
+			protected override Expression VisitModelParameter(ModelExpression.ModelParameterExpression p)
+			{
+				// Add the root step
+				if (rootStep == null)
+				{
+					rootStep = new ModelStep(path);
+					steps.Add(p, rootStep);
+				}
+
+				return p;
+			}
+
 			protected override Expression VisitModelMember(ModelExpression.ModelMemberExpression m)
 			{
 				base.VisitModelMember(m);

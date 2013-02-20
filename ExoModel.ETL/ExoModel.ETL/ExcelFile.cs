@@ -152,8 +152,8 @@ namespace ExoModel.ETL
 		string GetCellReference(uint column, uint row)
 		{
 			return column <= 26 ? 
-				(char)('A' + column - 1) + row.ToString() : 
-				(char)('A' + (column / 26) - 1) + (char)('A' + (column % 26) - 1) + row.ToString();
+				(char)('A' + column - 1) + row.ToString() :
+				((char)('A' + ( (column - 1) / 26) - 1)).ToString() + ((char)('A' + ( (column - 1) % 26))).ToString() + row.ToString();
 		}
 
 		void IDisposable.Dispose()

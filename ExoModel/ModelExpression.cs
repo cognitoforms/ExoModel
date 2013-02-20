@@ -33,14 +33,14 @@ namespace ExoModel
 			this.Path = rootType.GetPath(expression);
 		}
 
-		internal ModelExpression(ModelType rootType, string expression, Type resultType)
+		internal ModelExpression(ModelType rootType, string expression, Type resultType, QuerySyntax querySyntax = QuerySyntax.DotNet)
 		{
 			// Save the root type of the expression
 			this.RootType = rootType;
 
 			// Parse the expression
 			var parameters = new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") };
-			var resultExpression = new ExpressionParser(parameters, expression).Parse(new ModelExpressionType(resultType));
+			var resultExpression = new ExpressionParser(parameters, expression, querySyntax).Parse(new ModelExpressionType(resultType));
 
 			// Determine the model property paths referenced by the expression
 			this.Path = rootType.GetPath(resultExpression);
@@ -115,7 +115,19 @@ namespace ExoModel
 			public ModelExpressionType(ModelType modelType, bool isList)
 			{
 				this.ModelType = modelType;
-				this.Type = modelType is IReflectionModelType ? ((IReflectionModelType)modelType).UnderlyingType : typeof(object);
+				this.Type = typeof(object);
+
+				var type = modelType;
+				while (type != null)
+				{
+					if (type is IReflectionModelType)
+					{
+						this.Type = ((IReflectionModelType)type).UnderlyingType;
+						break;
+					}
+					type = type.BaseType;
+				}
+
 				this.Name = modelType.Name;
 				this.IsList = isList;
 			}
@@ -741,8 +753,9 @@ namespace ExoModel
 			int textLen;
 			char ch;
 			Token token;
+			QuerySyntax querySyntax;
 
-			public ExpressionParser(ModelParameterExpression[] parameters, string expression, params object[] values)
+			public ExpressionParser(ModelParameterExpression[] parameters, string expression, QuerySyntax querySyntax, params object[] values)
 			{
 				if (expression == null) throw new ArgumentNullException("expression");
 				if (keywords == null) keywords = CreateKeywords();
@@ -754,7 +767,12 @@ namespace ExoModel
 				textLen = text.Length;
 				SetTextPos(0);
 				NextToken();
+				this.querySyntax = querySyntax;
 			}
+
+			public ExpressionParser(ModelParameterExpression[] parameters, string expression, params object[] values)
+				: this(parameters, expression, QuerySyntax.DotNet, values)
+			{ }
 
 			void ProcessParameters(ModelParameterExpression[] parameters)
 			{
@@ -876,15 +894,17 @@ namespace ExoModel
 			Expression ParseComparison()
 			{
 				Expression left = ParseAdditive();
-				while (token.id == TokenId.Equal || token.id == TokenId.DoubleEqual ||
+				while (token.id == TokenId.Equal || token.id == TokenId.DoubleEqual || TokenIdentifierIs("eq") || TokenIdentifierIs("ne") ||
 					token.id == TokenId.ExclamationEqual || token.id == TokenId.LessGreater ||
 					token.id == TokenId.GreaterThan || token.id == TokenId.GreaterThanEqual ||
-					token.id == TokenId.LessThan || token.id == TokenId.LessThanEqual)
+					TokenIdentifierIs("gt") || TokenIdentifierIs("ge") ||
+					token.id == TokenId.LessThan || token.id == TokenId.LessThanEqual ||
+					TokenIdentifierIs("lt") || TokenIdentifierIs("le"))
 				{
 					Token op = token;
 					NextToken();
 					Expression right = ParseAdditive();
-					bool isEquality = op.id == TokenId.Equal || op.id == TokenId.DoubleEqual ||
+					bool isEquality = op.id == TokenId.Equal || op.id == TokenId.DoubleEqual || TokenIdentifierIs(op, "eq") || TokenIdentifierIs(op, "ne") ||
 						op.id == TokenId.ExclamationEqual || op.id == TokenId.LessGreater;
 					if (isEquality && !left.Type.IsValueType && !right.Type.IsValueType)
 					{
@@ -923,33 +943,62 @@ namespace ExoModel
 							}
 						}
 					}
+					else if (querySyntax == QuerySyntax.OData && (left == trueLiteral || left == falseLiteral || right == trueLiteral || right == falseLiteral))
+					{
+						// Remove unnecessary boolean condition (string.StartsWith(str) eq true)
+						if (left == trueLiteral || left == falseLiteral)
+							// true eq exp | false ne exp
+							return (left == trueLiteral && TokenIdentifierIs(op, "eq")) || (left == falseLiteral && TokenIdentifierIs(op, "ne")) ? right : Expr.Not(right);
+						else
+							// exp eq true | exp ne false
+							return (right == trueLiteral && TokenIdentifierIs(op, "eq")) || (right == falseLiteral && TokenIdentifierIs(op, "ne")) ? left : Expr.Not(left);
+					}
 					else
 					{
 						CheckAndPromoteOperands(isEquality ? typeof(IEqualitySignatures) : typeof(IRelationalSignatures),
 							op.text, ref left, ref right, op.pos);
 					}
-					switch (op.id)
+
+					if (querySyntax == QuerySyntax.OData)
 					{
-						case TokenId.Equal:
-						case TokenId.DoubleEqual:
+						if (TokenIdentifierIs(op, "eq"))
 							left = GenerateEqual(left, right);
-							break;
-						case TokenId.ExclamationEqual:
-						case TokenId.LessGreater:
+						else if (TokenIdentifierIs(op, "ne"))
 							left = GenerateNotEqual(left, right);
-							break;
-						case TokenId.GreaterThan:
+						else if (TokenIdentifierIs(op, "gt"))
 							left = GenerateGreaterThan(left, right);
-							break;
-						case TokenId.GreaterThanEqual:
+						else if (TokenIdentifierIs(op, "ge"))
 							left = GenerateGreaterThanEqual(left, right);
-							break;
-						case TokenId.LessThan:
+						else if (TokenIdentifierIs(op, "lt"))
 							left = GenerateLessThan(left, right);
-							break;
-						case TokenId.LessThanEqual:
+						else if (TokenIdentifierIs(op, "le"))
 							left = GenerateLessThanEqual(left, right);
-							break;
+					}
+					else
+					{
+						switch (op.id)
+						{
+							case TokenId.Equal:
+							case TokenId.DoubleEqual:
+								left = GenerateEqual(left, right);
+								break;
+							case TokenId.ExclamationEqual:
+							case TokenId.LessGreater:
+								left = GenerateNotEqual(left, right);
+								break;
+							case TokenId.GreaterThan:
+								left = GenerateGreaterThan(left, right);
+								break;
+							case TokenId.GreaterThanEqual:
+								left = GenerateGreaterThanEqual(left, right);
+								break;
+							case TokenId.LessThan:
+								left = GenerateLessThan(left, right);
+								break;
+							case TokenId.LessThanEqual:
+								left = GenerateLessThanEqual(left, right);
+								break;
+						}
 					}
 				}
 				return left;
@@ -960,26 +1009,42 @@ namespace ExoModel
 			{
 				Expression left = ParseMultiplicative();
 				while (token.id == TokenId.Plus || token.id == TokenId.Minus ||
-					token.id == TokenId.Amphersand)
+					token.id == TokenId.Amphersand || TokenIdentifierIs("Add") || TokenIdentifierIs("Sub"))
 				{
 					Token op = token;
 					NextToken();
 					Expression right = ParseMultiplicative();
-					switch (op.id)
+					if (querySyntax == QuerySyntax.OData)
 					{
-						case TokenId.Plus:
-							if (left.Type == typeof(string) || right.Type == typeof(string))
-								goto case TokenId.Amphersand;
+						if (TokenIdentifierIs(op, "Add"))
+						{
 							CheckAndPromoteOperands(typeof(IAddSignatures), op.text, ref left, ref right, op.pos);
 							left = GenerateAdd(left, right);
-							break;
-						case TokenId.Minus:
+						}
+						else if (TokenIdentifierIs(op, "Sub"))
+						{
 							CheckAndPromoteOperands(typeof(ISubtractSignatures), op.text, ref left, ref right, op.pos);
 							left = GenerateSubtract(left, right);
-							break;
-						case TokenId.Amphersand:
-							left = GenerateStringConcat(left, right);
-							break;
+						}
+					}
+					else
+					{
+						switch (op.id)
+						{
+							case TokenId.Plus:
+								if (left.Type == typeof(string) || right.Type == typeof(string))
+									goto case TokenId.Amphersand;
+								CheckAndPromoteOperands(typeof(IAddSignatures), op.text, ref left, ref right, op.pos);
+								left = GenerateAdd(left, right);
+								break;
+							case TokenId.Minus:
+								CheckAndPromoteOperands(typeof(ISubtractSignatures), op.text, ref left, ref right, op.pos);
+								left = GenerateSubtract(left, right);
+								break;
+							case TokenId.Amphersand:
+								left = GenerateStringConcat(left, right);
+								break;
+						}
 					}
 				}
 				return left;
@@ -990,24 +1055,36 @@ namespace ExoModel
 			{
 				Expression left = ParseUnary();
 				while (token.id == TokenId.Asterisk || token.id == TokenId.Slash ||
-					token.id == TokenId.Percent || TokenIdentifierIs("mod"))
+					token.id == TokenId.Percent || TokenIdentifierIs("mod") || TokenIdentifierIs("Mul") || TokenIdentifierIs("Div"))
 				{
 					Token op = token;
 					NextToken();
 					Expression right = ParseUnary();
 					CheckAndPromoteOperands(typeof(IArithmeticSignatures), op.text, ref left, ref right, op.pos);
-					switch (op.id)
+					if (querySyntax == QuerySyntax.OData)
 					{
-						case TokenId.Asterisk:
+						if (TokenIdentifierIs(op, "Mul"))
 							left = Expr.Multiply(left, right);
-							break;
-						case TokenId.Slash:
+						else if (TokenIdentifierIs(op, "Div"))
 							left = Expr.Divide(left, right);
-							break;
-						case TokenId.Percent:
-						case TokenId.Identifier:
+						else if (TokenIdentifierIs(op, "Mod"))
 							left = Expr.Modulo(left, right);
-							break;
+					}
+					else
+					{
+						switch (op.id)
+						{
+							case TokenId.Asterisk:
+								left = Expr.Multiply(left, right);
+								break;
+							case TokenId.Slash:
+								left = Expr.Divide(left, right);
+								break;
+							case TokenId.Percent:
+							case TokenId.Identifier:
+								left = Expr.Modulo(left, right);
+								break;
+						}
 					}
 				}
 				return left;
@@ -1049,7 +1126,7 @@ namespace ExoModel
 				Expression expr = ParsePrimaryStart();
 				while (true)
 				{
-					if (token.id == TokenId.Dot)
+					if ((querySyntax == QuerySyntax.DotNet && token.id == TokenId.Dot) || (querySyntax == QuerySyntax.OData && token.id == TokenId.Slash))
 					{
 						NextToken();
 						expr = ParseMemberAccess(null, expr);
@@ -1091,6 +1168,11 @@ namespace ExoModel
 			{
 				ValidateToken(TokenId.StringLiteral);
 				char quote = token.text[0];
+				
+				// In OData, strings are enclosed with single quotes
+				if (querySyntax == QuerySyntax.OData && quote == '"')
+					throw ParseError(Res.SyntaxError);
+
 				string s = token.text.Substring(1, token.text.Length - 2);
 				int start = 0;
 				while (true)
@@ -1100,7 +1182,7 @@ namespace ExoModel
 					s = s.Remove(i, 1);
 					start = i + 1;
 				}
-				if (quote == '\'')
+				if (querySyntax == QuerySyntax.DotNet && quote == '\'')
 				{
 					if (s.Length != 1)
 						throw ParseError(Res.InvalidCharacterLiteral);
@@ -1371,7 +1453,7 @@ namespace ExoModel
 						{
 							if (type.IsList)
 							{
-								return ParseAggregate(instance, type, id, errorPos);
+								return ParseAggregate(instance, new ModelExpressionType(type.ModelType, false), id, errorPos);
 							}
 						}
 						else
@@ -1389,8 +1471,33 @@ namespace ExoModel
 					switch (FindMethod(type.Type, id, instance == null, ref args, out mb))
 					{
 						case 0:
-							throw ParseError(errorPos, Res.NoApplicableMethod,
-								id, GetTypeName(type));
+							if (querySyntax == QuerySyntax.OData)
+							{
+								switch (id)
+								{
+									case "substringof":
+										if (args.Length == 2 && args[0].Type == typeof(string) && args[1].Type == typeof(string))
+											return Expr.Call(args[0], typeof(string).GetMethod("Contains", new Type[] { typeof(string) }), new Expr[] { args[1] });
+										break;
+									case "startswith":
+										if (args.Length == 2 && args[0].Type == typeof(string) && args[1].Type == typeof(string))
+											return Expr.Call(args[0], typeof(string).GetMethod("StartsWith", new Type[] { typeof(string) }), new Expr[] { args[1] });
+										break;
+									case "endswith":
+										if (args.Length == 2 && args[0].Type == typeof(string) && args[1].Type == typeof(string))
+											return Expr.Call(args[0], typeof(string).GetMethod("EndsWith", new Type[] { typeof(string) }), new Expr[] { args[1] });
+										break;
+									case "indexof":
+										if (args.Length == 2 && args[0].Type == typeof(string) && args[1].Type == typeof(string))
+											return Expr.Call(args[0], typeof(string).GetMethod("IndexOf", new Type[] { typeof(string) }), new Expr[] { args[1] });
+										break;
+									case "length":
+										if (args.Length == 1 && args[0].Type == typeof(string))
+											return Expr.PropertyOrField(args[0], "Length");
+										break;
+								}
+							}
+							throw ParseError(errorPos, Res.NoApplicableMethod, id, GetTypeName(type));
 						case 1:
 							MethodInfo method = (MethodInfo)mb;
 							if (!IsPredefinedType(method.DeclaringType))
@@ -1447,15 +1554,10 @@ namespace ExoModel
 						}
 
 						if (member is PropertyInfo)
-						{
 							return Expr.Property(instance, (PropertyInfo)member);
-						}
 						else
 							return Expr.Field(instance, (FieldInfo)member);
 					}
-					//return member is PropertyInfo ?
-					//    Expression.Property(instance, (PropertyInfo)member) :
-					//    Expression.Field(instance, (FieldInfo)member);
 				}
 			}
 
@@ -2486,6 +2588,11 @@ namespace ExoModel
 
 			bool TokenIdentifierIs(string id)
 			{
+				return TokenIdentifierIs(token, id);
+			}
+
+			bool TokenIdentifierIs(Token token, string id)
+			{
 				return token.id == TokenId.Identifier && String.Equals(id, token.text, StringComparison.OrdinalIgnoreCase);
 			}
 
@@ -2982,6 +3089,16 @@ namespace ExoModel
 				}
 				return iv;
 			}
+		}
+
+		#endregion
+
+		#region QuerySyntax
+
+		public enum QuerySyntax
+		{
+			DotNet,
+			OData
 		}
 
 		#endregion

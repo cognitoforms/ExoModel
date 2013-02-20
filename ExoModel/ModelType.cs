@@ -483,9 +483,9 @@ namespace ExoModel
 		/// </summary>
 		/// <param name="expression"></param>
 		/// <returns></returns>
-		public ModelExpression GetExpression<TResult>(string expression)
+		public ModelExpression GetExpression<TResult>(string expression, ModelExpression.QuerySyntax querySyntax = ModelExpression.QuerySyntax.DotNet)
 		{
-			return GetExpression(typeof(TResult), expression);
+			return GetExpression(typeof(TResult), expression, querySyntax);
 		}
 
 		/// <summary>
@@ -494,11 +494,11 @@ namespace ExoModel
 		/// <param name="expression"></param>
 		/// <param name="resultType"></param>
 		/// <returns></returns>
-		public ModelExpression GetExpression(Type resultType, string expression)
+		public ModelExpression GetExpression(Type resultType, string expression, ModelExpression.QuerySyntax querySyntax = ModelExpression.QuerySyntax.DotNet)
 		{
 			ModelExpression exp;
 			if (!Expressions.TryGetValue(expression, out exp))
-				Expressions[expression] = exp = new ModelExpression(this, expression, resultType);
+				Expressions[expression] = exp = new ModelExpression(this, expression, resultType, querySyntax);
 			return exp;
 		}
 
