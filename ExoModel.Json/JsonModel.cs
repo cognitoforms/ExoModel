@@ -333,6 +333,14 @@ namespace ExoModel.Json
 		}
 
 		#endregion
+
+		#region IModelTypeProvider
+
+		bool IModelTypeProvider.IsCachable { get { return true; } }
+
+		string IModelTypeProvider.Namespace { get { return ""; } }
+
+		#endregion
 	}
 
 	/// <summary>
