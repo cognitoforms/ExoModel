@@ -166,6 +166,15 @@ namespace ExoModel
 				extensions[typeof(TExtension)] = extension = new TExtension();
 			return (TExtension)extension;
 		}
+
+		/// <summary>
+		/// Adds the current context back to the pool
+		/// </summary>
+		public static void EnsureReleased()
+		{
+			if(ModelContext.Current != null)
+				((ModelContextProvider)ModelContext.Provider).ContextPool.Put(ModelContext.Current);
+		}
 		#endregion
 
 		#region Model Instance Methods
