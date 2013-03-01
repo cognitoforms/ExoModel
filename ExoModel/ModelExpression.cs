@@ -46,10 +46,10 @@ namespace ExoModel
 			this.Path = rootType.GetPath(resultExpression);
 
 			// Compile the expression to make it executable
-			var parameterMapping = new Dictionary<ModelParameterExpression,ParameterExpression>();
-			resultExpression = ModelExpression.ExpressionCompiler.Compile(resultExpression, parameterMapping);
-
-			this.Expression = parameterMapping.Count > 0 ? Expr.Lambda(resultExpression, parameters.Select(p => parameterMapping[p]).ToArray()) : Expr.Lambda(resultExpression);
+			if (rootType.Provider is IExpressionCompiler)
+				this.Expression = ((IExpressionCompiler)rootType.Provider).Compile(resultExpression, parameters[0]);
+			else
+				this.Expression = ModelExpression.ExpressionCompiler.Compile(resultExpression, parameters[0]);
 		}
 
 		#endregion
@@ -91,6 +91,15 @@ namespace ExoModel
 		internal static Type CreateClass(IEnumerable<DynamicProperty> properties)
 		{
 			return ClassFactory.Instance.GetDynamicClass(properties);
+		}
+
+		#endregion
+
+		#region IExpressionCompiler
+
+		public interface IExpressionCompiler
+		{
+			LambdaExpression Compile(Expr expression, ModelParameterExpression root);
 		}
 
 		#endregion
@@ -2659,9 +2668,16 @@ namespace ExoModel
 			ExpressionCompiler()
 			{ }
 
-			public static Expression Compile(Expression expression, Dictionary<ModelParameterExpression, ParameterExpression> parameterMapping)
+			public static LambdaExpression Compile(Expression expression, ModelParameterExpression root)
 			{
-				return new ExpressionCompiler() { parameterMapping = parameterMapping }.Visit(expression);
+				var parameterMapping = new Dictionary<ModelParameterExpression, ParameterExpression>();
+				var resultExpression = new ExpressionCompiler() { parameterMapping = parameterMapping }.Visit(expression);
+				
+				ParameterExpression rootParam;
+				if (parameterMapping.TryGetValue(root, out rootParam))
+					return Expr.Lambda(resultExpression, new ParameterExpression[] { rootParam });
+				else
+					return Expr.Lambda(resultExpression);
 			}
 
 			protected override Expr VisitModelParameter(ModelParameterExpression m)
