@@ -6,6 +6,7 @@ using ExoModel;
 using System.Text.RegularExpressions;
 using System.Web.Query.Dynamic;
 using System.ComponentModel;
+using System.Threading;
 
 namespace ExoModel.ETL
 {
@@ -77,11 +78,63 @@ namespace ExoModel.ETL
 					DestinationSource = destinationSource,
 					DestinationProperty = destinationProperty,
 					ValueConverter = 
-						destinationProperty is ModelValueProperty 
-						? ((ModelValueProperty)destinationProperty).Converter : null
+						destinationProperty is ModelValueProperty
+						? GetConverter((ModelValueProperty)destinationProperty) : null
 				};
 			})
 			.ToArray();
+		}
+
+		/// <summary>
+		/// Gets the appropriate converter for the specified <see cref="ModelValueProperty"/>.
+		/// </summary>
+		/// <param name="property"></param>
+		/// <returns></returns>
+		/// <remarks>
+		/// Custom converters can be introduced here to improve the resilency of the import process.  
+		/// For example, the default DecimalConverter does not support commas, so is overriden.
+		/// </remarks>
+		TypeConverter GetConverter(ModelValueProperty property)
+		{
+			if (property.PropertyType == typeof(decimal) && (property.Converter == null || property.Converter.GetType() == typeof(System.ComponentModel.DecimalConverter)))
+				return DecimalConverter.Default;
+			if (property.PropertyType == typeof(decimal?) && (property.Converter == null || (property.Converter.GetType() == typeof(NullableConverter) && ((NullableConverter)property.Converter).UnderlyingTypeConverter.GetType() == typeof(System.ComponentModel.DecimalConverter))))
+				return NullableDecimalConverter.Default;
+			return property.Converter;
+		}
+
+		/// <summary>
+		/// Adds support for parsing decimals that include thousands separators.
+		/// </summary>
+		class DecimalConverter : System.ComponentModel.DecimalConverter
+		{
+			internal static readonly DecimalConverter Default = new DecimalConverter();
+
+			public override object ConvertFrom(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value)
+			{
+				if (value is string)
+					return Decimal.Parse((string)value);
+				return base.ConvertFrom(context, culture, value);
+			}
+		}
+
+		/// <summary>
+		/// Adds support for parsing nullable decimals that include thousands separators.
+		/// </summary>
+		class NullableDecimalConverter : NullableConverter
+		{
+			internal static readonly NullableDecimalConverter Default = new NullableDecimalConverter();
+
+			NullableDecimalConverter()
+				: base(typeof(decimal?))
+			{ }
+
+			public override object ConvertFrom(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value)
+			{
+				if (value is string)
+					return String.IsNullOrWhiteSpace((string)value) ? null : (decimal?)Decimal.Parse((string)value);
+				return base.ConvertFrom(context, culture, value);
+			}
 		}
 		
 		/// <summary>
@@ -128,8 +181,8 @@ namespace ExoModel.ETL
 						translation.SourceExpression.CompiledExpression.DynamicInvoke(source.Instance);
 
 				// Handle conversion of value properties
-				if (value != null && translation.ValueConverter != null)
-					value = translation.ValueConverter.ConvertFrom(value);
+				if (value != null && translation.ValueConverter != null && !((ModelValueProperty)translation.DestinationProperty).PropertyType.IsAssignableFrom(value.GetType()))
+					value = translation.ValueConverter.ConvertFrom(null, Thread.CurrentThread.CurrentCulture, value);
 
 				//the destination property is an enum, see if it is a concrete type
 				//and has a converter associated with it.  This is handled outside
