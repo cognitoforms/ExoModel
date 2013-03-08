@@ -111,6 +111,25 @@ namespace ExoModel
 		}
 
 		/// <summary>
+		/// Returns true if the property has any observers.
+		/// </summary>
+		/// <returns></returns>
+		public bool HasObservers()
+		{
+			return Observers.Any();
+		}
+
+		/// <summary>
+		/// Returns true if the property has any observers.
+		/// </summary>
+		/// <param name="instance">Specific instance to check for.</param>
+		/// <returns></returns>
+		public bool HasObservers(ModelInstance instance)
+		{
+			return Observers.Any(step => step.IsReferencedToRoot(instance, true));
+		}
+
+		/// <summary>
 		/// Returns the name of the property.
 		/// </summary>
 		/// <returns></returns>

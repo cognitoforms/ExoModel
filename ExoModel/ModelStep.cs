@@ -55,6 +55,36 @@ namespace ExoModel
 		}
 
 		/// <summary>
+		/// Returns true if the step has references all the way to the root.
+		/// </summary>
+		/// <param name="instance">Instance to check</param>
+		/// <param name="checkIfPropertyAccessed">Check if property has been accessed on the instance.</param>
+		/// <returns></returns>
+		internal bool IsReferencedToRoot(ModelInstance instance, bool checkIfPropertyAccessed)
+		{
+			// Exit immediately if the instance is not valid for the current step filter
+			if (Filter != null && !Filter.IsInstanceOfType(instance))
+				return false;
+
+			// Check if the current property has been accessed on the instance
+			if (checkIfPropertyAccessed && !instance.HasBeenAccessed(Property))
+				return false;
+
+			//if there's no previous steps then the step directly applies to the instance
+			if (PreviousStep == null)
+				return true; 
+
+			//unless the previous step has references the step is not relevant to the instance.
+			foreach (ModelReference parentReference in instance.GetInReferences((ModelReferenceProperty)PreviousStep.Property))
+			{
+				if (PreviousStep.IsReferencedToRoot(parentReference.In, false))
+					return true;
+			}
+
+			return false;
+		}
+
+		/// <summary>
 		/// Enumerates over the set of instances represented by the current step.
 		/// </summary>
 		/// <param name="instance"></param>

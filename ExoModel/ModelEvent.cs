@@ -51,7 +51,7 @@ namespace ExoModel
 		/// event specific notifications by overriding <see cref="OnNotify"/>, and
 		/// notifies the context that the event has occurred.
 		/// </summary>
-		internal void Notify()
+		virtual internal void Notify()
 		{
 			ModelEventScope.Perform(this, () =>
 			{

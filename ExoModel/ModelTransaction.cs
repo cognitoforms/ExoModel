@@ -33,7 +33,7 @@ namespace ExoModel
 					RegisterNewInstance(e.Instance);
 
 				// Populate save events with ids that have changed during the transaction
-				if (e is ModelSaveEvent)
+				else if (e is ModelSaveEvent)
 				{
 					HashSet<ModelInstance> added = new HashSet<ModelInstance>();
 					HashSet<ModelInstance> modified = new HashSet<ModelInstance>();

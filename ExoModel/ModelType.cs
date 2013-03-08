@@ -857,7 +857,8 @@ namespace ExoModel
 		protected internal void OnPropertyChanged(ModelInstance instance, ModelProperty property, object oldValue, object newValue)
 		{
 			// Static notifications are not supported
-			if (property.IsStatic)
+			// Ignore objects after deletion
+			if (property.IsStatic || instance.IsDeleted)
 				return;
 
 			// Check to see what type of property was changed
@@ -918,7 +919,8 @@ namespace ExoModel
 		protected void OnListChanged(ModelInstance instance, ModelReferenceProperty property, IEnumerable added, IEnumerable removed)
 		{
 			// Static notifications and notifications during load are not supported
-			if (property.IsStatic)
+			// Ignore objects after deletion
+			if (property.IsStatic || instance.IsDeleted)
 				return;
 
 			// Create a new model list change event and notify subscribers

@@ -163,6 +163,9 @@ namespace ExoModel
 		/// </summary>
 		void RaisePropertyGet()
 		{
+			// Called here so IsFirstAccess is properly set before notifying
+			Instance.Type.Context.Notify(this);
+
 			// Raise property get on all types in the inheritance hierarchy
 			for (ModelType type = Instance.Type; type != null; type = type.BaseType)
 			{
@@ -172,6 +175,11 @@ namespace ExoModel
 				if (type == Property.DeclaringType)
 					break;
 			}
+		}
+
+		internal override void Notify()
+		{
+			ModelEventScope.Perform(this, OnNotify);
 		}
 
 		public override string ToString()

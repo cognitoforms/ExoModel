@@ -41,9 +41,10 @@ namespace ExoModel
 				
 				if (context == null)
 				{
+					if(storage.ContextReturnedToPool)
+						throw new ApplicationException("Cannot fetch a context after returning it to the pool as it could result in a memory leak.");
+
 					// Context has not yet be bound.
-
-
 					// Try to get a context from the pool
 					context = ContextPool.Get();
 
@@ -211,8 +212,19 @@ namespace ExoModel
 		/// Reference class used to provide storage for the context.
 		/// </summary>
 		class Storage
-		{
-			public ModelContext Context { get; set; }
+		{	
+			internal ModelContext Context { get; set; }
+			internal bool ContextReturnedToPool { get; private set; }
+
+			internal void OnEndRequest()
+			{
+				if(Context == null)
+					return;
+
+				AddToPool(Context);
+				Context = null;
+				ContextReturnedToPool = true;
+			}
 		}
 
 		#endregion
@@ -236,11 +248,8 @@ namespace ExoModel
 			{
 				Storage storage = (Storage)((HttpApplication)sender).Context.Items[typeof(ModelContextProvider)];
 
-				if (storage != null && storage.Context != null)
-				{
-					AddToPool(storage.Context);
-					storage.Context = null;
-				}
+				if (storage != null)
+					storage.OnEndRequest();
 			}
 
 			#endregion
