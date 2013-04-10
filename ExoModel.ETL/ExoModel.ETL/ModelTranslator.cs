@@ -62,15 +62,9 @@ namespace ExoModel.ETL
 
 				// Create a translation containing compiled source expressions and destination sources
 
-				ModelSource destinationSource = null;
-				while (destinationSource == null)
-				{
-					if (!ModelSource.TryGetSource(destinationType, destinationPath, out destinationSource))
-						destinationType = destinationType.BaseType;
-
-					if (destinationType == null)
-						throw new ApplicationException(string.Format("ModelSource cannot be found for this path {0}", destinationPath));
-				}
+				ModelSource destinationSource;
+				if (!ModelSource.TryGetSource(destinationType, destinationPath, out destinationSource))
+					throw new ApplicationException(string.Format("ModelSource cannot be found for this path {0}", destinationPath));
 
 				var destinationProperty = destinationType.Context.GetModelType(destinationSource.SourceType).Properties[destinationSource.SourceProperty];
 				return new PropertyTranslation() {
