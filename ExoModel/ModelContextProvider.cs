@@ -136,8 +136,17 @@ namespace ExoModel
 		/// </remarks>
 		protected virtual void OnCreateContext()
 		{
-			if (CreateContext != null)
-				CreateContext(this, new CreateContextEventArgs(this));
+			try
+			{
+				if (CreateContext != null)
+					CreateContext(this, new CreateContextEventArgs(this));
+			}
+			catch (Exception e)
+			{
+				// Assume the context is not valid if an error occurs during construction
+				Context = null;
+				throw e;
+			}
 		}
 
 		/// <summary>
