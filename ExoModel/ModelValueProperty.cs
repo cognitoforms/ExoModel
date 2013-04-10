@@ -36,6 +36,35 @@ namespace ExoModel
 		#region Methods
 
 		/// <summary>
+		/// Attempts to coerce the specific value into the appropriate object
+		/// representation for the current property type.
+		/// </summary>
+		/// <param name="value"></param>
+		/// <returns></returns>
+		public object CoerceValue(object value)
+		{
+			if (value == null)
+				return null;
+			if (AutoConvert)
+			{
+				if (Converter.CanConvertFrom(value.GetType()))
+					value = Converter.ConvertFrom(value);
+				else if (value.GetType() != PropertyType)
+					value = Convert.ChangeType(value, PropertyType);
+
+				return Converter.ConvertTo(value, typeof(object));
+			}
+			else if (Converter != null && Converter.CanConvertFrom(value.GetType()))
+				return Converter.ConvertFrom(value);
+			else if (value.GetType() == PropertyType)
+				return value;
+			else if (PropertyType.IsGenericType && PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+				return Convert.ChangeType(value, PropertyType.GetGenericArguments()[0]);
+			else
+				return Convert.ChangeType(value, PropertyType);
+		}
+
+		/// <summary>
 		/// Gets the formatted representation of a value based on the formatting rules
 		/// defined for the current property.
 		/// </summary>
