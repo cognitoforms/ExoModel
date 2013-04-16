@@ -269,16 +269,13 @@ namespace ExoModel
 
 	public static class EnumExtensions
 	{
-		static Regex nameRegex = new Regex(@"(^[a-z]+|[A-Z]{2,}(?=[A-Z][a-z]|$)|[A-Z][a-z]*)", RegexOptions.Singleline | RegexOptions.Compiled);
+		static readonly Regex nameRegex = new Regex(@"(^[a-z]+|[A-Z]{2,}(?=[A-Z][a-z]|$)|[A-Z][a-z]*)", RegexOptions.Singleline | RegexOptions.Compiled);
 
 		public static string GetDisplayName(this Enum value)
 		{
 			var displayAttribute = value.GetType().GetField(value.ToString()).GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault();
 
-			if (displayAttribute == null)
-			return nameRegex.Replace(value.ToString(), " $1");
-			else
-				return ((DescriptionAttribute)displayAttribute).Description;
+			return displayAttribute == null ? nameRegex.Replace(value.ToString(), " $1").Substring(1) : ((DescriptionAttribute)displayAttribute).Description;
 		}
 	}
 }
