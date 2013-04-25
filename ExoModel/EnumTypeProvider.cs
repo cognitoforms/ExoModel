@@ -125,7 +125,7 @@ namespace ExoModel
 
 		#region EnumModelType
 
-		class EnumModelType : ModelType
+		class EnumModelType : ModelType, IReflectionModelType
 		{
 			Dictionary<string, Enum> values;
 			Dictionary<Enum, ModelInstance> instances;
@@ -137,6 +137,11 @@ namespace ExoModel
 				values = Enum.GetValues(type).OfType<Enum>().ToDictionary(e => (Convert.ToInt32(e)).ToString());
 				instances = Enum.GetValues(type).OfType<Enum>().Select(e => new { Enum = e, Instance = new ModelInstance(e) }).ToDictionary(e => e.Enum, e => e.Instance);
             }
+
+			Type IReflectionModelType.UnderlyingType
+			{
+				get { return EnumType; }
+			}
 
 			public Type EnumType { get; private set; }
 
