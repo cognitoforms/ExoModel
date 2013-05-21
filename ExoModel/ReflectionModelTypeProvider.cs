@@ -83,7 +83,7 @@ namespace ExoModel
 			// Create dictionaries of type names and valid supported and declaring types to introspect
 			foreach (Type type in types)
 			{
-				typeNames.Add(this.@namespace + type.Name, type);
+				typeNames.Add(GetNamespace(this.@namespace, type) + type.Name, type);
 				if (!supportedTypes.Contains(type))
 					supportedTypes.Add(type);
 				if (!declaringTypes.Contains(type))
@@ -100,7 +100,7 @@ namespace ExoModel
 
 		#region Properties
 
-		public string[] DefaultFormatProperties	{ get; set;	}
+		public string[] DefaultFormatProperties { get; set; }
 
 		#endregion
 
@@ -143,6 +143,11 @@ namespace ExoModel
 			return instance.GetType();
 		}
 
+		protected virtual string GetNamespace(string @namespace, Type type)
+		{
+			return @namespace;
+		}
+
 		#endregion
 
 		#region IModelTypeProvider
@@ -159,7 +164,7 @@ namespace ExoModel
 		string IModelTypeProvider.GetModelTypeName(object instance)
 		{
 			Type underlyingType = GetUnderlyingType(instance);
-			return supportedTypes.Contains(underlyingType) ? @namespace + underlyingType.Name : null;
+			return supportedTypes.Contains(underlyingType) ? GetNamespace(this.@namespace, underlyingType) + underlyingType.Name : null;
 		}
 
 		/// <summary>
@@ -169,7 +174,7 @@ namespace ExoModel
 		/// <returns></returns>
 		string IModelTypeProvider.GetModelTypeName(Type type)
 		{
-			return supportedTypes.Contains(type) ? @namespace + type.Name : null;
+			return supportedTypes.Contains(type) ? GetNamespace(this.@namespace, type) + type.Name : null;
 		}
 
 		/// <summary>
@@ -193,7 +198,7 @@ namespace ExoModel
 				format = DefaultFormatProperties.Where(p => type.GetProperty(p) != null).Select(p => "[" + p + "]").FirstOrDefault();
 
 			// Create the new model type
-			return CreateModelType(@namespace, type, format);
+			return CreateModelType(GetNamespace(this.@namespace, type), type, format);
 		}
 
 		/// <summary>
@@ -286,8 +291,8 @@ namespace ExoModel
 					else
 					{
 						var value = provider.CreateValueProperty(this, property, property.Name, null, null, null, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), TryGetListItemType(property.PropertyType, out listItemType), property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
-						
-					if (value != null)
+
+						if (value != null)
 							AddProperty(value);
 					}
 				}
@@ -414,9 +419,9 @@ namespace ExoModel
 		[Serializable]
 		public class ReflectionValueProperty : ModelValueProperty, IReflectionModelProperty
 		{
-				protected internal ReflectionValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+			protected internal ReflectionValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 				: base(declaringType, name, label, helptext, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
-		{
+			{
 				this.PropertyInfo = property;
 			}
 
@@ -450,9 +455,9 @@ namespace ExoModel
 		[Serializable]
 		public class ReflectionReferenceProperty : ModelReferenceProperty, IReflectionModelProperty
 		{
-				protected internal ReflectionReferenceProperty(ModelType declaringType, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+			protected internal ReflectionReferenceProperty(ModelType declaringType, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, ModelType propertyType, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
 				: base(declaringType, name, label, helptext, format, isStatic, propertyType, isList, isReadOnly, isPersisted, attributes)
-		{
+			{
 				this.PropertyInfo = property;
 			}
 
