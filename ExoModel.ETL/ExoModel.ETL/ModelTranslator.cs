@@ -169,10 +169,7 @@ namespace ExoModel.ETL
 			foreach (var translation in Translations)
 			{
 				// Invoke the source expression for the mapping
-				var value = translation.SourceExpression == null ? null :
-					translation.SourceExpression.Expression.Parameters.Count == 0 ?
-						translation.SourceExpression.CompiledExpression.DynamicInvoke() :
-						translation.SourceExpression.CompiledExpression.DynamicInvoke(source.Instance);
+				var value = translation.SourceExpression == null ? null : translation.SourceExpression.Invoke(source);
 
 				// Handle conversion of value properties
 				if (value != null && translation.ValueConverter != null && !((ModelValueProperty)translation.DestinationProperty).PropertyType.IsAssignableFrom(value.GetType()))

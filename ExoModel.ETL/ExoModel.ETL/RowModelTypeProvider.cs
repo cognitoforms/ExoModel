@@ -202,9 +202,7 @@ namespace ExoModel.ETL
 
 			protected override string GetId(object instance)
 			{
-				return IdentifierExpression.Expression.Parameters.Count == 0 ?
-								IdentifierExpression.CompiledExpression.DynamicInvoke().ToString() :
-								IdentifierExpression.CompiledExpression.DynamicInvoke(instance).ToString();
+				return IdentifierExpression.Invoke((ModelInstance)instance).ToString();
 			}
 
 			protected override object GetInstance(string id)
