@@ -31,7 +31,7 @@ namespace ExoModel
 			this.IsList = isList;
 			this.IsReadOnly = isReadOnly;
 			this.IsPersisted = isPersisted;
-			this.Attributes = attributes;
+			this.Attributes = attributes ?? new Attribute[0];
 			this.Observers = new List<ModelStep>();
 		}
 

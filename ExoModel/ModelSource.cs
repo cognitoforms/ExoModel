@@ -23,7 +23,8 @@ namespace ExoModel
 		/// <param name="path">The source model path</param>
 		public ModelSource(ModelPath path)
 		{
-			InitializeFromModelPath(path, path.Path);
+			ModelProperty property;
+			InitializeFromModelPath(path, path.Path, out property);
 		}
 
 		/// <summary>
@@ -38,7 +39,8 @@ namespace ExoModel
 				throw new ArgumentException("The specified path, '" + path + "', was not valid path syntax.");
 
 			// Raise an error if the specified path is not valid
-			if (!InitializeFromTypeAndPath(rootType, path))
+			ModelProperty property;
+			if (!InitializeFromTypeAndPath(rootType, path, out property))
 				throw new ArgumentException("The specified path, '" + path + "', was not valid for the root type of '" + rootType.Name + "'.", "path");
 		}
 
@@ -51,7 +53,26 @@ namespace ExoModel
 		public static bool TryGetSource(ModelType rootType, string path, out ModelSource source)
 		{
 			source = new ModelSource();
-			if (source.InitializeFromTypeAndPath(rootType, path))
+			ModelProperty property;
+			if (source.InitializeFromTypeAndPath(rootType, path, out property))
+				return true;
+			else
+			{
+				source = null;
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Attempts to create a new <see cref="ModelSource"/> for the specified root type and path.
+		/// </summary>
+		/// <param name="rootType">The root type name, which is required for instance paths</param>
+		/// <param name="path">The source path, which is either an instance path or a static path</param>
+		/// <returns>True if the source was created, otherwise false</returns>
+		public static bool TryGetSource(ModelType rootType, string path, out ModelSource source, out ModelProperty sourceProperty)
+		{
+			source = new ModelSource();
+			if (source.InitializeFromTypeAndPath(rootType, path, out sourceProperty))
 				return true;
 			else
 			{
@@ -66,16 +87,24 @@ namespace ExoModel
 		/// <param name="rootType">The root type name, which is required for instance paths</param>
 		/// <param name="path">The source path, which is either an instance path or a static path</param>
 		/// <returns>True if the source was created, otherwise false</returns>
-		bool InitializeFromTypeAndPath(ModelType rootType, string path)
+		bool InitializeFromTypeAndPath(ModelType rootType, string path, out ModelProperty sourceProperty)
 		{
 			// Instance Path
-			ModelPath instancePath;
+			ModelPath instancePath = null;
+			sourceProperty = null;
 
-			//clean up any array indices
+			// clean up any array indices
 			string indexFreePath = arraySyntaxRegex.Replace(path, "");
-			if (rootType != null && rootType.TryGetPath(indexFreePath, out instancePath))
+			try
 			{
-				InitializeFromModelPath(instancePath, path);
+				if (rootType != null)
+					rootType.TryGetPath(indexFreePath, out instancePath);
+			}
+			catch
+			{ }
+			if (instancePath != null)
+			{
+				InitializeFromModelPath(instancePath, path, out sourceProperty);
 				return true;
 			}
 
@@ -86,13 +115,13 @@ namespace ExoModel
 				var sourceModelType = ModelContext.Current.GetModelType(path.Substring(0, path.LastIndexOf('.')));
 				if (sourceModelType != null)
 				{
-					var sourceModelProperty = sourceModelType.Properties[path.Substring(path.LastIndexOf('.') + 1)];
-					if (sourceModelProperty != null && sourceModelProperty.IsStatic)
+					sourceProperty = sourceModelType.Properties[path.Substring(path.LastIndexOf('.') + 1)];
+					if (sourceProperty != null && sourceProperty.IsStatic)
 					{
 						this.Path = path;
 						this.IsStatic = true;
-						this.SourceProperty = sourceModelProperty.Name;
-						this.SourceType = sourceModelProperty.DeclaringType.Name;
+						this.SourceProperty = sourceProperty.Name;
+						this.SourceType = sourceProperty.DeclaringType.Name;
 						return true;
 					}
 				}
@@ -104,7 +133,7 @@ namespace ExoModel
 		/// Initialize the source from a valid <see cref="ModelPath"/>
 		/// </summary>
 		/// <param name="instancePath"></param>
-		private void InitializeFromModelPath(ModelPath instancePath, string path)
+		void InitializeFromModelPath(ModelPath instancePath, string path, out ModelProperty sourceProperty)
 		{
 			this.Path = path;
 			this.IsStatic = false;
@@ -113,22 +142,23 @@ namespace ExoModel
 			this.steps = new SourceStep[tokens.Count];
 			var rootType = instancePath.RootType;
 			int i = 0;
+			sourceProperty = null;
 			foreach(Match token in tokens)
 			{
-				ModelProperty prop = rootType.Properties[token.Groups["Property"].Value];
-				if (prop == null)
+				sourceProperty = rootType.Properties[token.Groups["Property"].Value];
+				if (sourceProperty == null)
 					throw new ArgumentException(String.Format("Property {0} is not valid for type {1} in path {2}.", token.Groups["Property"].Value, rootType.Name, path));
 				int index;
 				if (!Int32.TryParse(token.Groups["Index"].Value, out index))
 					index = -1;
 
-				steps[i] = new SourceStep() { Property = prop.Name, Index = index, DeclaringType = prop.DeclaringType.Name, IsReferenceProperty = prop is ModelReferenceProperty };
-				rootType = prop is ModelReferenceProperty ? ((ModelReferenceProperty)prop).PropertyType : null;
+				steps[i] = new SourceStep() { Property = sourceProperty.Name, Index = index, DeclaringType = sourceProperty.DeclaringType.Name, IsReferenceProperty = sourceProperty is ModelReferenceProperty };
+				rootType = sourceProperty is ModelReferenceProperty ? ((ModelReferenceProperty)sourceProperty).PropertyType : null;
 				i++;
 			}
 
-			this.SourceProperty = steps.Last().Property;
-			this.SourceType = steps.Last().DeclaringType;
+			this.SourceProperty = sourceProperty.Name;
+			this.SourceType = sourceProperty.DeclaringType.Name;
 		}
 
 		/// <summary>
@@ -300,14 +330,14 @@ namespace ExoModel
 		public override string ToString()
 		{
 			return Path;
-		}
-	}
+		}	
 
-	class SourceStep
-	{
-		internal string Property { get; set; }
-		internal int Index { get; set; }
-		internal string DeclaringType { get; set; }
-		internal bool IsReferenceProperty { get; set; }
+		class SourceStep
+		{
+			internal string Property { get; set; }
+			internal int Index { get; set; }
+			internal string DeclaringType { get; set; }
+			internal bool IsReferenceProperty { get; set; }
+		}
 	}
 }

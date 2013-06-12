@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Linq.Expressions;
 
 namespace ExoModel
 {
@@ -8,15 +9,29 @@ namespace ExoModel
 	/// </summary>
 	public abstract class ModelValueProperty : ModelProperty
 	{
+		#region Fields
+
+		Delegate compiledDefaultValue;
+
+		#endregion
+
 		#region Constructors
 
-		protected internal ModelValueProperty(ModelType declaringType, string name, string label, string helptext, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
+		protected internal ModelValueProperty(ModelType declaringType, string name, string label, string helptext, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList = false, bool isReadOnly = false, bool isPersisted = true, Attribute[] attributes = null, LambdaExpression defaultValue = null)
 			: base(declaringType, name, label, helptext, format, isStatic, isList, isReadOnly, isPersisted, attributes)
 		{
 			this.PropertyType = propertyType;
 			this.Converter = converter;
 			this.AutoConvert = converter != null && converter.CanConvertTo(typeof(object));
 			this.FormatProvider = declaringType.GetFormatProvider(propertyType);
+			if (defaultValue != null)
+			{
+				if (defaultValue.Parameters.Count > 0)
+					throw new ArgumentException("Default value expressions cannot have parameters.");
+				if (propertyType.IsAssignableFrom(defaultValue.Type))
+					throw new ArgumentException("Default value expressions must match the type of the property they are for.");
+				this.DefaultValue = defaultValue;
+			}
 		}
 
 		#endregion
@@ -26,6 +41,8 @@ namespace ExoModel
 		public Type PropertyType { get; private set; }
 
 		public TypeConverter Converter { get; private set; }
+
+		public LambdaExpression DefaultValue { get; private set; }
 
 		internal IFormatProvider FormatProvider { get; private set; }
 
@@ -105,6 +122,17 @@ namespace ExoModel
 		internal override string GetFormattedValue(ModelInstance instance, string format)
 		{
 			return FormatValue(GetValue(instance.Instance), format ?? Format);
+		}
+
+		/// <summary>
+		/// Gets the current default value for this property, or null if no default value has been specified.
+		/// </summary>
+		/// <returns></returns>
+		public object GetDefaultValue()
+		{
+			if (DefaultValue == null)
+				return null;
+			return (compiledDefaultValue ?? (compiledDefaultValue = DefaultValue.Compile())).DynamicInvoke();
 		}
 
 		#endregion

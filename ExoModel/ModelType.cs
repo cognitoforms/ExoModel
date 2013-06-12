@@ -67,7 +67,7 @@ namespace ExoModel
 
 		#region Properties
 
-		public ModelContext Context { get; private set; }
+		public ModelContext Context { get; protected set; }
 
 		public string Name { get; private set; }
 

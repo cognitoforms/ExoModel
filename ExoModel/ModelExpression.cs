@@ -77,7 +77,7 @@ namespace ExoModel
 
 		#region Methods
 
-		internal static Expression Parse(ModelExpressionType resultType, string expression, params object[] values)
+		public static Expression Parse(ModelExpressionType resultType, string expression, params object[] values)
 		{
 			ExpressionParser parser = new ExpressionParser(null, expression, values);
 			return parser.Parse(resultType);
@@ -91,6 +91,32 @@ namespace ExoModel
 		internal static Type CreateClass(IEnumerable<DynamicProperty> properties)
 		{
 			return ClassFactory.Instance.GetDynamicClass(properties);
+		}
+
+		/// <summary>
+		/// Invokes the expression for the specified root instance.
+		/// </summary>
+		/// <param name="root"></param>
+		/// <returns></returns>
+		public object Invoke(ModelInstance root)
+		{
+			// Expressions that do not require root instances (like static properties or constant expressions)
+			if (Expression.Parameters.Count == 0)
+				return CompiledExpression.DynamicInvoke();
+
+			// Expressions requiring a root instance
+			else
+			{
+				// Make sure a root instance was specified for expressions requiring a root instance
+				if (root == null)
+					throw new ArgumentNullException("A model instance must be specified to invoke this model expression.");
+				
+				// Make sure the root instance is of the correct model type
+				if (!RootType.IsInstanceOfType(root))
+					throw new ArgumentException("The specified model instance of type " + root.Type + " is not valid for this expression.  Expected instance of type " + RootType);
+
+				return CompiledExpression.DynamicInvoke(root.Instance);
+			}
 		}
 
 		#endregion
@@ -1688,6 +1714,14 @@ namespace ExoModel
 				{
 					for (var i = 0; i < elements.Length; i++)
 						if (elements[i].Type.IsValueType || elements[i] == nullLiteral)
+							elements[i] = Expr.Convert(elements[i], arrayType);
+				}
+
+				// Handling casting of literals
+				else
+				{
+					for (var i = 0; i < elements.Length; i++)
+						if (elements[i].Type != arrayType)
 							elements[i] = Expr.Convert(elements[i], arrayType);
 				}
 
