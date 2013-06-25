@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Collections;
 using System.ComponentModel;
 using System.Collections.Specialized;
+using System.Linq.Expressions;
 
 namespace ExoModel
 {
@@ -419,8 +420,8 @@ namespace ExoModel
 		[Serializable]
 		public class ReflectionValueProperty : ModelValueProperty, IReflectionModelProperty
 		{
-			protected internal ReflectionValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes)
-				: base(declaringType, name, label, helptext, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes)
+			protected internal ReflectionValueProperty(ModelType declaringType, PropertyInfo property, string name, string label, string helptext, string format, bool isStatic, Type propertyType, TypeConverter converter, bool isList, bool isReadOnly, bool isPersisted, Attribute[] attributes, LambdaExpression defaultValue = null)
+				: base(declaringType, name, label, helptext, format, isStatic, propertyType, converter, isList, isReadOnly, isPersisted, attributes, defaultValue)
 			{
 				this.PropertyInfo = property;
 			}
