@@ -177,7 +177,7 @@ namespace ExoModel
 		/// with the <see cref="ModelContext"/>.
 		/// </summary>
 		/// <param name="context"></param>
-		internal void Initialize(ModelContext context)
+		protected internal void Initialize(ModelContext context)
 		{
 			if (isInitialized) return;
 			// Set the context the model type is registered with
@@ -194,7 +194,7 @@ namespace ExoModel
 				initializer();
 
 			// Add to base type after all other initialization is complete
-			if (BaseType != null)
+			if (BaseType != null && Provider != null && Provider.IsCachable)
 			{
 				ModelType subType = BaseType.SubTypes[this.Name];
 				if (subType == null)
