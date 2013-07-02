@@ -215,7 +215,7 @@ namespace ExoModel
 				throw new NotSupportedException();
 			}
 
-			#region EnumValueProperty
+			#region EnumAllProperty
 
 			[Serializable]
 			public class EnumAllProperty : ModelReferenceProperty
@@ -248,7 +248,7 @@ namespace ExoModel
 		#region EnumValueProperty
 
 		[Serializable]
-		public class EnumValueProperty<T> : ModelValueProperty
+		class EnumValueProperty<T> : ModelValueProperty
 		{
 			Func<Enum, T> getValue;
 
