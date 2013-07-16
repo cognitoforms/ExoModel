@@ -186,6 +186,28 @@ namespace ExoModel
 		/// </summary>
 		public string SourceType { get; private set; }
 
+
+		Type underlyingType;
+		public Type UnderlyingType
+		{
+			get
+			{
+				if (underlyingType == null)
+				{
+					var modelProperty = ModelContext.Current.GetModelType(SourceType).Properties[SourceProperty];
+					if (modelProperty is ModelValueProperty)
+						underlyingType = ((ModelValueProperty)modelProperty).PropertyType;
+					else if (modelProperty is IReflectionModelProperty)
+						underlyingType = ((IReflectionModelProperty)modelProperty).PropertyInfo.PropertyType;
+
+					if (underlyingType.IsGenericType && underlyingType.GetGenericTypeDefinition() == typeof(Nullable<>))
+						underlyingType = Nullable.GetUnderlyingType(underlyingType);
+				}
+
+				return underlyingType;
+			}
+		}
+
 		/// <summary>
 		/// Gets the underlying value of the property for the current source path.
 		/// </summary>
