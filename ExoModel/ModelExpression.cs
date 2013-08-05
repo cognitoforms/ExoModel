@@ -8,6 +8,7 @@ using System.Reflection.Emit;
 using System.Threading;
 using System.Collections.ObjectModel;
 using Expr = System.Linq.Expressions.Expression;
+using System.Web.UI;
 
 namespace ExoModel
 {
@@ -40,11 +41,11 @@ namespace ExoModel
 
 			// Parse the expression
 			var parameters = new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") };
-			var resultExpression = new ExpressionParser(parameters, expression, querySyntax).Parse(new ModelExpressionType(resultType));
+			var resultExpression = new ExpressionParser(parameters, expression, querySyntax, false).Parse(new ModelExpressionType(resultType));
 
 			// Determine the model property paths referenced by the expression
 			this.Path = rootType.GetPath(resultExpression);
-
+            
 			// Compile the expression to make it executable
 			if (rootType.Provider is IExpressionCompiler)
 				this.Expression = ((IExpressionCompiler)rootType.Provider).Compile(resultExpression, parameters[0]);
@@ -79,9 +80,18 @@ namespace ExoModel
 
 		public static Expression Parse(ModelExpressionType resultType, string expression, params object[] values)
 		{
-			ExpressionParser parser = new ExpressionParser(null, expression, values);
+			ExpressionParser parser = new ExpressionParser(null, expression, false, values);
 			return parser.Parse(resultType);
 		}
+
+        public static IntelliSense ParseIntelliSense(ModelType rootType, string expression, params object[] values)
+        {
+            var parameters = new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") };
+            ExpressionParser parser = new ExpressionParser(parameters, expression, true);
+            try { parser.Parse(null); } //result type doesn't matter
+            catch (IntelliSense intelliSense) { return intelliSense; }
+            return null;
+        }
 
 		internal static Type CreateClass(params DynamicProperty[] properties)
 		{
@@ -537,6 +547,33 @@ namespace ExoModel
 			}
 		}
 
+        #endregion
+
+        #region IntelliSense
+
+        public sealed class IntelliSense : Exception
+        {
+            int position;
+            string[] identifiers;
+
+            public IntelliSense(string message, int position, string[] identifiers)
+				: base(message)
+			{
+				this.position = position;
+                this.identifiers = identifiers;
+			}
+
+            public int Position
+            {
+                get { return position; }
+            }
+
+            public string[] Identifiers
+            {
+                get { return identifiers; }
+            }
+        }
+
 		#endregion
 		
 		#region Res
@@ -790,7 +827,10 @@ namespace ExoModel
 			Token token;
 			QuerySyntax querySyntax;
 
-			public ExpressionParser(ModelParameterExpression[] parameters, string expression, QuerySyntax querySyntax, params object[] values)
+            bool isIntelliSense;
+            string[] intelliSenseIdentifiers;
+
+			public ExpressionParser(ModelParameterExpression[] parameters, string expression, QuerySyntax querySyntax, bool isIntelliSense, params object[] values)
 			{
 				if (expression == null) throw new ArgumentNullException("expression");
 				if (keywords == null) keywords = CreateKeywords();
@@ -800,13 +840,15 @@ namespace ExoModel
 				if (values != null) ProcessValues(values);
 				text = expression;
 				textLen = text.Length;
+                this.isIntelliSense = isIntelliSense;
+                intelliSenseIdentifiers = new string[0];
 				SetTextPos(0);
 				NextToken();
 				this.querySyntax = querySyntax;
 			}
 
-			public ExpressionParser(ModelParameterExpression[] parameters, string expression, params object[] values)
-				: this(parameters, expression, QuerySyntax.DotNet, values)
+			public ExpressionParser(ModelParameterExpression[] parameters, string expression, bool isIntelliSense, params object[] values)
+				: this(parameters, expression, QuerySyntax.DotNet, isIntelliSense, values)
 			{ }
 
 			void ProcessParameters(ModelParameterExpression[] parameters)
@@ -849,6 +891,9 @@ namespace ExoModel
 					if ((expr = PromoteExpression(expr, resultType.Type, true)) == null)
 						throw ParseError(exprPos, Res.ExpressionTypeMismatch, GetTypeName(resultType));
 				ValidateToken(TokenId.End, Res.SyntaxError);
+                // No parse errors, could still provide IntelliSense (i.e. Person.FirstName vs Person.FirstChoice)
+                if (isIntelliSense)
+                    throw new IntelliSense("Intercepted error to create tokens", token.pos, intelliSenseIdentifiers);
 				return expr;
 			}
 
@@ -1194,8 +1239,17 @@ namespace ExoModel
 						return ParseParenExpression();
 					case TokenId.OpenBracket:
 						return ParseArrayLiteral();
-					default:
-						throw ParseError(Res.ExpressionExpected);
+					default: {
+                        // Empty expression
+                        if (isIntelliSense)
+                        {
+                            IExpressionType type = (it as IExpressionType) ?? new ModelExpressionType(it.Type);
+                            SetIntelliSenseIdentifiers(type);
+                            throw new IntelliSense("Intercepted error to create tokens", token.pos, intelliSenseIdentifiers);
+                        }
+                        else
+                            throw ParseError(Res.ExpressionExpected);
+                    }
 				}
 			}
 
@@ -1476,9 +1530,17 @@ namespace ExoModel
 			
 			Expression ParseMemberAccess(IExpressionType type, Expression instance)
 			{
-				if (instance != null) type = (instance as IExpressionType) ?? new ModelExpressionType(instance.Type);
+                if (instance != null) type = (instance as IExpressionType) ?? new ModelExpressionType(instance.Type);
 				int errorPos = token.pos;
-				string id = GetIdentifier();
+                string id = "";
+                SetIntelliSenseIdentifiers(type);
+                if (isIntelliSense) // String ends with period
+                {
+                    try { id = GetIdentifier(); }
+                    catch { throw new IntelliSense("Intercepted error to create tokens", errorPos, intelliSenseIdentifiers); }
+                }
+                else
+                    id = GetIdentifier();
 				NextToken();
 				if (token.id == TokenId.OpenParen)
 				{
@@ -1563,11 +1625,15 @@ namespace ExoModel
 						{
 							return new ModelMemberExpression(instance, property);
 						}
-						else
-						{
-							throw ParseError(errorPos, Res.UnknownPropertyOrField,
-								id, GetTypeName(type));
-						}
+                        else if (isIntelliSense)
+                        {
+                            throw new IntelliSense("Intercepted error to create tokens", errorPos, intelliSenseIdentifiers);
+                        }
+                        else
+                        {
+                            throw ParseError(errorPos, Res.UnknownPropertyOrField,
+                                id, GetTypeName(type));
+                        }
 					}
 					else
 					{
@@ -1595,6 +1661,20 @@ namespace ExoModel
 					}
 				}
 			}
+
+            void SetIntelliSenseIdentifiers(IExpressionType type)
+            {
+                if (type.ModelType != null)
+                {
+                    intelliSenseIdentifiers = new string[type.ModelType.PropertyCount];
+                    foreach (var prop in type.ModelType.Properties)
+                    {
+                        intelliSenseIdentifiers[prop.Index] = prop.Name;
+                    }
+                }
+                else
+                    intelliSenseIdentifiers = new string[0];
+            }
 
 			static Type FindGenericType(Type generic, Type type)
 			{
