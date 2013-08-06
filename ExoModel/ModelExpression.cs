@@ -102,10 +102,7 @@ namespace ExoModel
             catch (Exception ex)
             {
                 if (ex is IntelliSense)
-                {
-                    ((IntelliSense)ex).Identifiers.Sort();
                     return (IntelliSense)ex;
-                }
             }
             return null;
         }
@@ -571,9 +568,9 @@ namespace ExoModel
         public sealed class IntelliSense : Exception
         {
             int position;
-            List<string> identifiers;
+            SortedDictionary<string, string> identifiers;
 
-            public IntelliSense(string message, int position, List<string> identifiers)
+            public IntelliSense(string message, int position, SortedDictionary<string, string> identifiers)
 				: base(message)
 			{
 				this.position = position;
@@ -585,7 +582,7 @@ namespace ExoModel
                 get { return position; }
             }
 
-            public List<string> Identifiers
+            public SortedDictionary<string, string> Identifiers
             {
                 get { return identifiers; }
             }
@@ -846,7 +843,7 @@ namespace ExoModel
 			QuerySyntax querySyntax;
 
             bool isIntelliSense;
-            List<string> intelliSenseIdentifiers;
+            SortedDictionary<string, string> intelliSenseIdentifiers;
 
 			public ExpressionParser(ModelParameterExpression[] parameters, string expression, QuerySyntax querySyntax, bool isIntelliSense, params object[] values)
 			{
@@ -859,7 +856,7 @@ namespace ExoModel
 				text = expression;
 				textLen = text.Length;
                 this.isIntelliSense = isIntelliSense;
-                intelliSenseIdentifiers = new List<string>();
+                intelliSenseIdentifiers = new SortedDictionary<string, string>();
 				SetTextPos(0);
 				NextToken();
 				this.querySyntax = querySyntax;
@@ -1257,8 +1254,8 @@ namespace ExoModel
 						return ParseParenExpression();
 					case TokenId.OpenBracket:
 						return ParseArrayLiteral();
-					default: {
-                        // Empty expression
+					default: 
+                        // Empty expression - return all system and root model values
                         if (isIntelliSense)
                         {
                             IExpressionType type = (it as IExpressionType) ?? new ModelExpressionType(it.Type);
@@ -1267,7 +1264,6 @@ namespace ExoModel
                         }
                         else
                             throw ParseError(Res.ExpressionExpected);
-                    }
 				}
 			}
 
@@ -1525,7 +1521,7 @@ namespace ExoModel
                     try { ValidateToken(TokenId.Dot, Res.DotOrOpenParenExpected); }
                     catch 
                     { 
-                        SetIntelliSenseIdentifiers(null, it); 
+                        SetIntelliSenseIdentifiers(null, it);
                         throw new IntelliSense("Identifier ends with period", errorPos, intelliSenseIdentifiers); 
                     }
                 }
@@ -1698,37 +1694,40 @@ namespace ExoModel
                 if (instance != null && instance == it)
                 {
                     type = (instance as IExpressionType) ?? new ModelExpressionType(instance.Type);
-                    SetIntelliSenseModelIdentifiers(type);
+                    SetIntelliSenseModelIdentifiers(type, true);
                     for (var i = 0; i < predefinedTypes.Length; i++)
                     {
-                        intelliSenseIdentifiers.Add(predefinedTypes[i].Name);
+                        string systemType = predefinedTypes[i].Name;
+                        intelliSenseIdentifiers.Add(systemType + " (System." + systemType + ")", systemType);
                     }
                 }
                 // Model identifier
-                else if (instance != null)
-                    SetIntelliSenseModelIdentifiers(type);
+                else if (type.ModelType != null)
+                    SetIntelliSenseModelIdentifiers(type, false);
                 // System identifier
                 else
                     SetIntelliSenseSystemIdentifiers(type.Type);
             }
 
-            void SetIntelliSenseModelIdentifiers(IExpressionType type)
+            void SetIntelliSenseModelIdentifiers(IExpressionType type, bool includeHint)
             {
                 intelliSenseIdentifiers.Clear();
                 foreach (var modelProperties in type.ModelType.Properties)
                 {
-                    intelliSenseIdentifiers.Add(modelProperties.Name);
+                    string[] nameParts = type.ModelType.Name.Split('.');
+                    // If root instance, help differentiate between system and instance variables
+                    string hint = includeHint ? " (" + nameParts[nameParts.Length-1] + "." + modelProperties.Name + ")" : "";
+                    intelliSenseIdentifiers.Add(modelProperties.Name + hint, modelProperties.Name);
                 }
             }
 
             void SetIntelliSenseSystemIdentifiers(Type type)
             {
                 intelliSenseIdentifiers.Clear();
-                BindingFlags flags = BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static;
-                MemberInfo[] systemMembers = type.GetMembers(flags);
+                MemberInfo[] systemMembers = type.GetMembers();
                 for (var i = 0; i < systemMembers.Length; i++)
                 {
-                    intelliSenseIdentifiers.Add(systemMembers[i].ToString());
+                    intelliSenseIdentifiers.Add(systemMembers[i].ToString(), systemMembers[i].Name + "(");
                 }
             }
 
