@@ -95,8 +95,8 @@ namespace ExoModel
         {
             try
             {
-                var parameters = new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") };
-                ExpressionParser parser = new ExpressionParser(parameters, expression, true);
+                ModelParameterExpression[] parameters = (rootType == null ? null : new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") });
+                ExpressionParser parser = new ExpressionParser(parameters, expression, true, values);
                 parser.Parse(null); 
             }
             catch (Exception ex)
@@ -1258,12 +1258,11 @@ namespace ExoModel
                         // Empty expression - return all system and root model values
                         if (isIntelliSense)
                         {
-                            IExpressionType type = (it as IExpressionType) ?? new ModelExpressionType(it.Type);
+                            IExpressionType type = (it == null ? null : (it as IExpressionType) ?? new ModelExpressionType(it.Type));
                             SetIntelliSenseIdentifiers(type, it);
                             throw new IntelliSense("Empty expression", token.pos, intelliSenseIdentifiers);
                         }
-                        else
-                            throw ParseError(Res.ExpressionExpected);
+                        throw ParseError(Res.ExpressionExpected);
 				}
 			}
 
@@ -1391,6 +1390,12 @@ namespace ExoModel
 					return expr;
 				}
 				if (it != null) return ParseMemberAccess(null, it);
+                // First expression invalid, no rootType set
+                if (isIntelliSense)
+                {
+                    SetIntelliSenseIdentifiers(null, null);
+                    throw new IntelliSense("", token.pos, intelliSenseIdentifiers);
+                }
 				throw ParseError(Res.UnknownIdentifier, token.text);
 			}
 
@@ -1695,11 +1700,13 @@ namespace ExoModel
                 {
                     type = (instance as IExpressionType) ?? new ModelExpressionType(instance.Type);
                     SetIntelliSenseModelIdentifiers(type, true);
-                    for (var i = 0; i < predefinedTypes.Length; i++)
-                    {
-                        string systemType = predefinedTypes[i].Name;
-                        intelliSenseIdentifiers.Add(systemType + " (System." + systemType + ")", systemType);
-                    }
+                    SetIntelliSensePredefinedIdentifiers();
+                }
+                // First expression invalid and no root type, just use predefined types
+                else if (type == null)
+                {
+                    intelliSenseIdentifiers.Clear();
+                    SetIntelliSensePredefinedIdentifiers();
                 }
                 // Model identifier
                 else if (type.ModelType != null)
@@ -1714,10 +1721,7 @@ namespace ExoModel
                 intelliSenseIdentifiers.Clear();
                 foreach (var modelProperties in type.ModelType.Properties)
                 {
-                    string[] nameParts = type.ModelType.Name.Split('.');
-                    // If root instance, help differentiate between system and instance variables
-                    string hint = includeHint ? " (" + nameParts[nameParts.Length-1] + "." + modelProperties.Name + ")" : "";
-                    intelliSenseIdentifiers.Add(modelProperties.Name + hint, modelProperties.Name);
+                    intelliSenseIdentifiers.Add(modelProperties.Name, modelProperties.Name);
                 }
             }
 
@@ -1727,7 +1731,19 @@ namespace ExoModel
                 MemberInfo[] systemMembers = type.GetMembers();
                 for (var i = 0; i < systemMembers.Length; i++)
                 {
-                    intelliSenseIdentifiers.Add(systemMembers[i].ToString(), systemMembers[i].Name + "(");
+                    if (systemMembers[i].MemberType == System.Reflection.MemberTypes.Method)
+                        intelliSenseIdentifiers.Add(systemMembers[i].ToString(), systemMembers[i].Name + "(");
+                    else
+                        intelliSenseIdentifiers.Add(systemMembers[i].ToString(), systemMembers[i].Name);
+                }
+            }
+
+            void SetIntelliSensePredefinedIdentifiers()
+            {
+                for (var i = 0; i < predefinedTypes.Length; i++)
+                {
+                    string systemType = predefinedTypes[i].Name;
+                    intelliSenseIdentifiers.Add(systemType, systemType);
                 }
             }
 
