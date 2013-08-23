@@ -80,13 +80,12 @@ namespace ExoModel
 
 		public static Expression Parse(ModelExpressionType resultType, string expression, params object[] values)
 		{
-			ExpressionParser parser = new ExpressionParser(null, expression, false, values);
-			return parser.Parse(resultType);
+			return Parse(resultType, null, expression, values);
 		}
 
 		public static Expression Parse(ModelExpressionType resultType, ModelType rootType, string expression, params object[] values)
 		{
-			var parameters = new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") };
+			var parameters = rootType == null ? null : new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") };
 			ExpressionParser parser = new ExpressionParser(parameters, expression, false, values);
 			return parser.Parse(resultType);
 		}
@@ -2494,7 +2493,7 @@ namespace ExoModel
 				return Expr.Call(
 					null,
 					typeof(string).GetMethod("Concat", new[] { typeof(object), typeof(object) }),
-					new[] { left, right });
+					new[] { left.Type.IsValueType ? Expr.Convert(left, typeof(object)) : left, right.Type.IsValueType ? Expr.Convert(right, typeof(object)) : right });
 			}
 
 			MethodInfo GetStaticMethod(string methodName, Expression left, Expression right)
