@@ -447,6 +447,11 @@ namespace ExoModel
 					throw e;
 				}
 			}
+
+			public Type UnderlyingType
+			{
+				get { return PropertyInfo.PropertyType; }
+			}
 		}
 
 		#endregion
@@ -472,6 +477,11 @@ namespace ExoModel
 			protected internal override void SetValue(object instance, object value)
 			{
 				PropertyInfo.SetValue(instance, value, null);
+			}
+
+			public Type UnderlyingType
+			{
+				get { return PropertyInfo.PropertyType; }
 			}
 		}
 

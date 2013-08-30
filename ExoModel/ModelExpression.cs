@@ -237,8 +237,8 @@ namespace ExoModel
 			public ModelMemberExpression(Expression expression, ModelProperty property)
 				: base(ExpressionType.Call,
 					property is ModelValueProperty ? ((ModelValueProperty)property).PropertyType :
-					property is IReflectionModelProperty ?
-						((IReflectionModelProperty)property).PropertyInfo.PropertyType :
+					property is IReflectionModelType ?
+						((IReflectionModelType)property).UnderlyingType :
 						typeof(object))
 			{
 				this.Expression = expression;

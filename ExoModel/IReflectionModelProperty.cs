@@ -9,7 +9,7 @@ namespace ExoModel
 	/// <summary>
 	/// Implemented by <see cref="ModelProperty"/> or subclasses based on concrete reflection properties.
 	/// </summary>
-	public interface IReflectionModelProperty
+	public interface IReflectionModelProperty : IReflectionModelType
 	{
 		PropertyInfo PropertyInfo { get; }
 	}

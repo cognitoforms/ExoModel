@@ -197,8 +197,8 @@ namespace ExoModel
 					var modelProperty = ModelContext.Current.GetModelType(SourceType).Properties[SourceProperty];
 					if (modelProperty is ModelValueProperty)
 						underlyingType = ((ModelValueProperty)modelProperty).PropertyType;
-					else if (modelProperty is IReflectionModelProperty)
-						underlyingType = ((IReflectionModelProperty)modelProperty).PropertyInfo.PropertyType;
+					else if (modelProperty is IReflectionModelType)
+						underlyingType = ((IReflectionModelType)modelProperty).UnderlyingType;
 
 					if (underlyingType.IsGenericType && underlyingType.GetGenericTypeDefinition() == typeof(Nullable<>))
 						underlyingType = Nullable.GetUnderlyingType(underlyingType);
