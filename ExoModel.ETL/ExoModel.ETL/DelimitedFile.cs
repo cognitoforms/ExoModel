@@ -110,9 +110,14 @@ namespace ExoModel.ETL
 				}
 				else
 				{
-					while (c != file.Delimiter && c != '\r' && c != '\n' && stream.Peek() != -1)
+					while (c != file.Delimiter && c != '\r' && c != '\n')
 					{
 						value.Append(c);
+
+						// if there is no character to read, break out of while loop
+						if (stream.Peek() == -1)
+							break;
+						
 						c = (char)stream.Read();
 					}
 					result.Add(value.ToString());
