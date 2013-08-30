@@ -94,7 +94,7 @@ namespace ExoModel
 		{
 			ModelParameterExpression[] parameters = (rootType == null ? null : new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") });
 			ExpressionParser parser = new ExpressionParser(parameters, expression, true, values);
-			
+
 			// Parse the expression, ignoring parse errors
 			try
 			{
@@ -542,22 +542,77 @@ namespace ExoModel
 
 		public sealed class ParseException : Exception
 		{
-			int position;
+			static Dictionary<ParseErrorType, string> errorMessages = new Dictionary<ParseErrorType, string> 
+            {
+			    { ParseErrorType.DuplicateIdentifier, "The identifier '{0}' was defined more than once" },
+			    { ParseErrorType.ExpressionTypeMismatch, "Expression of type '{0}' expected" },
+			    { ParseErrorType.ExpressionExpected, "Expression expected" },
+			    { ParseErrorType.InvalidCharacterLiteral, "Character literal must contain exactly one character" },
+			    { ParseErrorType.InvalidIntegerLiteral, "Invalid integer literal '{0}'" },
+			    { ParseErrorType.InvalidRealLiteral, "Invalid real literal '{0}'" },
+			    { ParseErrorType.UnknownIdentifier, "Unknown identifier '{0}'" },
+			    { ParseErrorType.NoItInScope, "No 'it' is in scope" },
+			    { ParseErrorType.IifRequiresThreeArgs, "The 'iif' function requires three arguments" },
+			    { ParseErrorType.FirstExprMustBeBool, "The first expression must be of type 'Boolean'" },
+			    { ParseErrorType.BothTypesConvertToOther, "Both of the types '{0}' and '{1}' convert to the other" },
+			    { ParseErrorType.NeitherTypeConvertsToOther, "Neither of the types '{0}' and '{1}' converts to the other" },
+			    { ParseErrorType.MissingAsClause, "Expression is missing an 'as' clause" },
+			    { ParseErrorType.ArgsIncompatibleWithLambda, "Argument list incompatible with lambda expression" },
+			    { ParseErrorType.TypeHasNoNullableForm, "Type '{0}' has no nullable form" },
+			    { ParseErrorType.NoMatchingConstructor, "No matching constructor in type '{0}'" },
+			    { ParseErrorType.AmbiguousConstructorInvocation, "Ambiguous invocation of '{0}' constructor" },
+			    { ParseErrorType.CannotConvertValue, "A value of type '{0}' cannot be converted to type '{1}'" },
+			    { ParseErrorType.NoApplicableMethod, "No applicable method '{0}' exists in type '{1}'" },
+			    { ParseErrorType.MethodsAreInaccessible, "Methods on type '{0}' are not accessible" },
+			    { ParseErrorType.MethodIsVoid, "Method '{0}' in type '{1}' does not return a value" },
+			    { ParseErrorType.AmbiguousMethodInvocation, "Ambiguous invocation of method '{0}' in type '{1}'" },
+			    { ParseErrorType.UnknownPropertyOrField, "No property or field '{0}' exists in type '{1}'" },
+			    { ParseErrorType.NoApplicableAggregate, "No applicable aggregate method '{0}' exists" },
+			    { ParseErrorType.CannotIndexMultiDimArray, "Indexing of multi-dimensional arrays is not supported" },
+			    { ParseErrorType.InvalidIndex, "Array index must be an integer expression" },
+			    { ParseErrorType.NoApplicableIndexer, "No applicable indexer exists in type '{0}'" },
+			    { ParseErrorType.AmbiguousIndexerInvocation, "Ambiguous invocation of indexer in type '{0}'" },
+			    { ParseErrorType.IncompatibleOperand, "Operator '{0}' incompatible with operand type '{1}'" },
+			    { ParseErrorType.IncompatibleOperands, "Operator '{0}' incompatible with operand types '{1}' and '{2}'" },
+			    { ParseErrorType.UnterminatedStringLiteral, "Unterminated string literal" },
+			    { ParseErrorType.InvalidCharacter, "Syntax error '{0}'" },
+			    { ParseErrorType.DigitExpected, "Digit expected" },
+			    { ParseErrorType.SyntaxError, "Syntax error" },
+			    { ParseErrorType.TokenExpected, "{0} expected" },
+			    { ParseErrorType.ColonExpected, "':' expected" },
+			    { ParseErrorType.OpenParenExpected, "'(' expected" },
+			    { ParseErrorType.CloseParenOrOperatorExpected, "')' or operator expected" },
+			    { ParseErrorType.CloseParenOrCommaExpected, "')' or ',' expected" },
+			    { ParseErrorType.DotOrOpenParenExpected, "'.' or '(' expected" },
+			    { ParseErrorType.OpenBracketExpected, "'[' expected" },
+			    { ParseErrorType.CloseBracketOrCommaExpected, "']' or ',' expected" },
+			    { ParseErrorType.IdentifierExpected, "Identifier expected" }
+		    };
 
-			public ParseException(string message, int position)
+			public ParseException(string message, int position, params object[] args)
 				: base(message)
 			{
-				this.position = position;
+				this.Position = position;
+				this.Arguments = args;
 			}
 
-			public int Position
+			public ParseException(ParseErrorType error, int position, params object[] args)
+				: base(string.Format(System.Globalization.CultureInfo.CurrentCulture, errorMessages[error], args))
 			{
-				get { return position; }
+				this.Error = error;
+				this.Position = position;
+				this.Arguments = args;
 			}
+
+			public int Position { get; private set; }
+
+			public object[] Arguments { get; private set; }
+
+			public ParseErrorType Error { get; private set; }
 
 			public override string ToString()
 			{
-				return string.Format(Res.ParseExceptionFormat, Message, position);
+				return string.Format("{0} (at index {1})", Message, Position);
 			}
 		}
 
@@ -592,54 +647,54 @@ namespace ExoModel
 
 		#endregion
 
-		#region Res
+		#region ParseErrorType
 
-		static class Res
+		public enum ParseErrorType
 		{
-			public const string DuplicateIdentifier = "The identifier '{0}' was defined more than once";
-			public const string ExpressionTypeMismatch = "Expression of type '{0}' expected";
-			public const string ExpressionExpected = "Expression expected";
-			public const string InvalidCharacterLiteral = "Character literal must contain exactly one character";
-			public const string InvalidIntegerLiteral = "Invalid integer literal '{0}'";
-			public const string InvalidRealLiteral = "Invalid real literal '{0}'";
-			public const string UnknownIdentifier = "Unknown identifier '{0}'";
-			public const string NoItInScope = "No 'it' is in scope";
-			public const string IifRequiresThreeArgs = "The 'iif' function requires three arguments";
-			public const string FirstExprMustBeBool = "The first expression must be of type 'Boolean'";
-			public const string BothTypesConvertToOther = "Both of the types '{0}' and '{1}' convert to the other";
-			public const string NeitherTypeConvertsToOther = "Neither of the types '{0}' and '{1}' converts to the other";
-			public const string MissingAsClause = "Expression is missing an 'as' clause";
-			public const string ArgsIncompatibleWithLambda = "Argument list incompatible with lambda expression";
-			public const string TypeHasNoNullableForm = "Type '{0}' has no nullable form";
-			public const string NoMatchingConstructor = "No matching constructor in type '{0}'";
-			public const string AmbiguousConstructorInvocation = "Ambiguous invocation of '{0}' constructor";
-			public const string CannotConvertValue = "A value of type '{0}' cannot be converted to type '{1}'";
-			public const string NoApplicableMethod = "No applicable method '{0}' exists in type '{1}'";
-			public const string MethodsAreInaccessible = "Methods on type '{0}' are not accessible";
-			public const string MethodIsVoid = "Method '{0}' in type '{1}' does not return a value";
-			public const string AmbiguousMethodInvocation = "Ambiguous invocation of method '{0}' in type '{1}'";
-			public const string UnknownPropertyOrField = "No property or field '{0}' exists in type '{1}'";
-			public const string NoApplicableAggregate = "No applicable aggregate method '{0}' exists";
-			public const string CannotIndexMultiDimArray = "Indexing of multi-dimensional arrays is not supported";
-			public const string InvalidIndex = "Array index must be an integer expression";
-			public const string NoApplicableIndexer = "No applicable indexer exists in type '{0}'";
-			public const string AmbiguousIndexerInvocation = "Ambiguous invocation of indexer in type '{0}'";
-			public const string IncompatibleOperand = "Operator '{0}' incompatible with operand type '{1}'";
-			public const string IncompatibleOperands = "Operator '{0}' incompatible with operand types '{1}' and '{2}'";
-			public const string UnterminatedStringLiteral = "Unterminated string literal";
-			public const string InvalidCharacter = "Syntax error '{0}'";
-			public const string DigitExpected = "Digit expected";
-			public const string SyntaxError = "Syntax error";
-			public const string TokenExpected = "{0} expected";
-			public const string ParseExceptionFormat = "{0} (at index {1})";
-			public const string ColonExpected = "':' expected";
-			public const string OpenParenExpected = "'(' expected";
-			public const string CloseParenOrOperatorExpected = "')' or operator expected";
-			public const string CloseParenOrCommaExpected = "')' or ',' expected";
-			public const string DotOrOpenParenExpected = "'.' or '(' expected";
-			public const string OpenBracketExpected = "'[' expected";
-			public const string CloseBracketOrCommaExpected = "']' or ',' expected";
-			public const string IdentifierExpected = "Identifier expected";
+			DuplicateIdentifier,
+			ExpressionTypeMismatch,
+			ExpressionExpected,
+			InvalidCharacterLiteral,
+			InvalidIntegerLiteral,
+			InvalidRealLiteral,
+			UnknownIdentifier,
+			NoItInScope,
+			IifRequiresThreeArgs,
+			FirstExprMustBeBool,
+			BothTypesConvertToOther,
+			NeitherTypeConvertsToOther,
+			MissingAsClause,
+			ArgsIncompatibleWithLambda,
+			TypeHasNoNullableForm,
+			NoMatchingConstructor,
+			AmbiguousConstructorInvocation,
+			CannotConvertValue,
+			NoApplicableMethod,
+			MethodsAreInaccessible,
+			MethodIsVoid,
+			AmbiguousMethodInvocation,
+			UnknownPropertyOrField,
+			NoApplicableAggregate,
+			CannotIndexMultiDimArray,
+			InvalidIndex,
+			NoApplicableIndexer,
+			AmbiguousIndexerInvocation,
+			IncompatibleOperand,
+			IncompatibleOperands,
+			UnterminatedStringLiteral,
+			InvalidCharacter,
+			DigitExpected,
+			SyntaxError,
+			TokenExpected,
+			ParseExceptionFormat,
+			ColonExpected,
+			OpenParenExpected,
+			CloseParenOrOperatorExpected,
+			CloseParenOrCommaExpected,
+			DotOrOpenParenExpected,
+			OpenBracketExpected,
+			CloseBracketOrCommaExpected,
+			IdentifierExpected,
 		}
 
 		#endregion
@@ -897,7 +952,7 @@ namespace ExoModel
 			void AddSymbol(string name, object value)
 			{
 				if (symbols.ContainsKey(name))
-					throw ParseError(Res.DuplicateIdentifier, name);
+					throw ParseError(ParseErrorType.DuplicateIdentifier, name);
 				symbols.Add(name, value);
 			}
 
@@ -926,12 +981,12 @@ namespace ExoModel
 									Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes)));
 						}
 						else
-							throw ParseError(exprPos, Res.ExpressionTypeMismatch, GetTypeName(resultType));
+							throw ParseError(exprPos, ParseErrorType.ExpressionTypeMismatch, GetTypeName(resultType));
 					}
 				}
 
-				ValidateToken(TokenId.End, Res.SyntaxError);
-				
+				ValidateToken(TokenId.End, ParseErrorType.SyntaxError);
+
 				// No parse errors, could still provide IntelliSense (i.e. Person.FirstName vs Person.FirstChoice)
 				IntelliSense.Position = token.pos - prevToken.text.Length;
 
@@ -959,7 +1014,7 @@ namespace ExoModel
 					if (token.id != TokenId.Comma) break;
 					NextToken();
 				}
-				ValidateToken(TokenId.End, Res.SyntaxError);
+				ValidateToken(TokenId.End, ParseErrorType.SyntaxError);
 				return orderings;
 			}
 #pragma warning restore 0219
@@ -973,7 +1028,7 @@ namespace ExoModel
 				{
 					NextToken();
 					Expression expr1 = ParseExpression();
-					ValidateToken(TokenId.Colon, Res.ColonExpected);
+					ValidateToken(TokenId.Colon, ParseErrorType.ColonExpected);
 					NextToken();
 					Expression expr2 = ParseExpression();
 					expr = GenerateConditional(expr, expr1, expr2, errorPos);
@@ -1285,7 +1340,7 @@ namespace ExoModel
 						IntelliSense.Position = token.pos;
 						IntelliSense.Scope = it == null ? IntelliSenseScope.Globals : IntelliSenseScope.Globals | IntelliSenseScope.InstanceMembers;
 
-						throw ParseError(Res.ExpressionExpected);
+						throw ParseError(ParseErrorType.ExpressionExpected);
 				}
 			}
 
@@ -1296,7 +1351,7 @@ namespace ExoModel
 
 				// In OData, strings are enclosed with single quotes
 				if (querySyntax == QuerySyntax.OData && quote == '"')
-					throw ParseError(Res.SyntaxError);
+					throw ParseError(ParseErrorType.SyntaxError);
 
 				string s = token.text.Substring(1, token.text.Length - 2);
 				int start = 0;
@@ -1310,7 +1365,7 @@ namespace ExoModel
 				if (querySyntax == QuerySyntax.DotNet && quote == '\'')
 				{
 					if (s.Length != 1)
-						throw ParseError(Res.InvalidCharacterLiteral);
+						throw ParseError(ParseErrorType.InvalidCharacterLiteral);
 					NextToken();
 					return CreateLiteral(s[0], s);
 				}
@@ -1326,7 +1381,7 @@ namespace ExoModel
 				{
 					ulong value;
 					if (!UInt64.TryParse(text, out value))
-						throw ParseError(Res.InvalidIntegerLiteral, text);
+						throw ParseError(ParseErrorType.InvalidIntegerLiteral, text);
 					NextToken();
 					if (value <= (ulong)Int32.MaxValue) return CreateLiteral((int)value, text);
 					if (value <= (ulong)UInt32.MaxValue) return CreateLiteral((uint)value, text);
@@ -1337,7 +1392,7 @@ namespace ExoModel
 				{
 					long value;
 					if (!Int64.TryParse(text, out value))
-						throw ParseError(Res.InvalidIntegerLiteral, text);
+						throw ParseError(ParseErrorType.InvalidIntegerLiteral, text);
 					NextToken();
 					if (value >= Int32.MinValue && value <= Int32.MaxValue)
 						return CreateLiteral((int)value, text);
@@ -1361,7 +1416,7 @@ namespace ExoModel
 					double d;
 					if (Double.TryParse(text, out d)) value = d;
 				}
-				if (value == null) throw ParseError(Res.InvalidRealLiteral, text);
+				if (value == null) throw ParseError(ParseErrorType.InvalidRealLiteral, text);
 				NextToken();
 				return CreateLiteral(value, text);
 			}
@@ -1375,10 +1430,10 @@ namespace ExoModel
 
 			Expression ParseParenExpression()
 			{
-				ValidateToken(TokenId.OpenParen, Res.OpenParenExpected);
+				ValidateToken(TokenId.OpenParen, ParseErrorType.OpenParenExpected);
 				NextToken();
 				Expression e = ParseExpression();
-				ValidateToken(TokenId.CloseParen, Res.CloseParenOrOperatorExpected);
+				ValidateToken(TokenId.CloseParen, ParseErrorType.CloseParenOrOperatorExpected);
 				NextToken();
 				return e;
 			}
@@ -1418,14 +1473,14 @@ namespace ExoModel
 				IntelliSense.Type = null;
 				IntelliSense.Scope = IntelliSenseScope.Globals;
 				IntelliSense.Position = token.pos;
-				
-				throw ParseError(Res.UnknownIdentifier, token.text);
+
+				throw ParseError(ParseErrorType.UnknownIdentifier, token.text);
 			}
 
 			Expression ParseIt()
 			{
 				if (it == null)
-					throw ParseError(Res.NoItInScope);
+					throw ParseError(ParseErrorType.NoItInScope);
 				NextToken();
 				return it;
 			}
@@ -1436,14 +1491,14 @@ namespace ExoModel
 				NextToken();
 				Expression[] args = ParseArgumentList();
 				if (args.Length != 3)
-					throw ParseError(errorPos, Res.IifRequiresThreeArgs);
+					throw ParseError(errorPos, ParseErrorType.IifRequiresThreeArgs);
 				return GenerateConditional(args[0], args[1], args[2], errorPos);
 			}
 
 			Expression GenerateConditional(Expression test, Expression expr1, Expression expr2, int errorPos)
 			{
 				if (test.Type != typeof(bool))
-					throw ParseError(errorPos, Res.FirstExprMustBeBool);
+					throw ParseError(errorPos, ParseErrorType.FirstExprMustBeBool);
 				if (expr1.Type != expr2.Type)
 				{
 					Expression expr1as2 = expr2 != nullLiteral ? PromoteExpression(expr1, expr2.Type, true) : null;
@@ -1461,8 +1516,8 @@ namespace ExoModel
 						string type1 = expr1 != nullLiteral ? expr1.Type.Name : "null";
 						string type2 = expr2 != nullLiteral ? expr2.Type.Name : "null";
 						if (expr1as2 != null && expr2as1 != null)
-							throw ParseError(errorPos, Res.BothTypesConvertToOther, type1, type2);
-						throw ParseError(errorPos, Res.NeitherTypeConvertsToOther, type1, type2);
+							throw ParseError(errorPos, ParseErrorType.BothTypesConvertToOther, type1, type2);
+						throw ParseError(errorPos, ParseErrorType.NeitherTypeConvertsToOther, type1, type2);
 					}
 				}
 				return Expr.Condition(test, expr1, expr2);
@@ -1471,7 +1526,7 @@ namespace ExoModel
 			Expression ParseNew()
 			{
 				NextToken();
-				ValidateToken(TokenId.OpenParen, Res.OpenParenExpected);
+				ValidateToken(TokenId.OpenParen, ParseErrorType.OpenParenExpected);
 				NextToken();
 				List<DynamicProperty> properties = new List<DynamicProperty>();
 				List<Expression> expressions = new List<Expression>();
@@ -1489,7 +1544,7 @@ namespace ExoModel
 					else
 					{
 						MemberExpression me = expr as MemberExpression;
-						if (me == null) throw ParseError(exprPos, Res.MissingAsClause);
+						if (me == null) throw ParseError(exprPos, ParseErrorType.MissingAsClause);
 						propName = me.Member.Name;
 					}
 					expressions.Add(expr);
@@ -1497,7 +1552,7 @@ namespace ExoModel
 					if (token.id != TokenId.Comma) break;
 					NextToken();
 				}
-				ValidateToken(TokenId.CloseParen, Res.CloseParenOrCommaExpected);
+				ValidateToken(TokenId.CloseParen, ParseErrorType.CloseParenOrCommaExpected);
 				NextToken();
 				Type type = ModelExpression.CreateClass(properties);
 				MemberBinding[] bindings = new MemberBinding[properties.Count];
@@ -1513,7 +1568,7 @@ namespace ExoModel
 				Expression[] args = ParseArgumentList();
 				MethodBase method;
 				if (FindMethod(lambda.Type, "Invoke", false, ref args, out method) != 1)
-					throw ParseError(errorPos, Res.ArgsIncompatibleWithLambda);
+					throw ParseError(errorPos, ParseErrorType.ArgsIncompatibleWithLambda);
 				return Expr.Invoke(lambda, args);
 			}
 
@@ -1524,7 +1579,7 @@ namespace ExoModel
 				if (token.id == TokenId.Question)
 				{
 					if (!type.Type.IsValueType || IsNullableType(type.Type))
-						throw ParseError(errorPos, Res.TypeHasNoNullableForm, GetTypeName(type));
+						throw ParseError(errorPos, ParseErrorType.TypeHasNoNullableForm, GetTypeName(type));
 					type = new ModelExpressionType(typeof(Nullable<>).MakeGenericType(type.Type));
 					NextToken();
 				}
@@ -1537,15 +1592,15 @@ namespace ExoModel
 						case 0:
 							if (args.Length == 1)
 								return GenerateConversion(args[0], type.Type, errorPos);
-							throw ParseError(errorPos, Res.NoMatchingConstructor, GetTypeName(type));
+							throw ParseError(errorPos, ParseErrorType.NoMatchingConstructor, GetTypeName(type));
 						case 1:
 							return Expr.New((ConstructorInfo)method, args);
 						default:
-							throw ParseError(errorPos, Res.AmbiguousConstructorInvocation, GetTypeName(type));
+							throw ParseError(errorPos, ParseErrorType.AmbiguousConstructorInvocation, GetTypeName(type));
 					}
 				}
 
-				ValidateToken(TokenId.Dot, Res.DotOrOpenParenExpected);
+				ValidateToken(TokenId.Dot, ParseErrorType.DotOrOpenParenExpected);
 				NextToken();
 
 				return ParseMemberAccess(type, null);
@@ -1568,7 +1623,7 @@ namespace ExoModel
 				if (exprType.IsAssignableFrom(type) || type.IsAssignableFrom(exprType) ||
 					exprType.IsInterface || type.IsInterface)
 					return Expr.Convert(expr, type);
-				throw ParseError(errorPos, Res.CannotConvertValue,
+				throw ParseError(errorPos, ParseErrorType.CannotConvertValue,
 					GetTypeName(expr), GetTypeName(new ModelExpressionType(type)));
 			}
 
@@ -1636,13 +1691,13 @@ namespace ExoModel
 										break;
 								}
 							}
-							throw ParseError(errorPos, Res.NoApplicableMethod, id, GetTypeName(type));
+							throw ParseError(errorPos, ParseErrorType.NoApplicableMethod, id, GetTypeName(type));
 						case 1:
 							MethodInfo method = (MethodInfo)mb;
 							if (!IsPredefinedType(method.DeclaringType))
-								throw ParseError(errorPos, Res.MethodsAreInaccessible, GetTypeName(new ModelExpressionType(method.DeclaringType)));
+								throw ParseError(errorPos, ParseErrorType.MethodsAreInaccessible, GetTypeName(new ModelExpressionType(method.DeclaringType)));
 							if (method.ReturnType == typeof(void))
-								throw ParseError(errorPos, Res.MethodIsVoid,
+								throw ParseError(errorPos, ParseErrorType.MethodIsVoid,
 									id, GetTypeName(new ModelExpressionType(method.DeclaringType)));
 
 							// Handle boxing of value types
@@ -1653,7 +1708,7 @@ namespace ExoModel
 
 							return Expr.Call(instance, (MethodInfo)method, args);
 						default:
-							throw ParseError(errorPos, Res.AmbiguousMethodInvocation,
+							throw ParseError(errorPos, ParseErrorType.AmbiguousMethodInvocation,
 								id, GetTypeName(type));
 					}
 				}
@@ -1669,7 +1724,7 @@ namespace ExoModel
 						}
 						else
 						{
-							throw ParseError(errorPos, Res.UnknownPropertyOrField,
+							throw ParseError(errorPos, ParseErrorType.UnknownPropertyOrField,
 								id, GetTypeName(type));
 						}
 					}
@@ -1684,11 +1739,11 @@ namespace ExoModel
 							{
 								MethodInfo method = (MethodInfo)mb;
 								if (method.ReturnType == typeof(void))
-									throw ParseError(errorPos, Res.MethodIsVoid, id, GetTypeName(new ModelExpressionType(method.DeclaringType)));
+									throw ParseError(errorPos, ParseErrorType.MethodIsVoid, id, GetTypeName(new ModelExpressionType(method.DeclaringType)));
 								return Expr.Call(instance, method, new Expression[0]);
 							}
-							
-							throw ParseError(errorPos, Res.UnknownPropertyOrField,
+
+							throw ParseError(errorPos, ParseErrorType.UnknownPropertyOrField,
 								id, GetTypeName(type));
 						}
 
@@ -1727,7 +1782,7 @@ namespace ExoModel
 				it = outerIt;
 				MethodBase signature;
 				if (FindMethod(typeof(IEnumerableSignatures), methodName, false, ref args, out signature) != 1)
-					throw ParseError(errorPos, Res.NoApplicableAggregate, methodName);
+					throw ParseError(errorPos, ParseErrorType.NoApplicableAggregate, methodName);
 				Type[] typeArgs;
 				if (signature.Name == "Min" || signature.Name == "Max")
 				{
@@ -1750,10 +1805,10 @@ namespace ExoModel
 
 			Expression[] ParseArgumentList()
 			{
-				ValidateToken(TokenId.OpenParen, Res.OpenParenExpected);
+				ValidateToken(TokenId.OpenParen, ParseErrorType.OpenParenExpected);
 				NextToken();
 				Expression[] args = token.id != TokenId.CloseParen ? ParseArguments() : new Expression[0];
-				ValidateToken(TokenId.CloseParen, Res.CloseParenOrCommaExpected);
+				ValidateToken(TokenId.CloseParen, ParseErrorType.CloseParenOrCommaExpected);
 				NextToken();
 				return args;
 			}
@@ -1773,10 +1828,10 @@ namespace ExoModel
 			Expression ParseArrayLiteral()
 			{
 				int errorPos = token.pos;
-				ValidateToken(TokenId.OpenBracket, Res.OpenParenExpected);
+				ValidateToken(TokenId.OpenBracket, ParseErrorType.OpenParenExpected);
 				NextToken();
 				Expression[] elements = ParseArguments();
-				ValidateToken(TokenId.CloseBracket, Res.CloseBracketOrCommaExpected);
+				ValidateToken(TokenId.CloseBracket, ParseErrorType.CloseBracketOrCommaExpected);
 				NextToken();
 				if (elements.Length == 0)
 					return Expr.Constant(new object[0]);
@@ -1835,18 +1890,18 @@ namespace ExoModel
 			Expression ParseElementAccess(Expression expr)
 			{
 				int errorPos = token.pos;
-				ValidateToken(TokenId.OpenBracket, Res.OpenParenExpected);
+				ValidateToken(TokenId.OpenBracket, ParseErrorType.OpenParenExpected);
 				NextToken();
 				Expression[] args = ParseArguments();
-				ValidateToken(TokenId.CloseBracket, Res.CloseBracketOrCommaExpected);
+				ValidateToken(TokenId.CloseBracket, ParseErrorType.CloseBracketOrCommaExpected);
 				NextToken();
 				if (expr.Type.IsArray)
 				{
 					if (expr.Type.GetArrayRank() != 1 || args.Length != 1)
-						throw ParseError(errorPos, Res.CannotIndexMultiDimArray);
+						throw ParseError(errorPos, ParseErrorType.CannotIndexMultiDimArray);
 					Expression index = PromoteExpression(args[0], typeof(int), true);
 					if (index == null)
-						throw ParseError(errorPos, Res.InvalidIndex);
+						throw ParseError(errorPos, ParseErrorType.InvalidIndex);
 					return Expr.ArrayIndex(expr, index);
 				}
 				else
@@ -1855,12 +1910,12 @@ namespace ExoModel
 					switch (FindIndexer(expr.Type, ref args, out mb))
 					{
 						case 0:
-							throw ParseError(errorPos, Res.NoApplicableIndexer,
+							throw ParseError(errorPos, ParseErrorType.NoApplicableIndexer,
 								GetTypeName(expr));
 						case 1:
 							return Expr.Call(expr, (MethodInfo)mb, args);
 						default:
-							throw ParseError(errorPos, Res.AmbiguousIndexerInvocation,
+							throw ParseError(errorPos, ParseErrorType.AmbiguousIndexerInvocation,
 								GetTypeName(expr));
 					}
 				}
@@ -1959,7 +2014,7 @@ namespace ExoModel
 				Expression[] args = new Expression[] { expr };
 				MethodBase method;
 				if (FindMethod(signatures, "F", false, ref args, out method) != 1)
-					throw ParseError(errorPos, Res.IncompatibleOperand,
+					throw ParseError(errorPos, ParseErrorType.IncompatibleOperand,
 						opName, GetTypeName(args[0]));
 				expr = args[0];
 			}
@@ -1976,7 +2031,7 @@ namespace ExoModel
 
 			Exception IncompatibleOperandsError(string opName, Expression left, Expression right, int pos)
 			{
-				return ParseError(pos, Res.IncompatibleOperands,
+				return ParseError(pos, ParseErrorType.IncompatibleOperands,
 					opName, GetTypeName(left), GetTypeName(right));
 			}
 
@@ -2193,7 +2248,7 @@ namespace ExoModel
 					if (type.IsValueType || exact) return Expr.Convert(expr, type);
 					return expr;
 				}
-	
+
 				return null;
 			}
 
@@ -2662,7 +2717,7 @@ namespace ExoModel
 							NextChar();
 							while (textPos < textLen && ch != quote) NextChar();
 							if (textPos == textLen)
-								throw ParseError(textPos, Res.UnterminatedStringLiteral);
+								throw ParseError(textPos, ParseErrorType.UnterminatedStringLiteral);
 							NextChar();
 						} while (ch == quote);
 						t = TokenId.StringLiteral;
@@ -2713,7 +2768,7 @@ namespace ExoModel
 							t = TokenId.End;
 							break;
 						}
-						throw ParseError(textPos, Res.InvalidCharacter, ch);
+						throw ParseError(textPos, ParseErrorType.InvalidCharacter, ch);
 				}
 				prevToken = token;
 				token.id = t;
@@ -2733,7 +2788,7 @@ namespace ExoModel
 
 			string GetIdentifier()
 			{
-				ValidateToken(TokenId.Identifier, Res.IdentifierExpected);
+				ValidateToken(TokenId.Identifier, ParseErrorType.IdentifierExpected);
 				string id = token.text;
 				if (id.Length > 1 && id[0] == '@') id = id.Substring(1);
 				return id;
@@ -2741,27 +2796,27 @@ namespace ExoModel
 
 			void ValidateDigit()
 			{
-				if (!Char.IsDigit(ch)) throw ParseError(textPos, Res.DigitExpected);
+				if (!Char.IsDigit(ch)) throw ParseError(textPos, ParseErrorType.DigitExpected);
 			}
 
-			void ValidateToken(TokenId t, string errorMessage)
+			void ValidateToken(TokenId t, ParseErrorType error)
 			{
-				if (token.id != t) throw ParseError(errorMessage);
+				if (token.id != t) throw ParseError(error);
 			}
 
 			void ValidateToken(TokenId t)
 			{
-				if (token.id != t) throw ParseError(Res.SyntaxError);
+				if (token.id != t) throw ParseError(ParseErrorType.SyntaxError);
 			}
 
-			Exception ParseError(string format, params object[] args)
+			Exception ParseError(ParseErrorType error, params object[] args)
 			{
-				return ParseError(token.pos, format, args);
+				return ParseError(token.pos, error, args);
 			}
 
-			Exception ParseError(int pos, string format, params object[] args)
+			Exception ParseError(int pos, ParseErrorType error, params object[] args)
 			{
-				return new ParseException(string.Format(System.Globalization.CultureInfo.CurrentCulture, format, args), pos);
+				return new ParseException(error, pos, args);
 			}
 
 			static Dictionary<string, object> CreateKeywords()
