@@ -47,8 +47,8 @@ namespace ExoModel
 			this.Path = rootType.GetPath(resultExpression);
 
 			// Compile the expression to make it executable
-			if (rootType.Provider is IExpressionCompiler)
-				this.Expression = ((IExpressionCompiler)rootType.Provider).Compile(resultExpression, parameters[0]);
+			if (rootType is IExpressionCompiler)
+				this.Expression = ((IExpressionCompiler)rootType).Compile(resultExpression, parameters[0]);
 			else
 				this.Expression = ModelExpression.ExpressionCompiler.Compile(resultExpression, parameters[0]);
 		}
