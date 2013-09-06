@@ -664,9 +664,9 @@ namespace ExoModel
 		[Flags]
 		public enum IntelliSenseScope
 		{
-			StaticMembers,
-			InstanceMembers,
-			Globals
+			StaticMembers = 1,
+			InstanceMembers = 2,
+			Globals = 3
 		}
 
 		#endregion
