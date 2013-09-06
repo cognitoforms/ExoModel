@@ -230,6 +230,30 @@ namespace ExoModel
 
 		#endregion
 
+		#region ModelLambdaExpression
+
+		public class ModelLambdaExpression : Expression
+		{
+			public ModelLambdaExpression(Expression body, params ModelParameterExpression[] parameters)
+				: base(ExpressionType.Lambda, GetDelegateType(body, parameters))
+			{
+				this.Body = body;
+				this.Parameters = new ReadOnlyCollection<ModelParameterExpression>(parameters ?? new ModelParameterExpression[] { });
+			}
+
+			public Expression Body { get; private set; }
+
+			public ReadOnlyCollection<ModelParameterExpression> Parameters { get; private set; }
+
+			static Type GetDelegateType(Expression body, params ModelParameterExpression[] parameters)
+			{
+				parameters = parameters ?? new ModelParameterExpression[] {};
+				return Expr.Lambda(body, parameters.Select(p => Expr.Parameter(p.Type, p.Name)).ToArray()).Type;
+			}
+		}
+
+		#endregion
+
 		#region ModelMemberExpression
 
 		public class ModelMemberExpression : Expression, IExpressionType
@@ -824,6 +848,14 @@ namespace ExoModel
 
 			interface IEnumerableSignatures
 			{
+				void First(bool predicate);
+				void FirstOrDefault(bool predicate);
+				void First();
+				void FirstOrDefault();
+				void Last(bool predicate);
+				void LastOrDefault(bool predicate);
+				void Last();
+				void LastOrDefault();
 				void Where(bool predicate);
 				void Any();
 				void Any(bool predicate);
@@ -1798,7 +1830,7 @@ namespace ExoModel
 				}
 				else
 				{
-					args = new Expression[] { instance, Expr.Lambda(args[0], Expr.Parameter(innerIt.Type, "")) };
+					args = new Expression[] { instance, new ModelLambdaExpression(args[0], innerIt) };
 				}
 				return Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args);
 			}
@@ -2869,6 +2901,14 @@ namespace ExoModel
 				return p;
 			}
 
+			protected override Expression VisitModelLambda(ModelExpression.ModelLambdaExpression m)
+			{
+				// Visit the parameters first to set up parameter mappings
+				var parameters = m.Parameters.Select(p => (ParameterExpression)VisitModelParameter(p)).ToArray();
+
+				return Expr.Lambda(Visit(m.Body), parameters);
+			}
+
 			protected override Expression VisitModelMember(ModelMemberExpression m)
 			{
 				// Attempt to coerce the property get into a simple member invocation
@@ -2976,7 +3016,10 @@ namespace ExoModel
 						else
 							return this.VisitMethodCall((MethodCallExpression)exp);
 					case ExpressionType.Lambda:
-						return this.VisitLambda((LambdaExpression)exp);
+						if (exp is ModelExpression.ModelLambdaExpression)
+							return this.VisitModelLambda((ModelExpression.ModelLambdaExpression)exp);
+						else
+							return this.VisitLambda((LambdaExpression)exp);
 					case ExpressionType.New:
 						return this.VisitNew((NewExpression)exp);
 					case ExpressionType.NewArrayInit:
@@ -3088,6 +3131,16 @@ namespace ExoModel
 				return m;
 			}
 
+			protected virtual Expression VisitModelLambda(ModelExpression.ModelLambdaExpression m)
+			{
+				Expression exp = this.Visit(m.Body);
+				var parameters = VisitExpressionList(m.Parameters);
+
+				if (exp != m.Body || parameters != m.Parameters)
+					return new ModelExpression.ModelLambdaExpression(exp, parameters.ToArray());
+				return m;
+			}
+
 			protected virtual Expression VisitMemberAccess(MemberExpression m)
 			{
 				Expression exp = this.Visit(m.Expression);
@@ -3107,19 +3160,20 @@ namespace ExoModel
 				return m;
 			}
 
-			protected virtual ReadOnlyCollection<Expression> VisitExpressionList(ReadOnlyCollection<Expression> original)
+			protected virtual ReadOnlyCollection<T> VisitExpressionList<T>(ReadOnlyCollection<T> original)
+				where T : Expression
 			{
-				List<Expression> list = null;
+				List<T> list = null;
 				for (int i = 0, n = original.Count; i < n; i++)
 				{
-					Expression p = this.Visit(original[i]);
+					var p = this.Visit(original[i]) as T;
 					if (list != null)
 					{
 						list.Add(p);
 					}
 					else if (p != original[i])
 					{
-						list = new List<Expression>(n);
+						list = new List<T>(n);
 						for (int j = 0; j < i; j++)
 						{
 							list.Add(original[j]);

@@ -449,7 +449,7 @@ namespace ExoModel
 				foreach (var argument in m.Arguments)
 				{
 					// Perform special logic for lambdas
-					if (argument is LambdaExpression)
+					if (argument is LambdaExpression || argument is ModelExpression.ModelLambdaExpression)
 					{
 						// Get the target of the method, assuming for static methods it will be the first argument
 						// This handles the common case of extension methods, whose first parameter must be the target instance
@@ -466,7 +466,10 @@ namespace ExoModel
 						if (listType != null && steps.TryGetValue(target, out step) && step.Property is ModelReferenceProperty && step.Property.IsList)
 						{
 							// Find the parameter that will be passed elements from the list, and link it to the parent step
-							var element = ((LambdaExpression)argument).Parameters.FirstOrDefault(p => listType.GetGenericArguments()[0].IsAssignableFrom(p.Type));
+							var parameters = argument is LambdaExpression ? 
+								(IEnumerable<Expression>)((LambdaExpression)argument).Parameters : 
+								(IEnumerable<Expression>)((ModelExpression.ModelLambdaExpression)argument).Parameters;
+							var element = parameters.FirstOrDefault(p => listType.GetGenericArguments()[0].IsAssignableFrom(p.Type));
 							if (element != null)
 								steps.Add(element, step);
 
