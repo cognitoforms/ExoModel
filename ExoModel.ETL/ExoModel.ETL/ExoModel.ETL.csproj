@@ -52,7 +52,6 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DataTableBasedFile.cs" />
     <Compile Include="DelimitedFile.cs" />
     <Compile Include="Dictionary.cs" />
     <Compile Include="ExcelFile.cs" />
