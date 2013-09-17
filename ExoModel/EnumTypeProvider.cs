@@ -125,7 +125,7 @@ namespace ExoModel
 
 		#region EnumModelType
 
-		class EnumModelType : ModelType, IReflectionModelType
+		public class EnumModelType : ModelType, IReflectionModelType
 		{
 			Dictionary<string, Enum> values;
 			Dictionary<Enum, ModelInstance> instances;
