@@ -58,7 +58,8 @@ namespace ExoModel
 						pool.Push(createContext());
 					}
 
-					existing.ForEach(c => pool.Push(c));
+					foreach (var c in existing)
+						pool.Push(c);
 				}
 			}
 		}

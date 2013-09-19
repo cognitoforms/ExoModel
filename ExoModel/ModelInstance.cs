@@ -1214,7 +1214,8 @@ namespace ExoModel
 					if (destination != null)
 						clones.Add(instance, destination);
 
-					paths.ForEach(p => instance.CloneInstance(p.FirstSteps, clones, filters, wheres, pathFuncs));
+					foreach (var p in paths)
+						instance.CloneInstance(p.FirstSteps, clones, filters, wheres, pathFuncs);
 
 					var mapUnion = clones.Union(maps.Where(m => !clones.Keys.Contains(m.Key))).ToDictionary(p => p.Key, p => p.Value);
 
