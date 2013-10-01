@@ -1663,7 +1663,12 @@ namespace ExoModel
 			{
 				// Update IntelliSense
 				IntelliSense.Position = token.pos;
-				IntelliSense.Scope = instance != null ? IntelliSenseScope.InstanceMembers : IntelliSenseScope.StaticMembers;
+				if (instance != null && instance == it)
+					IntelliSense.Scope = IntelliSenseScope.Globals;
+				else if (instance != null)
+					IntelliSense.Scope = IntelliSenseScope.InstanceMembers;
+				else
+					IntelliSense.Scope = IntelliSenseScope.StaticMembers;
 				IntelliSense.Type = instance == null ? type : (instance as IExpressionType) ?? new ModelExpressionType(instance.Type);
 
 				if (instance != null) type = (instance as IExpressionType) ?? new ModelExpressionType(instance.Type);
