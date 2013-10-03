@@ -93,7 +93,17 @@ namespace ExoModel
 		public static IntelliSense ParseIntelliSense(ModelType rootType, string expression, params object[] values)
 		{
 			ModelParameterExpression[] parameters = (rootType == null ? null : new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") });
-			ExpressionParser parser = new ExpressionParser(parameters, expression, true, values);
+			ExpressionParser parser = null;
+
+			// If parser initialization fails (expressions starts with ", /, etc.) return IntelliSense that would be initialized in ExpressionParser constructor
+			try
+			{
+				parser = new ExpressionParser(parameters, expression, true, values);
+			}
+			catch
+			{
+				return new IntelliSense() { Position = 0, Type = parameters[0], Scope = parameters[0] == null ? IntelliSenseScope.Globals : IntelliSenseScope.Globals | IntelliSenseScope.InstanceMembers }; 
+			}
 
 			// Parse the expression, ignoring parse errors
 			try
