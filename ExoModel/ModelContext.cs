@@ -172,7 +172,7 @@ namespace ExoModel
 		/// </summary>
 		public static void EnsureReleased()
 		{
-			if(ModelContext.Current != null)
+			if (ModelContext.Provider != null && ModelContext.Current != null)
 				((ModelContextProvider)ModelContext.Provider).ContextPool.Put(ModelContext.Current);
 		}
 		#endregion
