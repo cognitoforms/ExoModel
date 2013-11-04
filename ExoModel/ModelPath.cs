@@ -483,6 +483,49 @@ namespace ExoModel
 				return m;
 			}
 
+			protected override Expression VisitModelCastExpression(ModelExpression.ModelCastExpression m)
+			{
+				// Visit the target of the method
+				Visit(m.Expression.Object);
+
+				// Process arguments to method calls to handle lambda expressions
+				foreach (var argument in m.Expression.Arguments)
+				{
+					// Perform special logic for lambdas
+					if (argument is LambdaExpression || argument is ModelExpression.ModelLambdaExpression)
+					{
+						// Get the target of the method, assuming for static methods it will be the first argument
+						// This handles the common case of extension methods, whose first parameter must be the target instance
+						var target = m.Expression.Object ?? m.Expression.Arguments.First();
+
+						// Determine if the target implements IEnumerable<T>, and if so, determine the type of T
+						var listType = target.Type.IsGenericType && target.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>) ? target.Type :
+							target.Type.GetInterfaces().Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>)).FirstOrDefault();
+
+						// If the instance or first parameter to a static method is represented in the expression path,
+						// the corresponding step is a reference list, and the lambda is an action or function accepting instances 
+						// from the list, assume that each instance in the list will be passed to the lambda expression
+						ModelStep step;
+						if (listType != null && steps.TryGetValue(target, out step) && step.Property is ModelReferenceProperty && step.Property.IsList)
+						{
+							// Find the parameter that will be passed elements from the list, and link it to the parent step
+							var parameters = argument is LambdaExpression ?
+								(IEnumerable<Expression>)((LambdaExpression)argument).Parameters :
+								(IEnumerable<Expression>)((ModelExpression.ModelLambdaExpression)argument).Parameters;
+							var element = parameters.FirstOrDefault(p => listType.GetGenericArguments()[0].IsAssignableFrom(p.Type));
+							if (element != null)
+								steps.Add(element, step);
+
+							// If the method return the original list, associate the step with the return value
+							if (m.Type.IsAssignableFrom(target.Type))
+								steps.Add(m, step);
+						}
+					}
+					Visit(argument);
+				}
+				return m;
+			}
+
 			protected override Expression VisitUnary(UnaryExpression u)
 			{
 				Expression exp = base.VisitUnary(u);

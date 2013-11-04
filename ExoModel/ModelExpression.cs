@@ -240,9 +240,30 @@ namespace ExoModel
 
 		#endregion
 
-		#region ModelLambdaExpression
+        #region ModelCastExpression
 
-		public class ModelLambdaExpression : Expression
+        public class ModelCastExpression : Expression, IExpressionType
+        {
+            public ModelCastExpression(MethodCallExpression expression, ModelType modelType, bool isList)
+                : base(expression.NodeType, expression.Type)
+            {
+                this.Expression = expression;
+                this.ModelType = modelType;
+                this.IsList = isList;
+            }
+
+            public MethodCallExpression Expression { get; private set; }
+
+            public ModelType ModelType { get; private set; }
+
+            public bool IsList { get; private set; }
+        }
+
+        #endregion
+
+        #region ModelLambdaExpression
+
+        public class ModelLambdaExpression : Expression
 		{
 			public ModelLambdaExpression(Expression body, params ModelParameterExpression[] parameters)
 				: base(ExpressionType.Lambda, GetDelegateType(body, parameters))
@@ -1010,17 +1031,11 @@ namespace ExoModel
 						// Automatically promote expressions to string if necessary
 						if (resultType.Type == typeof(string))
 						{
-							if (expr.Type.IsValueType)
-
-								// expr.ToString()
-								expr = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
-							else
-
-								// expr == null ? "" : expr.ToString()
-								expr = Expr.Condition(
-									Expr.Equal(expr, Expr.Constant(null)),
-									Expr.Constant(""),
-									Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes)));
+							// expr == null ? "" : expr.ToString()
+							expr = Expr.Condition(
+								Expr.Equal(expr, Expr.Constant(null)),
+								Expr.Constant(""),
+								Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes)));
 						}
 						else
 							throw ParseError(exprPos, ParseErrorType.ExpressionTypeMismatch, GetTypeName(resultType));
@@ -1847,7 +1862,18 @@ namespace ExoModel
 				{
 					args = new Expression[] { instance, new ModelLambdaExpression(args[0], innerIt) };
 				}
-				return Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args);
+                switch (signature.Name)
+                {
+                    case "First":
+                    case "FirstOrDefault":
+                    case "Last":
+                    case "LastOrDefault":
+                        return new ModelCastExpression(Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args), elementType.ModelType, false);
+                    case "Where":
+                        return new ModelCastExpression(Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args), elementType.ModelType, true);
+                    default:
+                        return Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args);
+                }
 			}
 
 			Expression[] ParseArgumentList()
@@ -2908,7 +2934,7 @@ namespace ExoModel
 					return Expr.Lambda(resultExpression);
 			}
 
-			protected override Expr VisitModelParameter(ModelParameterExpression m)
+			protected override Expression VisitModelParameter(ModelParameterExpression m)
 			{
 				ParameterExpression p;
 				if (!parameterMapping.TryGetValue(m, out p))
@@ -2916,13 +2942,18 @@ namespace ExoModel
 				return p;
 			}
 
-			protected override Expression VisitModelLambda(ModelExpression.ModelLambdaExpression m)
+			protected override Expression VisitModelLambda(ModelLambdaExpression m)
 			{
 				// Visit the parameters first to set up parameter mappings
 				var parameters = m.Parameters.Select(p => (ParameterExpression)VisitModelParameter(p)).ToArray();
 
 				return Expr.Lambda(Visit(m.Body), parameters);
 			}
+
+            protected override Expression VisitModelCastExpression(ModelCastExpression m)
+            {
+				return Visit(m.Expression);
+            }
 
 			protected override Expression VisitModelMember(ModelMemberExpression m)
 			{
@@ -3026,10 +3057,12 @@ namespace ExoModel
 					case ExpressionType.MemberAccess:
 						return this.VisitMemberAccess((MemberExpression)exp);
 					case ExpressionType.Call:
-						if (exp is ModelExpression.ModelMemberExpression)
-							return this.VisitModelMember((ModelExpression.ModelMemberExpression)exp);
-						else
-							return this.VisitMethodCall((MethodCallExpression)exp);
+                        if (exp is ModelExpression.ModelMemberExpression)
+                            return this.VisitModelMember((ModelExpression.ModelMemberExpression)exp);
+                        else if (exp is ModelExpression.ModelCastExpression)
+                            return this.VisitModelCastExpression((ModelExpression.ModelCastExpression)exp);
+                        else
+                            return this.VisitMethodCall((MethodCallExpression)exp);
 					case ExpressionType.Lambda:
 						if (exp is ModelExpression.ModelLambdaExpression)
 							return this.VisitModelLambda((ModelExpression.ModelLambdaExpression)exp);
@@ -3174,6 +3207,17 @@ namespace ExoModel
 				}
 				return m;
 			}
+
+            protected virtual Expression VisitModelCastExpression(ModelExpression.ModelCastExpression m)
+            {
+                Expression obj = this.Visit(m.Expression.Object);
+                IEnumerable<Expression> args = this.VisitExpressionList(m.Expression.Arguments);
+                if (obj != m.Expression.Object || args != m.Expression.Arguments)
+                {
+                    return new ModelExpression.ModelCastExpression(Expr.Call(obj, m.Expression.Method, args), m.ModelType, m.IsList);
+                }
+                return m;
+            }
 
 			protected virtual ReadOnlyCollection<T> VisitExpressionList<T>(ReadOnlyCollection<T> original)
 				where T : Expression
