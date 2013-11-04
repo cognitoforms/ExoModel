@@ -2506,6 +2506,13 @@ namespace ExoModel
 								return true;
 						}
 						break;
+                    case TypeCode.Double:
+                        switch (tc)
+                        {
+                            case TypeCode.Decimal:
+                                return true;
+                        }
+                        break;
 					default:
 						if (st == tt) return true;
 						break;
