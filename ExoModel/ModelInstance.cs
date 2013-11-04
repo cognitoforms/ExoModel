@@ -1164,6 +1164,20 @@ namespace ExoModel
 			}
 
 			/// <summary>
+			/// Conditionally determine whether to copy a value, given the specific property or list member.  
+			/// Filtered values will neither be used to instantiate new objects
+			/// nor be copied as references on the new model.
+			/// </summary>
+			/// <param name="filter">returns true when the property
+			/// should be considered for the cloning process.</param>
+			/// <returns></returns>
+			public Cloner Filter(Func<ModelProperty, bool> filter)
+			{
+				filters.Add(new FilterInfo { When = filter });
+				return this;
+			}
+
+			/// <summary>
 			/// Conditionally determine whether to copy a value, given the specific
 			/// <see cref="ModelProperty"/>, original instance (<typeparamref name="TType"/>),
 			/// and original value (<typeparamref name="TValue"/>) of the 
@@ -1248,14 +1262,19 @@ namespace ExoModel
 				}
 			}
 
-			internal abstract class FilterInfo
+			internal class FilterInfo
 			{
-				internal abstract bool Allows(ModelProperty property, object item, object value);
+				internal Func<ModelProperty, bool> When { get; set; }
+
+				internal virtual bool Allows(ModelProperty property, object item, object value)
+				{
+					return When(property);
+				}
 			}
 
 			class FilterInfo<TType, TValue> : FilterInfo
 			{
-				internal Func<ModelProperty, TType, TValue, bool> When { get; set; }
+				internal new Func<ModelProperty, TType, TValue, bool> When { get; set; }
 
 				internal override bool Allows(ModelProperty property, object instance, object value)
 				{
