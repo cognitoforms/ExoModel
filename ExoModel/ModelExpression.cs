@@ -1031,11 +1031,17 @@ namespace ExoModel
 						// Automatically promote expressions to string if necessary
 						if (resultType.Type == typeof(string))
 						{
-							// expr == null ? "" : expr.ToString()
-							expr = Expr.Condition(
-								Expr.Equal(expr, Expr.Constant(null)),
-								Expr.Constant(""),
-								Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes)));
+							if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+							{
+								// expr == null ? "" : expr.ToString()
+								expr = Expr.Condition(
+									Expr.Equal(expr, Expr.Constant(null)),
+									Expr.Constant(""),
+									Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes)));
+							}
+							else
+								// expr.ToString()
+								expr = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
 						}
 						else
 							throw ParseError(exprPos, ParseErrorType.ExpressionTypeMismatch, GetTypeName(resultType));
