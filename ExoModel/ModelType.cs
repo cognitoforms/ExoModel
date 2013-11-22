@@ -180,6 +180,7 @@ namespace ExoModel
 		protected internal void Initialize(ModelContext context)
 		{
 			if (isInitialized) return;
+
 			// Set the context the model type is registered with
 			this.Context = context;
 

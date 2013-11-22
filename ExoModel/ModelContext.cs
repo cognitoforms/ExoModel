@@ -308,7 +308,21 @@ namespace ExoModel
 					// Attempt to create the model type if it is not cached
 					foreach (var provider in typeProviders)
 					{
-						type = provider.CreateModelType(typeName);
+						// Allow initialization of cacheable types when attempted to load non-cachable types
+						if (initializing && !provider.IsCachable)
+						{
+							try
+							{
+								initializing = false;
+								type = provider.CreateModelType(typeName);
+							}
+							finally
+							{
+								initializing = true;
+							}
+						}
+						else
+							type = provider.CreateModelType(typeName);
 						if (type != null)
 						{
 							if (type.Provider == null)
