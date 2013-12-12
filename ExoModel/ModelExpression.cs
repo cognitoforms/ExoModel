@@ -1692,6 +1692,10 @@ namespace ExoModel
 
 			Expression ParseMemberAccess(IExpressionType type, Expression instance)
 			{
+				// Coerce nullable expressions to their non-nullable equivalents by accessing the Value property.
+				if (instance != null && instance.Type.IsGenericType && instance.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+					instance = Expr.MakeMemberAccess(instance, instance.Type.GetMember("Value")[0]);
+
 				// Update IntelliSense
 				IntelliSense.Position = token.pos;
 				if (instance != null && instance == it)
@@ -1703,13 +1707,15 @@ namespace ExoModel
 				IntelliSense.Type = instance == null ? type : (instance as IExpressionType) ?? new ModelExpressionType(instance.Type);
 
 				if (instance != null) type = (instance as IExpressionType) ?? new ModelExpressionType(instance.Type);
+				
 				int errorPos = token.pos;
 
 				string id = GetIdentifier();
 				NextToken();
+				// Parse method
 				if (token.id == TokenId.OpenParen)
 				{
-					if (instance != null && type != typeof(string) && type.Type != typeof(string))
+					if (instance != null && type.Type != typeof(string))
 					{
 						if (type.ModelType != null)
 						{
@@ -1730,6 +1736,7 @@ namespace ExoModel
 					}
 					Expression[] args = ParseArgumentList();
 					MethodBase mb;
+
 					switch (FindMethod(type.Type, id, instance == null, ref args, out mb))
 					{
 						case 0:
@@ -1780,6 +1787,7 @@ namespace ExoModel
 								id, GetTypeName(type));
 					}
 				}
+				// Parse property
 				else
 				{
 					if (type.ModelType != null)
@@ -2090,6 +2098,7 @@ namespace ExoModel
 
 			void CheckAndPromoteOperand(Type signatures, string opName, ref Expression expr, int errorPos)
 			{
+				expr = CheckAndPromoteNullable(expr, errorPos);
 				Expression[] args = new Expression[] { expr };
 				MethodBase method;
 				if (FindMethod(signatures, "F", false, ref args, out method) != 1)
@@ -2100,12 +2109,23 @@ namespace ExoModel
 
 			void CheckAndPromoteOperands(Type signatures, string opName, ref Expression left, ref Expression right, int errorPos)
 			{
+				left = CheckAndPromoteNullable(left, errorPos);
+				right = CheckAndPromoteNullable(right, errorPos);
 				Expression[] args = new Expression[] { left, right };
 				MethodBase method;
 				if (FindMethod(signatures, "F", false, ref args, out method) != 1)
 					throw IncompatibleOperandsError(opName, left, right, errorPos);
 				left = args[0];
 				right = args[1];
+			}
+
+			Expression CheckAndPromoteNullable(Expression expr, int errorPos)
+			{
+				// Coerce nullable expressions to their non-nullable equivalents by accessing the Value property.
+				if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+					return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(expr.Type.GetGenericArguments().First())), expr.Type, errorPos));
+				else
+					return expr;
 			}
 
 			Exception IncompatibleOperandsError(string opName, Expression left, Expression right, int pos)
