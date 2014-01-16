@@ -15,42 +15,63 @@ namespace ExoModel.ETL
 	/// </summary>
 	public class RowInstance : ModelInstance, IModelInstance
 	{
-		string[] values;
+		object[] values;
 
-		internal RowInstance(ModelType type)
-			: this(type, new string[type.Properties.Count])
-		{ }
-
-		internal RowInstance(ModelType type, string[] values)
+		internal RowInstance(RowModelType type)
 			: base(type, "")
 		{
-			// Handle situations where the source array is smaller than the expected row size
-			if (values.Length < type.Properties.Count)
+			this.values = new object[type.Properties.Count];
+
+			// Initialize list properties
+			foreach (var property in type.Properties)
 			{
-				this.values = new string[type.Properties.Count];
-				values.CopyTo(this.values, 0);
-				for (var i = values.Length; i < this.values.Length; i++)
-					this.values[i] = String.Empty;
+				if (property is ModelReferenceProperty && ((ModelReferenceProperty)property).IsList)
+					this.values[property.Index] = new RowInstanceList(this);
 			}
-			else
-				this.values = values;
 		}
+
+		class RowInstanceList : System.Collections.ObjectModel.Collection<RowInstance>
+		{
+			RowInstance parent;
+			internal RowInstanceList(RowInstance parent)
+			{
+				this.parent = parent;
+			}
+
+			protected override void InsertItem(int index, RowInstance item)
+			{
+				item.Index = index;
+				base.InsertItem(index, item);
+				item.Parent = parent;
+			}
+		}
+
+		public RowInstance Parent { get; private set; }
+
+		public int Index { get; private set; }
 
 		ModelInstance IModelInstance.Instance
 		{
 			get { return this; }
 		}
 
-		public new object this[ModelProperty property]
+		internal object this[int index]
+		{
+			get { return values[index]; }
+			set { values[index] = value;  }
+		}
+
+		internal IEnumerable<string> Values
 		{
 			get
 			{
-				return values[property.Index];
+				return Type.Properties.OfType<ModelValueProperty>().Select(p => this.GetFormattedValue(p));
 			}
-			set
-			{
-				values[property.Index] = value as string;
-			}
+		}
+
+		public override string ToString()
+		{
+			return Id;
 		}
 	}
 }

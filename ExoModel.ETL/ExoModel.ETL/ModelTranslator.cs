@@ -7,138 +7,111 @@ using System.Text.RegularExpressions;
 using System.Web.Query.Dynamic;
 using System.ComponentModel;
 using System.Threading;
+using System.Collections;
 
 namespace ExoModel.ETL
 {
 	/// <summary>
-	/// Translates from one <see cref="ModelType"/> to another using a set of <see cref="PropertyMapping"/> expressions.
+	/// Translates from one <see cref="ModelType"/> to another using a set of property translation expressions.
 	/// </summary>
 	public class ModelTranslator
 	{
-		ModelType SourceType { get; set; }
+		Func<ModelInstance, ModelInstance> createDestinationInstance;
 
-		ModelType DestinationType { get; set; }
+		Func<ModelProperty, TypeConverter> getValueConverter;
 
-		PropertyTranslation[] Translations { get; set; }
+		public ModelType SourceType { get; private set; }
 
-		/// <summary>
-		/// Creates a new <see cref="ModelTranslator"/> to support translation from the specified source <see cref="ModelType"/> 
-		/// to the specified destination <see cref="ModelType"/> with a specified set of property mappings.
-		/// </summary>
-		/// <param name="sourceType"></param>
-		/// <param name="destinationType"></param>
-		/// <param name="mappings"></param>
-		public ModelTranslator(ModelType sourceType, ModelType destinationType, params string[] mappings)
-			: this(sourceType, destinationType, (IEnumerable<string>)mappings)
-		{ }
+		public ModelType DestinationType { get; private set; }
+
+		public ModelTranslator Parent { get; private set; }
+
+		List<PropertyTranslator> Properties { get; set; }
 
 		/// <summary>
 		/// Creates a new <see cref="ModelTranslator"/> to support translation from the specified source <see cref="ModelType"/> 
-		/// to the specified destination <see cref="ModelType"/> with a specified set of property mappings.
+		/// to the specified destination <see cref="ModelType"/> with a specified set of property translations.
 		/// </summary>
-		/// <param name="sourceType"></param>
-		/// <param name="destinationType"></param>
-		/// <param name="mappings"></param>
-		public ModelTranslator(ModelType sourceType, ModelType destinationType, IEnumerable<string> mappings)
+		/// <param name="translation"></param>
+		public ModelTranslator(ModelType sourceType, ModelType destinationType, IEnumerable<string> mappings = null, Func<ModelProperty, TypeConverter> getValueConverter = null, Func<ModelInstance, ModelInstance> createDestinationInstance = null)
 		{
 			this.SourceType = sourceType;
 			this.DestinationType = destinationType;
+			this.createDestinationInstance = createDestinationInstance ?? ((source) => DestinationType.Create(source.Id) ?? DestinationType.Create());
+			this.getValueConverter = getValueConverter ?? (property => property is ModelValueProperty ? ((ModelValueProperty)property).Converter : null);
+			this.Properties = new List<PropertyTranslator>();
 
 			// Create a compiled translation for each property mapping
-			this.Translations = mappings.Select(m =>
+			if (mappings != null)
 			{
-				var index = m.IndexOf("=");
-				if (index < 0)
-					throw new ArgumentException("Invalid mapping expression: must be in the form of 'Destination Path = Source Expression'.");
+				foreach (var mapping in mappings)
+				{
+					var index = mapping.IndexOf("=");
+					if (index < 0)
+						throw new ArgumentException("Invalid mapping expression: must be in the form of 'Destination Path = Source Expression'.");
 
-				var sourceExpression = m.Substring(index + 1).Trim();
-				var destinationPath = m.Substring(0, index).Trim();
-
-				// Replace property labels with property names in mapping expressions
-				foreach (var property in sourceType.Properties)
-					sourceExpression = sourceExpression
-						.Replace("[" + property.Label + "]", property.Name)
-						.Replace(property.Label, property.Name);
-
-				// Create a translation containing compiled source expressions and destination sources
-
-				ModelSource destinationSource;
-				if (!ModelSource.TryGetSource(destinationType, destinationPath, out destinationSource))
-					throw new ApplicationException(string.Format("ModelSource cannot be found for this path {0}", destinationPath));
-
-				var destinationProperty = destinationType.Context.GetModelType(destinationSource.SourceType).Properties[destinationSource.SourceProperty];
-				return new PropertyTranslation() {
-					SourceExpression = String.IsNullOrEmpty(sourceExpression) ? null : sourceType.GetExpression(sourceExpression),
-					DestinationSource = destinationSource,
-					DestinationProperty = destinationProperty,
-					ValueConverter = 
-						destinationProperty is ModelValueProperty
-						? GetConverter((ModelValueProperty)destinationProperty) : null
-				};
-			})
-			.ToArray();
-		}
-
-		/// <summary>
-		/// Gets the appropriate converter for the specified <see cref="ModelValueProperty"/>.
-		/// </summary>
-		/// <param name="property"></param>
-		/// <returns></returns>
-		/// <remarks>
-		/// Custom converters can be introduced here to improve the resilency of the import process.  
-		/// For example, the default DecimalConverter does not support commas, so is overriden.
-		/// </remarks>
-		TypeConverter GetConverter(ModelValueProperty property)
-		{
-			if (property.PropertyType == typeof(decimal) && (property.Converter == null || property.Converter.GetType() == typeof(System.ComponentModel.DecimalConverter)))
-				return DecimalConverter.Default;
-			if (property.PropertyType == typeof(decimal?) && (property.Converter == null || (property.Converter.GetType() == typeof(NullableConverter) && ((NullableConverter)property.Converter).UnderlyingTypeConverter.GetType() == typeof(System.ComponentModel.DecimalConverter))))
-				return NullableDecimalConverter.Default;
-			return property.Converter;
-		}
-
-		/// <summary>
-		/// Adds support for parsing decimals that include thousands separators.
-		/// </summary>
-		class DecimalConverter : System.ComponentModel.DecimalConverter
-		{
-			internal static readonly DecimalConverter Default = new DecimalConverter();
-
-			public override object ConvertFrom(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value)
-			{
-				if (value is string)
-					return Decimal.Parse((string)value);
-				return base.ConvertFrom(context, culture, value);
+					var sourceExpression = mapping.Substring(index + 1).Trim();
+					var destinationPath = mapping.Substring(0, index).Trim();
+					AddPropertyTranslation(sourceExpression, destinationPath);
+				}
 			}
 		}
 
 		/// <summary>
-		/// Adds support for parsing nullable decimals that include thousands separators.
+		/// Adds a value <see cref="PropertyTranslator"/> to the current <see cref="ModelTranslator"/>.
 		/// </summary>
-		class NullableDecimalConverter : NullableConverter
+		/// <param name="sourceExpression">The source expression</param>
+		/// <param name="destinationPath">The destination path</param>
+		/// <param name="valueConverter">The optional value converter to use</param>
+		public void AddPropertyTranslation(string sourceExpression, string destinationPath, TypeConverter valueConverter = null)
 		{
-			internal static readonly NullableDecimalConverter Default = new NullableDecimalConverter();
+			// Replace property labels with property names in mapping expressions
+			foreach (var property in SourceType.Properties)
+				sourceExpression = sourceExpression.Replace("[" + property.Label + "]", property.Name);
 
-			NullableDecimalConverter()
-				: base(typeof(decimal?))
-			{ }
+			// Create a translation containing compiled source expressions and destination sources
+			ModelSource destinationSource;
+			ModelProperty destinationProperty;
+			if (!ModelSource.TryGetSource(DestinationType, destinationPath, out destinationSource, out destinationProperty))
+				throw new ApplicationException(string.Format("ModelSource cannot be found for this path {0}", destinationPath));
 
-			public override object ConvertFrom(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value)
+			// Add the new value property translation
+			Properties.Add(new PropertyTranslator()
 			{
-				if (value is string)
-					return String.IsNullOrWhiteSpace((string)value) ? null : (decimal?)Decimal.Parse((string)value);
-				return base.ConvertFrom(context, culture, value);
-			}
+				SourceExpression = String.IsNullOrEmpty(sourceExpression) ? null : SourceType.GetExpression(sourceExpression),
+				DestinationSource = destinationSource,
+				DestinationProperty = destinationProperty,
+				ValueConverter = valueConverter ?? getValueConverter(destinationProperty)
+			});
 		}
-		
+
 		/// <summary>
-		/// Translates the specified instances of the source type into the destination type.
+		/// Adds a value <see cref="PropertyTranslator"/> to the current <see cref="ModelTranslator"/>.
 		/// </summary>
-		/// <param name="sourceInstances">The list of objects created dynamically that will need to be translated.</param>
-		/// <returns></returns>
-		public IEnumerable<ModelInstance> Translate(IEnumerable<ModelInstance> sourceInstances)
+		/// <param name="sourceExpression">The source expression</param>
+		/// <param name="destinationPath">The destination path</param>
+		/// <param name="valueConverter">The optional value converter to use</param>
+		public void AddPropertyTranslation(string sourceExpression, string destinationPath, ModelTranslator referenceConverter)
 		{
-			return Translate(sourceInstances, (source) => DestinationType.Create(source.Id) ?? DestinationType.Create());
+			// Replace property labels with property names in mapping expressions
+			foreach (var property in SourceType.Properties)
+				sourceExpression = sourceExpression
+					.Replace("[" + property.Label + "]", property.Name);
+
+			// Create a translation containing compiled source expressions and destination sources
+			ModelSource destinationSource;
+			ModelProperty destinationProperty;
+			if (!ModelSource.TryGetSource(DestinationType, destinationPath, out destinationSource, out destinationProperty))
+				throw new ApplicationException(string.Format("ModelSource cannot be found for this path {0}", destinationPath));
+
+			// Add the new value property translation
+			Properties.Add(new PropertyTranslator()
+			{
+				SourceExpression = String.IsNullOrEmpty(sourceExpression) ? null : SourceType.GetExpression(sourceExpression),
+				DestinationSource = destinationSource,
+				DestinationProperty = destinationProperty,
+				ReferenceConverter = referenceConverter
+			});
 		}
 
 		/// <summary>
@@ -147,11 +120,11 @@ namespace ExoModel.ETL
 		/// <param name="sourceInstances">The list of objects created dynamically that will need to be translated.</param>
 		/// <param name="createDestinationInstance">A delegate that creates the destination instance for the specified source instance.</param>
 		/// <returns></returns>
-		public IEnumerable<ModelInstance> Translate(IEnumerable<ModelInstance> sourceInstances, Func<ModelInstance, ModelInstance> createDestinationInstance)
+		public IEnumerable<ModelInstance> Translate(IEnumerable<ModelInstance> sourceInstances)
 		{
 			// Translate all source instances
 			foreach (ModelInstance source in sourceInstances)
-				yield return Translate(source, createDestinationInstance);
+				yield return Translate(source);
 		}
 
 		/// <summary>
@@ -160,62 +133,72 @@ namespace ExoModel.ETL
 		/// <param name="source"></param>
 		/// <param name="createDestinationInstance"></param>
 		/// <returns></returns>
-		public ModelInstance Translate(ModelInstance source, Func<ModelInstance, ModelInstance> createDestinationInstance)
+		public ModelInstance Translate(ModelInstance source)
 		{
 			// Create the destination instance
 			var destination = createDestinationInstance(source);
 
 			// Apply each property transaction from source to destination
-			foreach (var translation in Translations)
+			foreach (var property in Properties)
 			{
 				// Invoke the source expression for the mapping
-				var value = translation.SourceExpression == null ? null : translation.SourceExpression.Invoke(source);
+				var value = property.SourceExpression == null ? null : property.SourceExpression.Invoke(source);
 
-				// Handle conversion of value properties
-				if (value != null && translation.ValueConverter != null && !((ModelValueProperty)translation.DestinationProperty).PropertyType.IsAssignableFrom(value.GetType()))
-					value = translation.ValueConverter.ConvertFrom(null, Thread.CurrentThread.CurrentCulture, value);
-
-				//the destination property is an enum, see if it is a concrete type
-				//and has a converter associated with it.  This is handled outside
-				//the normal converter paradigm since enums are reference types in ExoModel
-				if (value != null && translation.DestinationProperty is IReflectionModelType &&
-					((IReflectionModelType)translation.DestinationProperty).UnderlyingType.BaseType == typeof(Enum))
+				// Translate reference properties
+				if (property.ReferenceConverter != null)
 				{
-					switch (value.ToString())
+					// Translate list properties
+					if (property.DestinationProperty.IsList)
 					{
-						//if the enum value is empty just set it to it's default value
-						case "":
-							value = 0;
-							break;
-						default:
-							{
-								var underlyingDestinationType =
-									((IReflectionModelType)translation.DestinationProperty).UnderlyingType;
+						var sourceList = ((IEnumerable)property.SourceExpression.Invoke(source)).Cast<object>().Select(i => ModelInstance.GetModelInstance(i));
+						var destinationList = property.DestinationSource.GetList(destination);
 
-								var converter = TypeDescriptor.GetConverter(underlyingDestinationType);
-								value = converter.ConvertFrom(value);
-							}
-							break;
+						foreach (var instance in property.ReferenceConverter.Translate(sourceList))
+							destinationList.Add(instance);
+					}
+
+					// Translate instance properties
+					else
+					{
+						var sourceInstance = ModelInstance.GetModelInstance(property.SourceExpression.Invoke(source));
+						var destinationInstance = property.ReferenceConverter.Translate(sourceInstance);
+						property.DestinationSource.SetValue(destination, destinationInstance.Instance, EnsureDestinationInstance);
 					}
 				}
 
-				// Set the value on the destination instance
-				translation.DestinationSource.SetValue(destination, value,
+				// Translate value properties
+				else
+				{
+					if (value != null && property.ValueConverter != null && !((ModelValueProperty)property.DestinationProperty).PropertyType.IsAssignableFrom(value.GetType()))
+						value = property.ValueConverter.ConvertFrom(null, Thread.CurrentThread.CurrentCulture, value);
 
-					// Ensure the destination instance path is valid when nulls are encountered along the path
-					(instance, property, index) =>
+					//the destination property is an enum, see if it is a concrete type
+					//and has a converter associated with it.  This is handled outside
+					//the normal converter paradigm since enums are reference types in ExoModel
+					if (value != null && property.DestinationProperty is IReflectionModelType &&
+						((IReflectionModelType)property.DestinationProperty).UnderlyingType.BaseType == typeof(Enum))
 					{
-						if (property.IsList)
+						switch (value.ToString())
 						{
-							ModelInstanceList list = instance.GetList(property);
-							for (int i = list.Count; i <= index; i++)
-								list.Add(property.PropertyType.Create());
-						}
-						else
-							instance.SetReference(property, property.PropertyType.Create());
+							//if the enum value is empty just set it to it's default value
+							case "":
+								value = 0;
+								break;
+							default:
+								{
+									var underlyingDestinationType =
+										((IReflectionModelType)property.DestinationProperty).UnderlyingType;
 
-						return true;
-					});
+									var converter = TypeDescriptor.GetConverter(underlyingDestinationType);
+									value = converter.ConvertFrom(value);
+								}
+								break;
+						}
+					}
+
+					// Set the value on the destination instance
+					property.DestinationSource.SetValue(destination, value, EnsureDestinationInstance);
+				}
 			}
 
 			// Return the translated instance
@@ -223,17 +206,39 @@ namespace ExoModel.ETL
 		}
 
 		/// <summary>
-		/// Represents the translation of a property from a source to destination model instance.
+		/// Ensure the destination instance path is valid when nulls are encountered along the path.
 		/// </summary>
-		class PropertyTranslation
+		/// <param name="instance"></param>
+		/// <param name="property"></param>
+		/// <param name="index"></param>
+		bool EnsureDestinationInstance(ModelInstance instance, ModelReferenceProperty property, int index)
 		{
-			internal ModelExpression SourceExpression { get; set; }
+			if (property.IsList)
+			{
+				ModelInstanceList list = instance.GetList(property);
+				for (int i = list.Count; i <= index; i++)
+					list.Add(property.PropertyType.Create());
+			}
+			else
+				instance.SetReference(property, property.PropertyType.Create());
 
-			internal ModelSource DestinationSource { get; set; }
-
-			internal ModelProperty DestinationProperty { get; set; }
-
-			internal TypeConverter ValueConverter { get; set; }
+			return true;
 		}
+	}
+
+	/// <summary>
+	/// Represents the translation of a property from a source to destination model instance.
+	/// </summary>
+	public class PropertyTranslator
+	{
+		internal ModelExpression SourceExpression { get; set; }
+
+		internal ModelSource DestinationSource { get; set; }
+
+		internal ModelProperty DestinationProperty { get; set; }
+
+		internal TypeConverter ValueConverter { get; set; }
+
+		internal ModelTranslator ReferenceConverter { get; set; }
 	}
 }
