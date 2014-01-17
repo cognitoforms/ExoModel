@@ -2149,6 +2149,13 @@ namespace ExoModel
 
 			int FindMethod(Type type, string methodName, bool staticAccess, ref Expression[] args, out MethodBase method)
 			{
+				Expression[] coercedArgs = new Expression[args.Length];
+				for (int i = 0; i < args.Length; i++ )
+				{
+					// Coerce nullable expressions to their non-nullable equivalents by accessing the Value property.
+					if (args[i].Type.IsGenericType && args[i].Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+						args[i] = Expr.MakeMemberAccess(args[i], args[i].Type.GetMember("Value")[0]);
+				}
 				BindingFlags flags = BindingFlags.Public | BindingFlags.DeclaredOnly |
 					(staticAccess ? BindingFlags.Static : BindingFlags.Instance);
 				foreach (Type t in SelfAndBaseTypes(type))
