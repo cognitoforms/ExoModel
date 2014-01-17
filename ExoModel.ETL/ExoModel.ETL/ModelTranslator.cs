@@ -150,11 +150,13 @@ namespace ExoModel.ETL
 					// Translate list properties
 					if (property.DestinationProperty.IsList)
 					{
-						var sourceList = ((IEnumerable)property.SourceExpression.Invoke(source)).Cast<object>().Select(i => ModelInstance.GetModelInstance(i));
-						var destinationList = property.DestinationSource.GetList(destination);
-
-						foreach (var instance in property.ReferenceConverter.Translate(sourceList))
-							destinationList.Add(instance);
+						var sourceList = ((IEnumerable)property.SourceExpression.Invoke(source));
+						if (sourceList != null)
+						{
+							var destinationList = property.DestinationSource.GetList(destination);
+							foreach (var instance in property.ReferenceConverter.Translate(sourceList.Cast<object>().Select(i => ModelInstance.GetModelInstance(i))))
+								destinationList.Add(instance);
+						}
 					}
 
 					// Translate instance properties
