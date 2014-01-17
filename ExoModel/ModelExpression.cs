@@ -1564,8 +1564,8 @@ namespace ExoModel
 					throw ParseError(errorPos, ParseErrorType.FirstExprMustBeBool);
 				if (expr1.Type != expr2.Type)
 				{
-					Expression expr1as2 = expr2 != nullLiteral ? PromoteExpression(expr1, expr2.Type, true) : null;
-					Expression expr2as1 = expr1 != nullLiteral ? PromoteExpression(expr2, expr1.Type, true) : null;
+					Expression expr1as2 = expr2 != nullLiteral || (expr1.Type.IsValueType && !(expr1.Type.IsGenericType && expr1.Type.GetGenericTypeDefinition() == typeof(Nullable<>))) ? PromoteExpression(expr1, expr2.Type, true) : null;
+					Expression expr2as1 = expr1 != nullLiteral || (expr2.Type.IsValueType && !(expr2.Type.IsGenericType && expr2.Type.GetGenericTypeDefinition() == typeof(Nullable<>))) ? PromoteExpression(expr2, expr1.Type, true) : null;
 					if (expr1as2 != null && expr2as1 == null)
 					{
 						expr1 = expr1as2;
