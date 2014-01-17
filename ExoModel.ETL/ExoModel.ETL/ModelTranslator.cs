@@ -33,10 +33,11 @@ namespace ExoModel.ETL
 		/// to the specified destination <see cref="ModelType"/> with a specified set of property translations.
 		/// </summary>
 		/// <param name="translation"></param>
-		public ModelTranslator(ModelType sourceType, ModelType destinationType, IEnumerable<string> mappings = null, Func<ModelProperty, TypeConverter> getValueConverter = null, Func<ModelInstance, ModelInstance> createDestinationInstance = null)
+		public ModelTranslator(ModelType sourceType, ModelType destinationType, ModelTranslator parent = null,IEnumerable<string> mappings = null, Func<ModelProperty, TypeConverter> getValueConverter = null, Func<ModelInstance, ModelInstance> createDestinationInstance = null)
 		{
 			this.SourceType = sourceType;
 			this.DestinationType = destinationType;
+			this.Parent = parent;
 			this.createDestinationInstance = createDestinationInstance ?? ((source) => DestinationType.Create(source.Id) ?? DestinationType.Create());
 			this.getValueConverter = getValueConverter ?? (property => property is ModelValueProperty ? ((ModelValueProperty)property).Converter : null);
 			this.Properties = new List<PropertyTranslator>();

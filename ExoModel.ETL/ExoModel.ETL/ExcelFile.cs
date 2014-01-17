@@ -36,7 +36,7 @@ namespace ExoModel.ETL
 		public static ITable Read(Stream file, TableMapping mapping = null)
 		{
 			var excelFile = new ExcelFile(file);
-
+			
 			// Infer or load mappings from the spreadsheet if they are not specified explicitly
 			if (mapping == null)
 				throw new NotImplementedException("Add support for inferring the mappings for single sheet imports or loading the mappings from a manifest sheet.");
@@ -144,8 +144,19 @@ namespace ExoModel.ETL
 				{
 					DataType = new EnumValue<CellValues>(CellValues.Number);
 					if (!String.IsNullOrWhiteSpace(column.Format))
-						Style = CreateStyle(1110.ToString(column.Format).Replace("1", "#") + ";" + (-1110).ToString(column.Format).Replace("1", "#"), document);
-					GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : Double.Parse(v, NumberStyles.Any).ToString();
+					{
+						var percentSymbol = NumberFormatInfo.CurrentInfo.PercentSymbol;
+						if (column.Format == "P" || column.Format == "p" || column.Format.Contains(NumberFormatInfo.CurrentInfo.PercentSymbol))
+						{
+							Style = CreateStyle(11.10.ToString(column.Format).Replace("1", "#") + ";" + (-11.10).ToString(column.Format).Replace("1", "#"), document);
+							GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : (Double.Parse(v.Replace(NumberFormatInfo.CurrentInfo.PercentSymbol, ""), NumberStyles.Any)/100).ToString();
+						}
+						else
+							Style = CreateStyle(1110.ToString(column.Format).Replace("1", "#") + ";" + (-1110).ToString(column.Format).Replace("1", "#"), document);
+					}
+						
+					if (GetCellValue == null)
+						GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : Double.Parse(v, NumberStyles.Any).ToString();
 				}
 				else
 					if (type == typeof(DateTime) || type == typeof(Nullable<DateTime>))
