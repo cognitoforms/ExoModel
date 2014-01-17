@@ -436,7 +436,7 @@ namespace ExoModel.ETL
 				parent = parent.Parent;
 			if (parent == null)
 				return null;
-			return parent.Id;
+			return parent.Parent == null ? (object)parent.Id : parent.Index + 1;
 		}
 
 		protected override void SetValue(object instance, object value)
