@@ -175,17 +175,17 @@ namespace ExoModel.UnitTest
 
 			protected override bool GetIsModified(object instance)
 			{
-				throw new NotImplementedException();
+				return false;
 			}
 
 			protected override bool GetIsDeleted(object instance)
 			{
-				throw new NotImplementedException();
+				return false;
 			}
 
 			protected override bool GetIsPendingDelete(object instance)
 			{
-				throw new NotImplementedException();
+				return false;
 			}
 
 			protected override void SetIsPendingDelete(object instance, bool isPendingDelete)
