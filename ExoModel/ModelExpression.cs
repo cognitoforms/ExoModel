@@ -915,6 +915,7 @@ namespace ExoModel
 				void Average(double? selector);
 				void Average(decimal selector);
 				void Average(decimal? selector);
+				void Select(object selector);
 			}
 
 			static readonly Type[] predefinedTypes = {
@@ -1860,7 +1861,7 @@ namespace ExoModel
 				if (FindMethod(typeof(IEnumerableSignatures), methodName, false, ref args, out signature) != 1)
 					throw ParseError(errorPos, ParseErrorType.NoApplicableAggregate, methodName);
 				Type[] typeArgs;
-				if (signature.Name == "Min" || signature.Name == "Max")
+				if (signature.Name == "Min" || signature.Name == "Max" || signature.Name == "Select")
 				{
 					typeArgs = new Type[] { elementType.Type, args[0].Type };
 				}
@@ -1884,6 +1885,7 @@ namespace ExoModel
                     case "LastOrDefault":
                         return new ModelCastExpression(Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args), elementType.ModelType, false);
                     case "Where":
+					case "Select":
                         return new ModelCastExpression(Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args), elementType.ModelType, true);
                     default:
                         return Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args);
@@ -2262,12 +2264,36 @@ namespace ExoModel
 							if (elements.Any(e => e == null))
 								return null;
 
-							// Handling boxing of value types and casting of null literals
-							if (!arrayType.IsValueType)
+							// If only one parameter was specified for a params array and it is enumerable, attempt to coerce into an array
+							if (elements.Length == 1 && elements[0].Type.IsGenericType &&  elements[0].Type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
 							{
-								for (var i = 0; i < elements.Length; i++)
-									if (elements[i].Type.IsValueType || elements[i] == nullLiteral)
-										elements[i] = Expr.Convert(elements[i], arrayType);
+								var enumerableType = elements[0].Type.GetGenericArguments()[0];
+
+								// Handling boxing of value types and casting of null literals
+								if (!arrayType.IsValueType)
+								{
+									if (enumerableType.IsValueType || elements[0] == nullLiteral)
+									{
+										elements = new Expression[] { Expr.Call(typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(arrayType), elements[0]) };
+										enumerableType = arrayType;
+									}
+								}
+
+								elements = new Expression[] { Expr.Call(typeof(Enumerable).GetMethod("ToArray").MakeGenericMethod(enumerableType), elements[0]) };
+							}
+
+							// Otherwise, coerce into an array literal
+							else
+							{
+								// Handling boxing of value types and casting of null literals
+								if (!arrayType.IsValueType)
+								{
+									for (var i = 0; i < elements.Length; i++)
+										if (elements[i].Type.IsValueType || elements[i] == nullLiteral)
+											elements[i] = Expr.Convert(elements[i], arrayType);
+								}
+
+								elements = new Expression[] { Expr.NewArrayInit(arrayType, elements) };
 							}
 
 							// Return the matching method information
@@ -2275,7 +2301,7 @@ namespace ExoModel
 							{
 								MethodBase = m,
 								Parameters = parameters,
-								Args = searchArgs.Take(parameters.Count() - 1).Concat(new Expression[] { Expr.NewArrayInit(arrayType, elements) }).ToArray()
+								Args = searchArgs.Take(parameters.Count() - 1).Concat(elements).ToArray()
 							};
 						}).
 						Where(m => m != null).
