@@ -1032,7 +1032,16 @@ namespace ExoModel
 						// Automatically promote expressions to string if necessary
 						if (resultType.Type == typeof(string))
 						{
-							if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+							// Use String.Join(", ", enumerableList) to print out an IEnumerable list
+							if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+							{
+								expr = Expr.Call(typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(typeof(Object)), expr);
+								expr = Expr.Call(typeof(Enumerable).GetMethod("ToArray").MakeGenericMethod(typeof(Object)), expr);
+
+								MethodInfo joinMethod = typeof(String).GetMethod("Join", new Type[] { typeof(String), typeof(Object[]) });
+								expr = Expr.Call(joinMethod, new Expr[] { Expr.Constant(", "), expr });
+							}
+							else if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
 							{
 								// expr == null ? "" : expr.ToString()
 								expr = Expr.Condition(
