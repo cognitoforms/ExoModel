@@ -164,7 +164,7 @@ namespace ExoModel
 		/// <returns></returns>
 		string IFormattable.ToString(string format, IFormatProvider formatProvider)
 		{
-			return this.Aggregate("", (result, i) => result + "," + i);
+			return this.Aggregate("", (result, i) => result + (result == "" ? "" : ", ") + i);
 		}
 
 		#endregion
