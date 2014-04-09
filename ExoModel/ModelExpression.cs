@@ -1041,7 +1041,7 @@ namespace ExoModel
 								MethodInfo joinMethod = typeof(String).GetMethod("Join", new Type[] { typeof(String), typeof(Object[]) });
 								expr = Expr.Call(joinMethod, new Expr[] { Expr.Constant(", "), expr });
 							}
-							else if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+							else if (IsNullableType(expr.Type))
 							{
 								// expr == null ? "" : expr.ToString()
 								expr = Expr.Condition(
@@ -1574,8 +1574,8 @@ namespace ExoModel
 					throw ParseError(errorPos, ParseErrorType.FirstExprMustBeBool);
 				if (expr1.Type != expr2.Type)
 				{
-					Expression expr1as2 = expr2 != nullLiteral || (expr1.Type.IsValueType && !(expr1.Type.IsGenericType && expr1.Type.GetGenericTypeDefinition() == typeof(Nullable<>))) ? PromoteExpression(expr1, expr2.Type, true) : null;
-					Expression expr2as1 = expr1 != nullLiteral || (expr2.Type.IsValueType && !(expr2.Type.IsGenericType && expr2.Type.GetGenericTypeDefinition() == typeof(Nullable<>))) ? PromoteExpression(expr2, expr1.Type, true) : null;
+					Expression expr1as2 = expr2 != nullLiteral || (expr1.Type.IsValueType && !(IsNullableType(expr1.Type))) ? PromoteExpression(expr1, expr2.Type, true) : null;
+					Expression expr2as1 = expr1 != nullLiteral || (expr2.Type.IsValueType && !(IsNullableType(expr2.Type))) ? PromoteExpression(expr2, expr1.Type, true) : null;
 					if (expr1as2 != null && expr2as1 == null)
 					{
 						expr1 = expr1as2;
@@ -1703,7 +1703,7 @@ namespace ExoModel
 			Expression ParseMemberAccess(IExpressionType type, Expression instance)
 			{
 				// Coerce nullable expressions to their non-nullable equivalents by accessing the Value property.
-				if (instance != null && instance.Type.IsGenericType && instance.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+				if (instance != null && IsNullableType(instance.Type))
 					instance = Expr.MakeMemberAccess(instance, instance.Type.GetMember("Value")[0]);
 
 				// Update IntelliSense
@@ -2109,7 +2109,7 @@ namespace ExoModel
 
 			void CheckAndPromoteOperand(Type signatures, string opName, ref Expression expr, int errorPos)
 			{
-				expr = CheckAndPromoteNullable(expr, errorPos);
+				expr = CheckAndPromoteNullable(expr, signatures, errorPos);
 				Expression[] args = new Expression[] { expr };
 				MethodBase method;
 				if (FindMethod(signatures, "F", false, ref args, out method) != 1)
@@ -2120,23 +2120,38 @@ namespace ExoModel
 
 			void CheckAndPromoteOperands(Type signatures, string opName, ref Expression left, ref Expression right, int errorPos)
 			{
-				left = CheckAndPromoteNullable(left, errorPos);
-				right = CheckAndPromoteNullable(right, errorPos);
+				left = CheckAndPromoteNullable(left, signatures, errorPos);
+				right = CheckAndPromoteNullable(right, signatures, errorPos);
 				Expression[] args = new Expression[] { left, right };
 				MethodBase method;
-				if (FindMethod(signatures, "F", false, ref args, out method) != 1)
+				if (FindMethod(signatures, "F", false, ref args, out method, signatures != typeof(IEqualitySignatures)) != 1)
 					throw IncompatibleOperandsError(opName, left, right, errorPos);
 				left = args[0];
 				right = args[1];
 			}
 
-			Expression CheckAndPromoteNullable(Expression expr, int errorPos)
+			// For binary and unary expressions, promote nullable types to their underlying type's default value
+			Expression CheckAndPromoteNullable(Expression expr, Type signatures, int errorPos)
 			{
-				// Coerce nullable expressions to their non-nullable equivalents by accessing the Value property.
-				if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
-					return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(expr.Type.GetGenericArguments().First())), expr.Type, errorPos));
-				else
+				// Ignore types that cannot have a value of null
+				if (!IsNullableType(expr.Type) && expr.Type.IsValueType)
 					return expr;
+
+				Type type = GetNonNullableType(expr.Type);
+
+				// If performing arithmetic on numbers, set null values to 0 (default value)
+				if (IsNumericType(type) && signatures != typeof(IEqualitySignatures))
+					return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(type)), expr.Type, errorPos));
+
+				// Set null values to 1/1/1970 (default value)
+				else if (type == typeof(DateTime) && signatures != typeof(IEqualitySignatures))
+					return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(type)), expr.Type, errorPos));
+
+				// For relational/comparison expressions set null values to empty string
+				else if (type == typeof(String) && signatures == (typeof(IRelationalSignatures)))
+					return Expr.Coalesce(expr, Expr.Constant(""));
+
+				return expr;
 			}
 
 			Exception IncompatibleOperandsError(string opName, Expression left, Expression right, int pos)
@@ -2158,13 +2173,12 @@ namespace ExoModel
 				return null;
 			}
 
-			int FindMethod(Type type, string methodName, bool staticAccess, ref Expression[] args, out MethodBase method)
+			int FindMethod(Type type, string methodName, bool staticAccess, ref Expression[] args, out MethodBase method, bool coerceNullable = true)
 			{
-				Expression[] coercedArgs = new Expression[args.Length];
 				for (int i = 0; i < args.Length; i++ )
 				{
 					// Coerce nullable expressions to their non-nullable equivalents by accessing the Value property.
-					if (args[i].Type.IsGenericType && args[i].Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+					if (IsNullableType(args[i].Type) && coerceNullable)
 						args[i] = Expr.MakeMemberAccess(args[i], args[i].Type.GetMember("Value")[0]);
 				}
 				BindingFlags flags = BindingFlags.Public | BindingFlags.DeclaredOnly |
