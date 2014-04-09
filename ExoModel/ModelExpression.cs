@@ -2123,6 +2123,7 @@ namespace ExoModel
 				left = CheckAndPromoteNullable(left, signatures, errorPos);
 				right = CheckAndPromoteNullable(right, signatures, errorPos);
 				Expression[] args = new Expression[] { left, right };
+				args = CheckAndPromoteDateTimeComparison(args, signatures, errorPos);
 				MethodBase method;
 				if (FindMethod(signatures, "F", false, ref args, out method, signatures != typeof(IEqualitySignatures)) != 1)
 					throw IncompatibleOperandsError(opName, left, right, errorPos);
@@ -2152,6 +2153,45 @@ namespace ExoModel
 					return Expr.Coalesce(expr, Expr.Constant(""));
 
 				return expr;
+			}
+
+			// For certain binary expressions containing a String and DateTime, try to promote String to DateTime
+			Expression[] CheckAndPromoteDateTimeComparison(Expression[] args, Type signatures, int errorPos)
+			{
+				// Return if not a supported type
+				if (signatures != typeof(ISubtractSignatures) && signatures != typeof(IEqualitySignatures) && signatures != typeof(IRelationalSignatures))
+					return args;
+
+				Expression dateExpr, stringExpr;
+				bool dateIsFirst;
+				
+				// Check if one side is DateTime and the other is String
+				if (GetNonNullableType(args[0].Type) == typeof(DateTime) && args[1].Type == typeof(String))
+				{
+					dateExpr = args[0];
+					stringExpr = args[1];
+					dateIsFirst = true;
+				}
+				else if (args[0].Type == typeof(String) && GetNonNullableType(args[1].Type) == typeof(DateTime))
+				{
+					stringExpr = args[0];
+					dateExpr = args[1];
+					dateIsFirst = false;
+				}
+				else
+					return args;
+
+				// Parse the string expression
+				MethodInfo tryParseMethod = typeof(DateTime).GetMethod("TryParse", new Type[] { typeof(String), typeof(DateTime).MakeByRefType() });
+				var outParam = Expr.Parameter(typeof(DateTime).MakeByRefType(), "dateParam");
+				MethodInfo parseMethod = typeof(DateTime).GetMethod("Parse", new Type[] { typeof(String) });
+
+				stringExpr = Expr.Condition(
+					Expr.Call(tryParseMethod, new Expr[] { stringExpr, outParam }),
+					GenerateConversion(Expr.Call(parseMethod, new Expr[] { stringExpr }), typeof(DateTime?), errorPos),
+					GenerateConversion(Expr.Constant(null), typeof(DateTime?), errorPos));
+
+				return dateIsFirst ? new Expression[] { dateExpr, stringExpr } : new Expression[] { stringExpr, dateExpr };
 			}
 
 			Exception IncompatibleOperandsError(string opName, Expression left, Expression right, int pos)
