@@ -102,7 +102,7 @@ namespace ExoModel
 			}
 			catch
 			{
-				return new IntelliSense() { Position = 0, Type = parameters[0], Scope = parameters[0] == null ? IntelliSenseScope.Globals : IntelliSenseScope.Globals | IntelliSenseScope.InstanceMembers }; 
+				return new IntelliSense() { Position = 0, Type = parameters[0], Scope = parameters[0] == null ? IntelliSenseScope.Globals : IntelliSenseScope.Globals | IntelliSenseScope.InstanceMembers };
 			}
 
 			// Parse the expression, ignoring parse errors
@@ -240,30 +240,30 @@ namespace ExoModel
 
 		#endregion
 
-        #region ModelCastExpression
+		#region ModelCastExpression
 
-        public class ModelCastExpression : Expression, IExpressionType
-        {
-            public ModelCastExpression(MethodCallExpression expression, ModelType modelType, bool isList)
-                : base(expression.NodeType, expression.Type)
-            {
-                this.Expression = expression;
-                this.ModelType = modelType;
-                this.IsList = isList;
-            }
+		public class ModelCastExpression : Expression, IExpressionType
+		{
+			public ModelCastExpression(MethodCallExpression expression, ModelType modelType, bool isList)
+				: base(expression.NodeType, expression.Type)
+			{
+				this.Expression = expression;
+				this.ModelType = modelType;
+				this.IsList = isList;
+			}
 
-            public MethodCallExpression Expression { get; private set; }
+			public MethodCallExpression Expression { get; private set; }
 
-            public ModelType ModelType { get; private set; }
+			public ModelType ModelType { get; private set; }
 
-            public bool IsList { get; private set; }
-        }
+			public bool IsList { get; private set; }
+		}
 
-        #endregion
+		#endregion
 
-        #region ModelLambdaExpression
+		#region ModelLambdaExpression
 
-        public class ModelLambdaExpression : Expression
+		public class ModelLambdaExpression : Expression
 		{
 			public ModelLambdaExpression(Expression body, params ModelParameterExpression[] parameters)
 				: base(ExpressionType.Lambda, GetDelegateType(body, parameters))
@@ -278,7 +278,7 @@ namespace ExoModel
 
 			static Type GetDelegateType(Expression body, params ModelParameterExpression[] parameters)
 			{
-				parameters = parameters ?? new ModelParameterExpression[] {};
+				parameters = parameters ?? new ModelParameterExpression[] { };
 				return Expr.Lambda(body, parameters.Select(p => Expr.Parameter(p.Type, p.Name)).ToArray()).Type;
 			}
 		}
@@ -1041,7 +1041,7 @@ namespace ExoModel
 								MethodInfo joinMethod = typeof(String).GetMethod("Join", new Type[] { typeof(String), typeof(Object[]) });
 								expr = Expr.Call(joinMethod, new Expr[] { Expr.Constant(", "), expr });
 							}
-							else if (IsNullableType(expr.Type))
+							else if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
 							{
 								// expr == null ? "" : expr.ToString()
 								expr = Expr.Condition(
@@ -1574,8 +1574,8 @@ namespace ExoModel
 					throw ParseError(errorPos, ParseErrorType.FirstExprMustBeBool);
 				if (expr1.Type != expr2.Type)
 				{
-					Expression expr1as2 = expr2 != nullLiteral || (expr1.Type.IsValueType && !(IsNullableType(expr1.Type))) ? PromoteExpression(expr1, expr2.Type, true) : null;
-					Expression expr2as1 = expr1 != nullLiteral || (expr2.Type.IsValueType && !(IsNullableType(expr2.Type))) ? PromoteExpression(expr2, expr1.Type, true) : null;
+					Expression expr1as2 = expr2 != nullLiteral || (expr1.Type.IsValueType && !(expr1.Type.IsGenericType && expr1.Type.GetGenericTypeDefinition() == typeof(Nullable<>))) ? PromoteExpression(expr1, expr2.Type, true) : null;
+					Expression expr2as1 = expr1 != nullLiteral || (expr2.Type.IsValueType && !(expr2.Type.IsGenericType && expr2.Type.GetGenericTypeDefinition() == typeof(Nullable<>))) ? PromoteExpression(expr2, expr1.Type, true) : null;
 					if (expr1as2 != null && expr2as1 == null)
 					{
 						expr1 = expr1as2;
@@ -1703,7 +1703,7 @@ namespace ExoModel
 			Expression ParseMemberAccess(IExpressionType type, Expression instance)
 			{
 				// Coerce nullable expressions to their non-nullable equivalents by accessing the Value property.
-				if (instance != null && IsNullableType(instance.Type))
+				if (instance != null && instance.Type.IsGenericType && instance.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
 					instance = Expr.MakeMemberAccess(instance, instance.Type.GetMember("Value")[0]);
 
 				// Update IntelliSense
@@ -1717,7 +1717,7 @@ namespace ExoModel
 				IntelliSense.Type = instance == null ? type : (instance as IExpressionType) ?? new ModelExpressionType(instance.Type);
 
 				if (instance != null) type = (instance as IExpressionType) ?? new ModelExpressionType(instance.Type);
-				
+
 				int errorPos = token.pos;
 
 				string id = GetIdentifier();
@@ -1886,19 +1886,19 @@ namespace ExoModel
 				{
 					args = new Expression[] { instance, new ModelLambdaExpression(args[0], innerIt) };
 				}
-                switch (signature.Name)
-                {
-                    case "First":
-                    case "FirstOrDefault":
-                    case "Last":
-                    case "LastOrDefault":
-                        return new ModelCastExpression(Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args), elementType.ModelType, false);
-                    case "Where":
+				switch (signature.Name)
+				{
+					case "First":
+					case "FirstOrDefault":
+					case "Last":
+					case "LastOrDefault":
+						return new ModelCastExpression(Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args), elementType.ModelType, false);
+					case "Where":
 					case "Select":
-                        return new ModelCastExpression(Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args), elementType.ModelType, true);
-                    default:
-                        return Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args);
-                }
+						return new ModelCastExpression(Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args), elementType.ModelType, true);
+					default:
+						return Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args);
+				}
 			}
 
 			Expression[] ParseArgumentList()
@@ -2109,7 +2109,7 @@ namespace ExoModel
 
 			void CheckAndPromoteOperand(Type signatures, string opName, ref Expression expr, int errorPos)
 			{
-				expr = CheckAndPromoteNullable(expr, signatures, errorPos);
+				expr = CheckAndPromoteNullable(expr, errorPos);
 				Expression[] args = new Expression[] { expr };
 				MethodBase method;
 				if (FindMethod(signatures, "F", false, ref args, out method) != 1)
@@ -2120,78 +2120,23 @@ namespace ExoModel
 
 			void CheckAndPromoteOperands(Type signatures, string opName, ref Expression left, ref Expression right, int errorPos)
 			{
-				left = CheckAndPromoteNullable(left, signatures, errorPos);
-				right = CheckAndPromoteNullable(right, signatures, errorPos);
+				left = CheckAndPromoteNullable(left, errorPos);
+				right = CheckAndPromoteNullable(right, errorPos);
 				Expression[] args = new Expression[] { left, right };
-				args = CheckAndPromoteDateTimeComparison(args, signatures, errorPos);
 				MethodBase method;
-				if (FindMethod(signatures, "F", false, ref args, out method, signatures != typeof(IEqualitySignatures)) != 1)
+				if (FindMethod(signatures, "F", false, ref args, out method) != 1)
 					throw IncompatibleOperandsError(opName, left, right, errorPos);
 				left = args[0];
 				right = args[1];
 			}
 
-			// For binary and unary expressions, promote nullable types to their underlying type's default value
-			Expression CheckAndPromoteNullable(Expression expr, Type signatures, int errorPos)
+			Expression CheckAndPromoteNullable(Expression expr, int errorPos)
 			{
-				// Ignore types that cannot have a value of null
-				if (!IsNullableType(expr.Type) && expr.Type.IsValueType)
-					return expr;
-
-				Type type = GetNonNullableType(expr.Type);
-
-				// If performing arithmetic on numbers, set null values to 0 (default value)
-				if (IsNumericType(type) && signatures != typeof(IEqualitySignatures))
-					return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(type)), expr.Type, errorPos));
-
-				// Set null values to 1/1/1970 (default value)
-				else if (type == typeof(DateTime) && signatures != typeof(IEqualitySignatures))
-					return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(type)), expr.Type, errorPos));
-
-				// For relational/comparison expressions set null values to empty string
-				else if (type == typeof(String) && signatures == (typeof(IRelationalSignatures)))
-					return Expr.Coalesce(expr, Expr.Constant(""));
-
-				return expr;
-			}
-
-			// For certain binary expressions containing a String and DateTime, try to promote String to DateTime
-			Expression[] CheckAndPromoteDateTimeComparison(Expression[] args, Type signatures, int errorPos)
-			{
-				// Return if not a supported type
-				if (signatures != typeof(ISubtractSignatures) && signatures != typeof(IEqualitySignatures) && signatures != typeof(IRelationalSignatures))
-					return args;
-
-				Expression dateExpr, stringExpr;
-				bool dateIsFirst;
-				
-				// Check if one side is DateTime and the other is String
-				if (GetNonNullableType(args[0].Type) == typeof(DateTime) && args[1].Type == typeof(String))
-				{
-					dateExpr = args[0];
-					stringExpr = args[1];
-					dateIsFirst = true;
-				}
-				else if (args[0].Type == typeof(String) && GetNonNullableType(args[1].Type) == typeof(DateTime))
-				{
-					stringExpr = args[0];
-					dateExpr = args[1];
-					dateIsFirst = false;
-				}
+				// Coerce nullable expressions to their non-nullable equivalents by accessing the Value property.
+				if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+					return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(expr.Type.GetGenericArguments().First())), expr.Type, errorPos));
 				else
-					return args;
-
-				// Parse the string expression
-				MethodInfo tryParseMethod = typeof(DateTime).GetMethod("TryParse", new Type[] { typeof(String), typeof(DateTime).MakeByRefType() });
-				var outParam = Expr.Parameter(typeof(DateTime).MakeByRefType(), "dateParam");
-				MethodInfo parseMethod = typeof(DateTime).GetMethod("Parse", new Type[] { typeof(String) });
-
-				stringExpr = Expr.Condition(
-					Expr.Call(tryParseMethod, new Expr[] { stringExpr, outParam }),
-					GenerateConversion(Expr.Call(parseMethod, new Expr[] { stringExpr }), typeof(DateTime?), errorPos),
-					GenerateConversion(Expr.Constant(null), typeof(DateTime?), errorPos));
-
-				return dateIsFirst ? new Expression[] { dateExpr, stringExpr } : new Expression[] { stringExpr, dateExpr };
+					return expr;
 			}
 
 			Exception IncompatibleOperandsError(string opName, Expression left, Expression right, int pos)
@@ -2213,12 +2158,13 @@ namespace ExoModel
 				return null;
 			}
 
-			int FindMethod(Type type, string methodName, bool staticAccess, ref Expression[] args, out MethodBase method, bool coerceNullable = true)
+			int FindMethod(Type type, string methodName, bool staticAccess, ref Expression[] args, out MethodBase method)
 			{
-				for (int i = 0; i < args.Length; i++ )
+				Expression[] coercedArgs = new Expression[args.Length];
+				for (int i = 0; i < args.Length; i++)
 				{
 					// Coerce nullable expressions to their non-nullable equivalents by accessing the Value property.
-					if (IsNullableType(args[i].Type) && coerceNullable)
+					if (args[i].Type.IsGenericType && args[i].Type.GetGenericTypeDefinition() == typeof(Nullable<>))
 						args[i] = Expr.MakeMemberAccess(args[i], args[i].Type.GetMember("Value")[0]);
 				}
 				BindingFlags flags = BindingFlags.Public | BindingFlags.DeclaredOnly |
@@ -2328,7 +2274,7 @@ namespace ExoModel
 								return null;
 
 							// If only one parameter was specified for a params array and it is enumerable, attempt to coerce into an array
-							if (elements.Length == 1 && elements[0].Type.IsGenericType &&  elements[0].Type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+							if (elements.Length == 1 && elements[0].Type.IsGenericType && elements[0].Type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
 							{
 								var enumerableType = elements[0].Type.GetGenericArguments()[0];
 
@@ -2628,13 +2574,13 @@ namespace ExoModel
 								return true;
 						}
 						break;
-                    case TypeCode.Double:
-                        switch (tc)
-                        {
-                            case TypeCode.Decimal:
-                                return true;
-                        }
-                        break;
+					case TypeCode.Double:
+						switch (tc)
+						{
+							case TypeCode.Decimal:
+								return true;
+						}
+						break;
 					default:
 						if (st == tt) return true;
 						break;
@@ -3079,10 +3025,10 @@ namespace ExoModel
 				return Expr.Lambda(Visit(m.Body), parameters);
 			}
 
-            protected override Expression VisitModelCastExpression(ModelCastExpression m)
-            {
+			protected override Expression VisitModelCastExpression(ModelCastExpression m)
+			{
 				return Visit(m.Expression);
-            }
+			}
 
 			protected override Expression VisitModelMember(ModelMemberExpression m)
 			{
@@ -3186,12 +3132,12 @@ namespace ExoModel
 					case ExpressionType.MemberAccess:
 						return this.VisitMemberAccess((MemberExpression)exp);
 					case ExpressionType.Call:
-                        if (exp is ModelExpression.ModelMemberExpression)
-                            return this.VisitModelMember((ModelExpression.ModelMemberExpression)exp);
-                        else if (exp is ModelExpression.ModelCastExpression)
-                            return this.VisitModelCastExpression((ModelExpression.ModelCastExpression)exp);
-                        else
-                            return this.VisitMethodCall((MethodCallExpression)exp);
+						if (exp is ModelExpression.ModelMemberExpression)
+							return this.VisitModelMember((ModelExpression.ModelMemberExpression)exp);
+						else if (exp is ModelExpression.ModelCastExpression)
+							return this.VisitModelCastExpression((ModelExpression.ModelCastExpression)exp);
+						else
+							return this.VisitMethodCall((MethodCallExpression)exp);
 					case ExpressionType.Lambda:
 						if (exp is ModelExpression.ModelLambdaExpression)
 							return this.VisitModelLambda((ModelExpression.ModelLambdaExpression)exp);
@@ -3337,16 +3283,16 @@ namespace ExoModel
 				return m;
 			}
 
-            protected virtual Expression VisitModelCastExpression(ModelExpression.ModelCastExpression m)
-            {
-                Expression obj = this.Visit(m.Expression.Object);
-                IEnumerable<Expression> args = this.VisitExpressionList(m.Expression.Arguments);
-                if (obj != m.Expression.Object || args != m.Expression.Arguments)
-                {
-                    return new ModelExpression.ModelCastExpression(Expr.Call(obj, m.Expression.Method, args), m.ModelType, m.IsList);
-                }
-                return m;
-            }
+			protected virtual Expression VisitModelCastExpression(ModelExpression.ModelCastExpression m)
+			{
+				Expression obj = this.Visit(m.Expression.Object);
+				IEnumerable<Expression> args = this.VisitExpressionList(m.Expression.Arguments);
+				if (obj != m.Expression.Object || args != m.Expression.Arguments)
+				{
+					return new ModelExpression.ModelCastExpression(Expr.Call(obj, m.Expression.Method, args), m.ModelType, m.IsList);
+				}
+				return m;
+			}
 
 			protected virtual ReadOnlyCollection<T> VisitExpressionList<T>(ReadOnlyCollection<T> original)
 				where T : Expression
