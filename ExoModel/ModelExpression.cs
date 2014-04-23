@@ -2142,15 +2142,30 @@ namespace ExoModel
 
 				// If performing arithmetic on numbers, set null values to 0 (default value)
 				if (IsNumericType(type) && signatures != typeof(IEqualitySignatures))
-					return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(type)), expr.Type, errorPos));
+				{
+					if (expr is ConstantExpression)
+						return ((ConstantExpression)expr).Value == null ? Expr.Constant(Activator.CreateInstance(type)) : expr;
+					else
+						return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(type)), expr.Type, errorPos));
+				}
 
 				// Set null values to 1/1/1970 (default value)
 				else if (type == typeof(DateTime) && signatures != typeof(IEqualitySignatures))
-					return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(type)), expr.Type, errorPos));
+				{
+					if (expr is ConstantExpression)
+						return ((ConstantExpression)expr).Value == null ? Expr.Constant(Activator.CreateInstance(type)) : expr;
+					else
+						return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(type)), expr.Type, errorPos));
+				}
 
 				// For relational/comparison expressions set null values to empty string
 				else if (type == typeof(String) && signatures == (typeof(IRelationalSignatures)))
-					return Expr.Coalesce(expr, Expr.Constant(""));
+				{
+					if (expr is ConstantExpression)
+						return ((ConstantExpression)expr).Value == null ? Expr.Constant("") : expr;
+					else
+						return Expr.Coalesce(expr, Expr.Constant(""));
+				}
 
 				return expr;
 			}
