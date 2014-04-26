@@ -503,6 +503,26 @@ namespace ExoModel
 			return exp;
 		}
 
+
+		public bool TryExpression<TResult>(string expression, out ModelExpression modelExpression, ModelExpression.QuerySyntax querySyntax = ModelExpression.QuerySyntax.DotNet)
+		{
+			return TryExpression(typeof(TResult), expression, out modelExpression, querySyntax);
+		}
+
+		public bool TryExpression(Type resultType, string expression, out ModelExpression modelExpression, ModelExpression.QuerySyntax querySyntax = ModelExpression.QuerySyntax.DotNet)
+		{
+			try
+			{
+				modelExpression = GetExpression(resultType, expression, querySyntax);
+				return true;
+			}
+			catch (Exception e)
+			{
+				modelExpression = null;
+				return false; 
+			}
+		}
+
 		/// <summary>
 		///  Gets the <see cref="ModelPath"/> starting from the current <see cref="ModelType"/> based
 		/// on the specified path string.
