@@ -504,12 +504,12 @@ namespace ExoModel
 		}
 
 
-		public bool TryExpression<TResult>(string expression, out ModelExpression modelExpression, ModelExpression.QuerySyntax querySyntax = ModelExpression.QuerySyntax.DotNet)
+		public bool TryGetExpression<TResult>(string expression, out ModelExpression modelExpression, ModelExpression.QuerySyntax querySyntax = ModelExpression.QuerySyntax.DotNet)
 		{
-			return TryExpression(typeof(TResult), expression, out modelExpression, querySyntax);
+			return TryGetExpression(typeof(TResult), expression, out modelExpression, querySyntax);
 		}
 
-		public bool TryExpression(Type resultType, string expression, out ModelExpression modelExpression, ModelExpression.QuerySyntax querySyntax = ModelExpression.QuerySyntax.DotNet)
+		public bool TryGetExpression(Type resultType, string expression, out ModelExpression modelExpression, ModelExpression.QuerySyntax querySyntax = ModelExpression.QuerySyntax.DotNet)
 		{
 			try
 			{
