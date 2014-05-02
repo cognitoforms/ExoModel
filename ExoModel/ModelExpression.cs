@@ -1706,10 +1706,6 @@ namespace ExoModel
 				if (instance != null && IsNullableType(instance.Type))
 					instance = Expr.MakeMemberAccess(instance, instance.Type.GetMember("Value")[0]);
 
-				// Coerce null string to an empty string
-				if (instance.Type == typeof(string))
-					instance = Expr.Coalesce(instance, Expr.Constant(""));
-
 				// Update IntelliSense
 				IntelliSense.Position = token.pos;
 				if (instance != null && instance == it)
