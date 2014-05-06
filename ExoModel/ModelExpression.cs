@@ -1041,7 +1041,7 @@ namespace ExoModel
 								MethodInfo joinMethod = typeof(String).GetMethod("Join", new Type[] { typeof(String), typeof(Object[]) });
 								expr = Expr.Call(joinMethod, new Expr[] { Expr.Constant(", "), expr });
 							}
-							else if (IsNullableType(expr.Type))
+							else if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
 							{
 								// expr == null ? "" : expr.ToString()
 								expr = Expr.Condition(
@@ -1574,8 +1574,8 @@ namespace ExoModel
 					throw ParseError(errorPos, ParseErrorType.FirstExprMustBeBool);
 				if (expr1.Type != expr2.Type)
 				{
-					Expression expr1as2 = expr2 != nullLiteral || (expr1.Type.IsValueType && !(IsNullableType(expr1.Type))) ? PromoteExpression(expr1, expr2.Type, true) : null;
-					Expression expr2as1 = expr1 != nullLiteral || (expr2.Type.IsValueType && !(IsNullableType(expr2.Type))) ? PromoteExpression(expr2, expr1.Type, true) : null;
+					Expression expr1as2 = expr2 != nullLiteral || (expr1.Type.IsValueType && !(expr1.Type.IsGenericType && expr1.Type.GetGenericTypeDefinition() == typeof(Nullable<>))) ? PromoteExpression(expr1, expr2.Type, true) : null;
+					Expression expr2as1 = expr1 != nullLiteral || (expr2.Type.IsValueType && !(expr2.Type.IsGenericType && expr2.Type.GetGenericTypeDefinition() == typeof(Nullable<>))) ? PromoteExpression(expr2, expr1.Type, true) : null;
 					if (expr1as2 != null && expr2as1 == null)
 					{
 						expr1 = expr1as2;
@@ -1703,12 +1703,8 @@ namespace ExoModel
 			Expression ParseMemberAccess(IExpressionType type, Expression instance)
 			{
 				// Coerce nullable expressions to their non-nullable equivalents by accessing the Value property.
-				if (instance != null && IsNullableType(instance.Type))
+				if (instance != null && instance.Type.IsGenericType && instance.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
 					instance = Expr.MakeMemberAccess(instance, instance.Type.GetMember("Value")[0]);
-
-				// Coerce null string to an empty string
-				if (instance != null && instance.Type == typeof(string))
-					instance = Expr.Coalesce(instance, Expr.Constant(""));
 
 				// Update IntelliSense
 				IntelliSense.Position = token.pos;
@@ -2113,7 +2109,7 @@ namespace ExoModel
 
 			void CheckAndPromoteOperand(Type signatures, string opName, ref Expression expr, int errorPos)
 			{
-				expr = CheckAndPromoteNullable(expr, signatures, errorPos);
+				expr = CheckAndPromoteNullable(expr, errorPos);
 				Expression[] args = new Expression[] { expr };
 				MethodBase method;
 				if (FindMethod(signatures, "F", false, ref args, out method) != 1)
@@ -2124,93 +2120,23 @@ namespace ExoModel
 
 			void CheckAndPromoteOperands(Type signatures, string opName, ref Expression left, ref Expression right, int errorPos)
 			{
-				left = CheckAndPromoteNullable(left, signatures, errorPos);
-				right = CheckAndPromoteNullable(right, signatures, errorPos);
+				left = CheckAndPromoteNullable(left, errorPos);
+				right = CheckAndPromoteNullable(right, errorPos);
 				Expression[] args = new Expression[] { left, right };
-				args = CheckAndPromoteDateTimeComparison(args, signatures, errorPos);
 				MethodBase method;
-				if (FindMethod(signatures, "F", false, ref args, out method, signatures != typeof(IEqualitySignatures)) != 1)
+				if (FindMethod(signatures, "F", false, ref args, out method) != 1)
 					throw IncompatibleOperandsError(opName, left, right, errorPos);
 				left = args[0];
 				right = args[1];
 			}
 
-			// For binary and unary expressions, promote nullable types to their underlying type's default value
-			Expression CheckAndPromoteNullable(Expression expr, Type signatures, int errorPos)
+			Expression CheckAndPromoteNullable(Expression expr, int errorPos)
 			{
-				// Ignore types that cannot have a value of null
-				if (!IsNullableType(expr.Type) && expr.Type.IsValueType)
-					return expr;
-
-				Type type = GetNonNullableType(expr.Type);
-
-				// If performing arithmetic on numbers, set null values to 0 (default value)
-				if (IsNumericType(type) && signatures != typeof(IEqualitySignatures))
-				{
-					if (expr is ConstantExpression)
-						return ((ConstantExpression)expr).Value == null ? Expr.Constant(Activator.CreateInstance(type)) : expr;
-					else
-						return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(type)), expr.Type, errorPos));
-				}
-
-				// Set null values to 1/1/1970 (default value)
-				else if (type == typeof(DateTime) && signatures != typeof(IEqualitySignatures))
-				{
-					if (expr is ConstantExpression)
-						return ((ConstantExpression)expr).Value == null ? Expr.Constant(Activator.CreateInstance(type)) : expr;
-					else
-						return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(type)), expr.Type, errorPos));
-				}
-
-				// For relational/comparison expressions set null values to empty string
-				else if (type == typeof(String) && signatures == (typeof(IRelationalSignatures)))
-				{
-					if (expr is ConstantExpression)
-						return ((ConstantExpression)expr).Value == null ? Expr.Constant("") : expr;
-					else
-						return Expr.Coalesce(expr, Expr.Constant(""));
-				}
-
-				return expr;
-			}
-
-			// For certain binary expressions containing a String and DateTime, try to promote String to DateTime
-			Expression[] CheckAndPromoteDateTimeComparison(Expression[] args, Type signatures, int errorPos)
-			{
-				// Return if not a supported type
-				if (signatures != typeof(ISubtractSignatures) && signatures != typeof(IEqualitySignatures) && signatures != typeof(IRelationalSignatures))
-					return args;
-
-				Expression dateExpr, stringExpr;
-				bool dateIsFirst;
-
-				// Check if one side is DateTime and the other is String
-				if (GetNonNullableType(args[0].Type) == typeof(DateTime) && args[1].Type == typeof(String))
-				{
-					dateExpr = args[0];
-					stringExpr = args[1];
-					dateIsFirst = true;
-				}
-				else if (args[0].Type == typeof(String) && GetNonNullableType(args[1].Type) == typeof(DateTime))
-				{
-					stringExpr = args[0];
-					dateExpr = args[1];
-					dateIsFirst = false;
-				}
+				// Coerce nullable expressions to their non-nullable equivalents by accessing the Value property.
+				if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+					return Expr.Coalesce(expr, GenerateConversion(Expr.Constant(Activator.CreateInstance(expr.Type.GetGenericArguments().First())), expr.Type, errorPos));
 				else
-					return args;
-
-				// Parse the string expression
-				MethodInfo tryParseMethod = typeof(DateTime).GetMethod("TryParse", new Type[] { typeof(String), typeof(DateTime).MakeByRefType() });
-				var outParam = Expr.Parameter(typeof(DateTime).MakeByRefType(), "dateParam");
-				MethodInfo parseMethod = typeof(DateTime).GetMethod("Parse", new Type[] { typeof(String) });
-
-				stringExpr = Expr.Condition(
-					Expr.Call(tryParseMethod, new Expr[] { stringExpr, outParam }),
-					GenerateConversion(Expr.Call(parseMethod, new Expr[] { stringExpr }), typeof(DateTime?), errorPos),
-					GenerateConversion(Expr.Constant(null), typeof(DateTime?), errorPos));
-
-				return dateIsFirst ? new Expression[] { dateExpr, stringExpr } : new Expression[] { stringExpr, dateExpr };
+					return expr;
 			}
 
 			Exception IncompatibleOperandsError(string opName, Expression left, Expression right, int pos)
@@ -2232,12 +2158,13 @@ namespace ExoModel
 				return null;
 			}
 
-			int FindMethod(Type type, string methodName, bool staticAccess, ref Expression[] args, out MethodBase method, bool coerceNullable = true)
+			int FindMethod(Type type, string methodName, bool staticAccess, ref Expression[] args, out MethodBase method)
 			{
+				Expression[] coercedArgs = new Expression[args.Length];
 				for (int i = 0; i < args.Length; i++)
 				{
 					// Coerce nullable expressions to their non-nullable equivalents by accessing the Value property.
-					if (IsNullableType(args[i].Type) && coerceNullable)
+					if (args[i].Type.IsGenericType && args[i].Type.GetGenericTypeDefinition() == typeof(Nullable<>))
 						args[i] = Expr.MakeMemberAccess(args[i], args[i].Type.GetMember("Value")[0]);
 				}
 				BindingFlags flags = BindingFlags.Public | BindingFlags.DeclaredOnly |
