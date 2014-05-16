@@ -117,6 +117,21 @@ namespace ExoModel
 			return parser.IntelliSense;
 		}
 
+		public static RenameExpression ParseRenameExpression(ModelType oldRootType, string expression, string oldContainingPath, string newContainingPath, params object[] values)
+		{
+			var parameters = oldRootType == null ? null : new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(oldRootType, false), "") };
+
+			// Setup objects
+			ExpressionParser parser = new ExpressionParser(parameters, expression.Substring(1), false, values);
+			parser.RenameExpression = new RenameExpression() { Expression = expression, OldContainingPath = oldContainingPath, NewContainingPath = newContainingPath, NumberFound = 0 };
+
+			// Will throw exception if expression is invalid
+			parser.Parse(null);
+
+			// Return position data
+			return parser.RenameExpression;
+		}
+
 		internal static Type CreateClass(params DynamicProperty[] properties)
 		{
 			return ClassFactory.Instance.GetDynamicClass(properties);
@@ -702,6 +717,21 @@ namespace ExoModel
 
 		#endregion
 
+		#region RenameExpression
+
+		public class RenameExpression
+		{
+			public string OldContainingPath { get; internal set; }
+
+			public string NewContainingPath { get; internal set; }
+
+			public string Expression { get; internal set; }
+
+			public int NumberFound { get; internal set; }
+		}
+
+		#endregion
+
 		#region ParseErrorType
 
 		public enum ParseErrorType
@@ -964,6 +994,7 @@ namespace ExoModel
 			QuerySyntax querySyntax;
 
 			internal IntelliSense IntelliSense { get; private set; }
+			public RenameExpression RenameExpression { get; internal set; }
 
 			public ExpressionParser(ModelParameterExpression[] parameters, string expression, QuerySyntax querySyntax, params object[] values)
 			{
@@ -1735,7 +1766,7 @@ namespace ExoModel
 						{
 							if (type.IsList)
 							{
-								return ParseAggregate(instance, new ModelExpressionType(type.ModelType, false), id, errorPos);
+								return ParseAggregate(instance, new ModelExpressionType(type.ModelType, type.IsList), id, errorPos);
 							}
 						}
 						else
@@ -1810,6 +1841,43 @@ namespace ExoModel
 
 						if (property != null)
 						{
+							// Rename support
+							if (RenameExpression != null)
+							{
+								string currentPropPath = id;
+								Expression expr = instance;
+
+								// Traverse expression for multiple model member references (i.e. Section.Number)
+								while (expr is ModelMemberExpression)
+								{
+									currentPropPath = ((ModelMemberExpression)expr).Property.Name + "." + currentPropPath;
+									expr = ((ModelMemberExpression)expr).Expression;
+								}
+
+								// Old name was accessed, rename expression
+								if (currentPropPath.Equals(RenameExpression.OldContainingPath))
+								{
+									int numChangedOffset = (RenameExpression.NewContainingPath.Length - RenameExpression.OldContainingPath.Length) * RenameExpression.NumberFound++;
+									int startIndex = token.pos - RenameExpression.OldContainingPath.Length + numChangedOffset + 1;
+									RenameExpression.Expression = RenameExpression.Expression.Substring(0, startIndex) + RenameExpression.NewContainingPath + RenameExpression.Expression.Substring(startIndex + RenameExpression.OldContainingPath.Length);
+								}
+								// Try to scope within an aggregate function if expression is a list
+								else if (expr is ModelParameterExpression && ((ModelParameterExpression)expr).IsList && 
+									(((ModelParameterExpression)expr).ModelType.Name + "." + currentPropPath).EndsWith(RenameExpression.OldContainingPath))
+								{
+									int scopedContainingPathIndex = RenameExpression.OldContainingPath.LastIndexOf(currentPropPath);
+									string newScopedContainingPath = RenameExpression.NewContainingPath.Substring(scopedContainingPathIndex);
+
+									// Rename expression if scoped path has changed
+									if (!newScopedContainingPath.Equals(currentPropPath))
+									{
+										int numChangedOffset = (newScopedContainingPath.Length - currentPropPath.Length) * RenameExpression.NumberFound++;
+										int startIndex = token.pos - currentPropPath.Length + numChangedOffset + 1;
+										RenameExpression.Expression = RenameExpression.Expression.Substring(0, startIndex) + newScopedContainingPath + RenameExpression.Expression.Substring(startIndex + currentPropPath.Length);
+									}
+								}
+							}
+
 							return new ModelMemberExpression(instance, property);
 						}
 						else
@@ -1869,7 +1937,7 @@ namespace ExoModel
 				ModelParameterExpression innerIt = new ModelParameterExpression(elementType, "");
 				it = innerIt;
 				Expression[] args = ParseArgumentList();
-				it = outerIt;
+				it = outerIt;				
 				MethodBase signature;
 				if (FindMethod(typeof(IEnumerableSignatures), methodName, false, ref args, out signature) != 1)
 					throw ParseError(errorPos, ParseErrorType.NoApplicableAggregate, methodName);
