@@ -1087,7 +1087,10 @@ namespace ExoModel
 						else
 							throw ParseError(exprPos, ParseErrorType.ExpressionTypeMismatch, GetTypeName(resultType));
 					}
+					else
+						expr = promotedExpression;
 				}
+				
 
 				ValidateToken(TokenId.End, ParseErrorType.SyntaxError);
 
@@ -1858,7 +1861,17 @@ namespace ExoModel
 								if (currentPropPath.Equals(RenameExpression.OldContainingPath))
 								{
 									int numChangedOffset = (RenameExpression.NewContainingPath.Length - RenameExpression.OldContainingPath.Length) * RenameExpression.NumberFound++;
-									int startIndex = token.pos - RenameExpression.OldContainingPath.Length + numChangedOffset + 1;
+
+									int startIndex = token.pos - RenameExpression.OldContainingPath.Length + numChangedOffset + 1; // "+ 1" represents '=' at the beginning of all expression 
+									var subString = RenameExpression.Expression.Substring(startIndex, RenameExpression.OldContainingPath.Length);
+
+									// Update the startIndex to handle spaces before the property path
+									while (subString != RenameExpression.OldContainingPath)
+									{
+										startIndex--;
+										subString = RenameExpression.Expression.Substring(startIndex, RenameExpression.OldContainingPath.Length);
+									}
+									
 									RenameExpression.Expression = RenameExpression.Expression.Substring(0, startIndex) + RenameExpression.NewContainingPath + RenameExpression.Expression.Substring(startIndex + RenameExpression.OldContainingPath.Length);
 								}
 								// Try to scope within an aggregate function if expression is a list
