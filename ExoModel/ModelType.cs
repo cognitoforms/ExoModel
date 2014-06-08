@@ -1090,6 +1090,8 @@ namespace ExoModel
 		/// <returns></returns>
 		internal bool TryFormatInstance(ModelInstance instance, string format, out string value)
 		{
+			bool hasError = false;
+
 			// Get the list of format tokens by parsing the format expression
 			List<FormatToken> formatTokens;
 			if (!formats.TryGetValue(format, out formatTokens))
@@ -1109,16 +1111,18 @@ namespace ExoModel
 					if (!TryGetPath(path, out modelPath))
 					{
 						value = null;
-						return false;
+						hasError = true;
+						formatTokens.Add(new FormatToken() { Literal = correctedFormat.Substring(index, substitution.Index - index + substitution.Length) });
 					}
+					else
+						formatTokens.Add(
+							new FormatToken() 
+							{ 
+								Literal = substitution.Index > index ? correctedFormat.Substring(index, substitution.Index - index) : null,
+								Property = new ModelSource(modelPath),
+								Format = substitution.Groups["format"].Success ? correctedFormat.Substring(substitution.Groups["format"].Index, substitution.Groups["format"].Length) : null
+							});
 
-					formatTokens.Add(
-						new FormatToken() 
-						{ 
-							Literal = substitution.Index > index ? correctedFormat.Substring(index, substitution.Index - index) : null,
-							Property = new ModelSource(modelPath),
-							Format = substitution.Groups["format"].Success ? correctedFormat.Substring(substitution.Groups["format"].Index, substitution.Groups["format"].Length) : null
-						});
 					index = substitution.Index + substitution.Length;
 				}
 				// Add the trailing literal
@@ -1126,7 +1130,8 @@ namespace ExoModel
 					formatTokens.Add(new FormatToken() { Literal = correctedFormat.Substring(index, correctedFormat.Length - index) });
 				
 				// Cache the parsed format expression
-				formats.Add(format, formatTokens);
+				if (!hasError)
+					formats.Add(format, formatTokens);
 			}
 
 			// Handle simple case of [Property]
@@ -1145,7 +1150,8 @@ namespace ExoModel
 					result.Append(token.Property.GetFormattedValue(instance, token.Format));
 			}
 			value = result.ToString();
-			return true;
+
+			return !hasError;
 		}
 
 		/// <summary>
