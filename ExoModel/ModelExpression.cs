@@ -1769,7 +1769,7 @@ namespace ExoModel
 						{
 							if (type.IsList)
 							{
-								return ParseAggregate(instance, new ModelExpressionType(type.ModelType, type.IsList), id, errorPos);
+								return ParseAggregate(instance, new ModelExpressionType(type.ModelType, false), id, errorPos);
 							}
 						}
 						else
@@ -1875,7 +1875,7 @@ namespace ExoModel
 									RenameExpression.Expression = RenameExpression.Expression.Substring(0, startIndex) + RenameExpression.NewContainingPath + RenameExpression.Expression.Substring(startIndex + RenameExpression.OldContainingPath.Length);
 								}
 								// Try to scope within an aggregate function if expression is a list
-								else if (expr is ModelParameterExpression && ((ModelParameterExpression)expr).IsList && 
+								else if (expr is ModelParameterExpression && 
 									(((ModelParameterExpression)expr).ModelType.Name + "." + currentPropPath).EndsWith(RenameExpression.OldContainingPath))
 								{
 									int scopedContainingPathIndex = RenameExpression.OldContainingPath.LastIndexOf(currentPropPath);
