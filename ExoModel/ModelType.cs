@@ -1112,7 +1112,7 @@ namespace ExoModel
 					{
 						value = null;
 						hasError = true;
-						formatTokens.Add(new FormatToken() { Literal = correctedFormat.Substring(index, substitution.Index - index + substitution.Length) });
+						formatTokens.Add(new FormatToken() { Literal = correctedFormat.Substring(index, substitution.Index - index) });
 					}
 					else
 						formatTokens.Add(
