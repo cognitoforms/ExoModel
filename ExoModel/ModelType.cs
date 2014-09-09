@@ -516,7 +516,7 @@ namespace ExoModel
 				modelExpression = GetExpression(resultType, expression, querySyntax);
 				return true;
 			}
-			catch (Exception e)
+			catch
 			{
 				modelExpression = null;
 				return false; 
