@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Linq.Expressions;
 using System.Collections.ObjectModel;
+using System.Reflection;
 
 namespace ExoModel
 {
@@ -440,6 +441,8 @@ namespace ExoModel
 				return m;
 			}
 
+			static MethodInfo modelInstanceToString = typeof(ModelInstance).GetMethod("ToString", new Type[] { typeof(string) });
+
 			protected override Expression VisitMethodCall(MethodCallExpression m)
 			{
 				// Visit the target of the method
@@ -479,6 +482,31 @@ namespace ExoModel
 						}
 					}
 					Visit(argument);
+				}
+
+				// Determine if ToString is being called on a model reference property
+				if (m.Method == modelInstanceToString)
+				{
+					if (m.Object is MemberExpression)
+					{
+						var memberExpression = (MemberExpression)m.Object;
+						if (memberExpression.Member.Name == "Instance" && memberExpression.Expression is UnaryExpression)
+						{
+							var unaryExpression = (UnaryExpression)memberExpression.Expression;
+							if (unaryExpression.Operand is ModelExpression.ModelMemberExpression)
+							{
+								var propertyExpression = unaryExpression.Operand as ModelExpression.ModelMemberExpression;
+								var contantExpression = m.Arguments[0] as ConstantExpression;
+
+								ModelStep step;
+								if (steps.TryGetValue(propertyExpression, out step))
+								{
+									var referenceProperty = (ModelReferenceProperty)propertyExpression.Property;
+									referenceProperty.PropertyType.AddFormatSteps(step, (string)contantExpression.Value);
+								}
+							}
+						}
+					}
 				}
 				return m;
 			}

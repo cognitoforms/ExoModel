@@ -1080,6 +1080,13 @@ namespace ExoModel
 									Expr.Constant(""),
 									Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes)));
 							}
+							else if (expr is ModelExpression.ModelMemberExpression && !string.IsNullOrEmpty(((ModelExpression.ModelMemberExpression)expr).Property.Format) && typeof(IModelInstance).IsAssignableFrom(expr.Type))
+							{
+								expr = Expr.Call(
+											Expr.Property(Expr.Convert(expr, typeof(IModelInstance)), "Instance"),
+											typeof(ModelInstance).GetMethod("ToString", new Type[] { typeof(string) }),
+											Expr.Constant(((ModelExpression.ModelMemberExpression)expr).Property.Format));
+							}
 							else
 								// expr.ToString()
 								expr = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));

@@ -1090,49 +1090,8 @@ namespace ExoModel
 		/// <returns></returns>
 		internal bool TryFormatInstance(ModelInstance instance, string format, out string value)
 		{
-			bool hasError = false;
-
-			// Get the list of format tokens by parsing the format expression
 			List<FormatToken> formatTokens;
-			if (!formats.TryGetValue(format, out formatTokens))
-			{
-				// Replace \\ escape sequence with char 0, \[ escape sequence with char 1, and \] escape sequence with char 2
-				var escapedFormat = format.Replace(@"\\", ((char)0).ToString()).Replace(@"\[", ((char)1).ToString()).Replace(@"\]", ((char)1).ToString());
-
-				// Replace \\ escape sequence with \, \[ escape sequence with [, and \] escape sequence with ]
-				var correctedFormat = format.Replace(@"\\", @"\").Replace(@"\[", "[").Replace(@"\]", "]");
-
-				formatTokens = new List<FormatToken>();
-				int index = 0;
-				foreach (Match substitution in formatParser.Matches(escapedFormat))
-				{
-					var path = substitution.Groups["property"].Value;
-					ModelPath modelPath;
-					if (!TryGetPath(path, out modelPath))
-					{
-						value = null;
-						hasError = true;
-						formatTokens.Add(new FormatToken() { Literal = correctedFormat.Substring(index, substitution.Index - index) });
-					}
-					else
-						formatTokens.Add(
-							new FormatToken() 
-							{ 
-								Literal = substitution.Index > index ? correctedFormat.Substring(index, substitution.Index - index) : null,
-								Property = new ModelSource(modelPath),
-								Format = substitution.Groups["format"].Success ? correctedFormat.Substring(substitution.Groups["format"].Index, substitution.Groups["format"].Length) : null
-							});
-
-					index = substitution.Index + substitution.Length;
-				}
-				// Add the trailing literal
-				if (index < correctedFormat.Length)
-					formatTokens.Add(new FormatToken() { Literal = correctedFormat.Substring(index, correctedFormat.Length - index) });
-				
-				// Cache the parsed format expression
-				if (!hasError)
-					formats.Add(format, formatTokens);
-			}
+			bool hasError = TryGetFormatTokens(format, out formatTokens);
 
 			// Handle simple case of [Property]
 			if (formatTokens.Count == 1 && formatTokens[0].Literal == null)
@@ -1152,6 +1111,79 @@ namespace ExoModel
 			value = result.ToString();
 
 			return !hasError;
+		}
+
+		/// <summary>
+		/// Attempts to format the instance using the specified format.
+		/// </summary>
+		/// <param name="instance"></param>
+		/// <param name="format"></param>
+		/// <returns></returns>
+		bool TryGetFormatTokens(string format, out List<FormatToken> formatTokens)
+		{
+			bool hasError = false;
+
+			// Get the list of format tokens by parsing the format expression
+			if (!formats.TryGetValue(format, out formatTokens))
+			{
+				// Replace \\ escape sequence with char 0, \[ escape sequence with char 1, and \] escape sequence with char 2
+				var escapedFormat = format.Replace(@"\\", ((char)0).ToString()).Replace(@"\[", ((char)1).ToString()).Replace(@"\]", ((char)1).ToString());
+
+				// Replace \\ escape sequence with \, \[ escape sequence with [, and \] escape sequence with ]
+				var correctedFormat = format.Replace(@"\\", @"\").Replace(@"\[", "[").Replace(@"\]", "]");
+
+				formatTokens = new List<FormatToken>();
+				int index = 0;
+				foreach (Match substitution in formatParser.Matches(escapedFormat))
+				{
+					var path = substitution.Groups["property"].Value;
+					ModelPath modelPath;
+					if (!TryGetPath(path, out modelPath))
+					{
+						hasError = true;
+						formatTokens.Add(new FormatToken() { Literal = correctedFormat.Substring(index, substitution.Index - index) });
+					}
+					else
+						formatTokens.Add(
+							new FormatToken()
+							{
+								Literal = substitution.Index > index ? correctedFormat.Substring(index, substitution.Index - index) : null,
+								Property = new ModelSource(modelPath),
+								Format = substitution.Groups["format"].Success ? correctedFormat.Substring(substitution.Groups["format"].Index, substitution.Groups["format"].Length) : null
+							});
+
+					index = substitution.Index + substitution.Length;
+				}
+				// Add the trailing literal
+				if (index < correctedFormat.Length)
+					formatTokens.Add(new FormatToken() { Literal = correctedFormat.Substring(index, correctedFormat.Length - index) });
+
+				// Cache the parsed format expression
+				if (!hasError)
+					formats.Add(format, formatTokens);
+			}
+
+			return hasError;
+		}
+
+		/// <summary>
+		/// Adds model steps to the specified root step based on the specified instance format
+		/// </summary>
+		/// <param name="format"></param>
+		/// <param name="rootStep"></param>
+		internal void AddFormatSteps(ModelStep rootStep, string format)
+		{
+			List<FormatToken> formatTokens;
+			TryGetFormatTokens(format, out formatTokens);
+			foreach (var token in formatTokens)
+			{
+				ModelStep modelStep = rootStep;
+				foreach (var sourceStep in token.Property.Steps)
+				{
+					modelStep = new ModelStep(rootStep.Path) { PreviousStep = modelStep, Property = Context.GetModelType(sourceStep.DeclaringType).Properties[sourceStep.Property] };
+					modelStep.PreviousStep.NextSteps.Add(modelStep);
+				}
+			}
 		}
 
 		/// <summary>

@@ -44,6 +44,14 @@ namespace ExoModel
 				throw new ArgumentException("The specified path, '" + path + "', was not valid for the root type of '" + rootType.Name + "'.", "path");
 		}
 
+		internal SourceStep[] Steps
+		{
+			get
+			{
+				return steps;
+			}
+		}
+
 		/// <summary>
 		/// Attempts to create a new <see cref="ModelSource"/> for the specified root type and path.
 		/// </summary>
@@ -354,7 +362,7 @@ namespace ExoModel
 			return Path;
 		}	
 
-		class SourceStep
+		internal class SourceStep
 		{
 			internal string Property { get; set; }
 			internal int Index { get; set; }
