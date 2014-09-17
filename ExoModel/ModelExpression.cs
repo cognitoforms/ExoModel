@@ -9,6 +9,7 @@ using System.Threading;
 using System.Collections.ObjectModel;
 using Expr = System.Linq.Expressions.Expression;
 using System.Web.UI;
+using System.Globalization;
 
 namespace ExoModel
 {
@@ -921,6 +922,7 @@ namespace ExoModel
 				void Any();
 				void Any(bool predicate);
 				void All(bool predicate);
+				void Contains(object value);
 				void Count();
 				void Count(bool predicate);
 				void Min(object selector);
@@ -1054,7 +1056,7 @@ namespace ExoModel
 			public Expression Parse(ModelExpressionType resultType)
 			{
 				int exprPos = token.pos;
-				Expression expr = ParseExpression();
+				Expression expr = ParseExpression(resultType != null ? resultType.Type : null);
 				if (resultType != null)
 				{
 					var promotedExpression = PromoteExpression(expr, resultType.Type, true);
@@ -1107,34 +1109,8 @@ namespace ExoModel
 				return expr;
 			}
 
-#pragma warning disable 0219
-			public IEnumerable<DynamicOrdering> ParseOrdering()
-			{
-				List<DynamicOrdering> orderings = new List<DynamicOrdering>();
-				while (true)
-				{
-					Expression expr = ParseExpression();
-					bool ascending = true;
-					if (TokenIdentifierIs("asc") || TokenIdentifierIs("ascending"))
-					{
-						NextToken();
-					}
-					else if (TokenIdentifierIs("desc") || TokenIdentifierIs("descending"))
-					{
-						NextToken();
-						ascending = false;
-					}
-					orderings.Add(new DynamicOrdering { Selector = expr, Ascending = ascending });
-					if (token.id != TokenId.Comma) break;
-					NextToken();
-				}
-				ValidateToken(TokenId.End, ParseErrorType.SyntaxError);
-				return orderings;
-			}
-#pragma warning restore 0219
-
 			// ?: operator
-			Expression ParseExpression()
+			Expression ParseExpression(Type resultType = null)
 			{
 				int errorPos = token.pos;
 				Expression expr = ParseLogicalOr();
@@ -1142,9 +1118,21 @@ namespace ExoModel
 				{
 					NextToken();
 					Expression expr1 = ParseExpression();
+					if (resultType != null)
+					{
+						expr1 = PromoteExpression(expr1, resultType, true);
+						if (expr1 == null)
+							throw ParseError(ParseErrorType.CannotConvertValue);
+					}
 					ValidateToken(TokenId.Colon, ParseErrorType.ColonExpected);
 					NextToken();
 					Expression expr2 = ParseExpression();
+					if (resultType != null)
+					{
+						expr2 = PromoteExpression(expr2, resultType, true);
+						if (expr2 == null)
+							throw ParseError(ParseErrorType.CannotConvertValue);
+					}
 					expr = GenerateConditional(expr, expr1, expr2, errorPos);
 				}
 				return expr;
@@ -1962,6 +1950,11 @@ namespace ExoModel
 				if (FindMethod(typeof(IEnumerableSignatures), methodName, false, ref args, out signature) != 1)
 					throw ParseError(errorPos, ParseErrorType.NoApplicableAggregate, methodName);
 				Type[] typeArgs;
+				
+				// Contains
+				if (signature.Name == "Contains")
+					return Expr.Call(typeof(Enumerable), "Contains", new Type[] { elementType.Type }, new Expression[] { instance, args[0] });
+				
 				if (signature.Name == "Min" || signature.Name == "Max" || signature.Name == "Select")
 				{
 					typeArgs = new Type[] { elementType.Type, args[0].Type };
@@ -2537,7 +2530,37 @@ namespace ExoModel
 									if (target == typeof(decimal)) value = ParseNumber(text, target);
 									break;
 								case TypeCode.String:
-									value = ParseEnum(text, target);
+									if (type.IsEnum)
+										value = ParseEnum(text, target);
+									if (type == typeof(DateTime))
+									{
+										DateTime dateConstant;
+										if (DateTime.TryParse(text, null, DateTimeStyles.AssumeLocal | DateTimeStyles.AllowInnerWhite | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite | DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.NoCurrentDateDefault, out dateConstant))
+										{
+											// Assume this is a time if the year, month and day are all 1 (NoCurrentDefaultDate kicked in)
+											if (dateConstant.Year == 1 && dateConstant.Month == 1 && dateConstant.Day == 1)
+												dateConstant = dateConstant.AddYears(1969);
+
+											value = dateConstant;
+										}
+									}
+									if (type == typeof(DateTime?))
+									{
+										if (String.IsNullOrEmpty(text))
+											value = (DateTime?)null;
+										else
+										{
+											DateTime dateConstant;
+											if (DateTime.TryParse(text, null, DateTimeStyles.AssumeLocal | DateTimeStyles.AllowInnerWhite | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite | DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.NoCurrentDateDefault, out dateConstant))
+											{
+												// Assume this is a time if the year, month and day are all 1 (NoCurrentDefaultDate kicked in)
+												if (dateConstant.Year == 1 && dateConstant.Month == 1 && dateConstant.Day == 1)
+													dateConstant = dateConstant.AddYears(1969);
+												
+												value = dateConstant;
+											}
+										}
+									}
 									break;
 							}
 							if (value != null && type.IsAssignableFrom(value.GetType()))
