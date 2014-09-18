@@ -300,7 +300,9 @@ namespace ExoModel
 
 				// Process all public methods on the underlying type
 				foreach (MethodInfo method in UnderlyingType.GetMethods()
-					.Where(method => !method.IsSpecialName && method.Name != "ToString" && (method.DeclaringType == UnderlyingType || (BaseType != null && BaseType.Methods.Contains(method.Name)))))
+					.Where(method => !method.IsSpecialName && method.Name != "ToString" && (method.DeclaringType == UnderlyingType || (BaseType != null && BaseType.Methods.Contains(method.Name))))
+					.OrderBy(method => method.Name)
+					.ThenBy(method => method.GetParameters().Length))
 				{
 					ModelMethod gm = provider.CreateMethod(this, method, method.Name, method.IsStatic, method.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 					if (gm != null)
