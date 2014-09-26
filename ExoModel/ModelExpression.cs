@@ -1061,45 +1061,9 @@ namespace ExoModel
 				{
 					var promotedExpression = PromoteExpression(expr, resultType.Type, true);
 					if (promotedExpression == null)
-					{
-						// Automatically promote expressions to string if necessary
-						if (resultType.Type == typeof(string))
-						{
-							// Use String.Join(", ", enumerableList) to print out an IEnumerable list
-							if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
-							{
-								expr = Expr.Call(typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(typeof(Object)), expr);
-								expr = Expr.Call(typeof(Enumerable).GetMethod("ToArray").MakeGenericMethod(typeof(Object)), expr);
-
-								MethodInfo joinMethod = typeof(String).GetMethod("Join", new Type[] { typeof(String), typeof(Object[]) });
-								expr = Expr.Call(joinMethod, new Expr[] { Expr.Constant(", "), expr });
-							}
-							else if (IsNullableType(expr.Type))
-							{
-								// expr == null ? "" : expr.ToString()
-								expr = Expr.Condition(
-									Expr.Equal(expr, Expr.Constant(null)),
-									Expr.Constant(""),
-									Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes)));
-							}
-							else if (expr is ModelExpression.ModelMemberExpression && !string.IsNullOrEmpty(((ModelExpression.ModelMemberExpression)expr).Property.Format) && typeof(IModelInstance).IsAssignableFrom(expr.Type))
-							{
-								expr = Expr.Call(
-											Expr.Property(Expr.Convert(expr, typeof(IModelInstance)), "Instance"),
-											typeof(ModelInstance).GetMethod("ToString", new Type[] { typeof(string) }),
-											Expr.Constant(((ModelExpression.ModelMemberExpression)expr).Property.Format));
-							}
-							else
-								// expr.ToString()
-								expr = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
-						}
-						else
-							throw ParseError(exprPos, ParseErrorType.ExpressionTypeMismatch, GetTypeName(resultType));
-					}
-					else
-						expr = promotedExpression;
+						throw ParseError(exprPos, ParseErrorType.ExpressionTypeMismatch, GetTypeName(resultType));
+					expr = promotedExpression;
 				}
-				
 
 				ValidateToken(TokenId.End, ParseErrorType.SyntaxError);
 
@@ -1866,11 +1830,11 @@ namespace ExoModel
 										startIndex--;
 										subString = RenameExpression.Expression.Substring(startIndex, RenameExpression.OldContainingPath.Length);
 									}
-									
+
 									RenameExpression.Expression = RenameExpression.Expression.Substring(0, startIndex) + RenameExpression.NewContainingPath + RenameExpression.Expression.Substring(startIndex + RenameExpression.OldContainingPath.Length);
 								}
 								// Try to scope within an aggregate function if expression is a list
-								else if (expr is ModelParameterExpression && 
+								else if (expr is ModelParameterExpression &&
 									(((ModelParameterExpression)expr).ModelType.Name + "." + currentPropPath).EndsWith(RenameExpression.OldContainingPath))
 								{
 									int scopedContainingPathIndex = RenameExpression.OldContainingPath.LastIndexOf(currentPropPath);
@@ -1945,16 +1909,16 @@ namespace ExoModel
 				ModelParameterExpression innerIt = new ModelParameterExpression(elementType, "");
 				it = innerIt;
 				Expression[] args = ParseArgumentList();
-				it = outerIt;				
+				it = outerIt;
 				MethodBase signature;
 				if (FindMethod(typeof(IEnumerableSignatures), methodName, false, ref args, out signature) != 1)
 					throw ParseError(errorPos, ParseErrorType.NoApplicableAggregate, methodName);
 				Type[] typeArgs;
-				
+
 				// Contains
 				if (signature.Name == "Contains")
 					return Expr.Call(typeof(Enumerable), "Contains", new Type[] { elementType.Type }, new Expression[] { instance, args[0] });
-				
+
 				if (signature.Name == "Min" || signature.Name == "Max" || signature.Name == "Select")
 				{
 					typeArgs = new Type[] { elementType.Type, args[0].Type };
@@ -2530,9 +2494,11 @@ namespace ExoModel
 									if (target == typeof(decimal)) value = ParseNumber(text, target);
 									break;
 								case TypeCode.String:
+
 									if (type.IsEnum)
 										value = ParseEnum(text, target);
-									if (type == typeof(DateTime))
+
+									else if (type == typeof(DateTime))
 									{
 										DateTime dateConstant;
 										if (DateTime.TryParse(text, null, DateTimeStyles.AssumeLocal | DateTimeStyles.AllowInnerWhite | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite | DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.NoCurrentDateDefault, out dateConstant))
@@ -2544,7 +2510,8 @@ namespace ExoModel
 											value = dateConstant;
 										}
 									}
-									if (type == typeof(DateTime?))
+
+									else if (type == typeof(DateTime?))
 									{
 										if (String.IsNullOrEmpty(text))
 											value = (DateTime?)null;
@@ -2556,7 +2523,7 @@ namespace ExoModel
 												// Assume this is a time if the year, month and day are all 1 (NoCurrentDefaultDate kicked in)
 												if (dateConstant.Year == 1 && dateConstant.Month == 1 && dateConstant.Day == 1)
 													dateConstant = dateConstant.AddYears(1969);
-												
+
 												value = dateConstant;
 											}
 										}
@@ -2568,6 +2535,39 @@ namespace ExoModel
 						}
 					}
 				}
+				else if (type == typeof(string))
+				{
+					// Use String.Join(", ", enumerableList) to print out an IEnumerable list
+					if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+					{
+						expr = Expr.Call(typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(typeof(Object)), expr);
+						expr = Expr.Call(typeof(Enumerable).GetMethod("ToArray").MakeGenericMethod(typeof(Object)), expr);
+
+						MethodInfo joinMethod = typeof(String).GetMethod("Join", new Type[] { typeof(String), typeof(Object[]) });
+						expr = Expr.Call(joinMethod, new Expr[] { Expr.Constant(", "), expr });
+					}
+					else if (IsNullableType(expr.Type))
+					{
+						// expr == null ? "" : expr.ToString()
+						expr = Expr.Condition(
+							Expr.Equal(expr, Expr.Constant(null)),
+							Expr.Constant(""),
+							Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes)));
+					}
+					else if (expr is ModelExpression.ModelMemberExpression && !string.IsNullOrEmpty(((ModelExpression.ModelMemberExpression)expr).Property.Format) && typeof(IModelInstance).IsAssignableFrom(expr.Type))
+					{
+						expr = Expr.Call(
+									Expr.Property(Expr.Convert(expr, typeof(IModelInstance)), "Instance"),
+									typeof(ModelInstance).GetMethod("ToString", new Type[] { typeof(string) }),
+									Expr.Constant(((ModelExpression.ModelMemberExpression)expr).Property.Format));
+					}
+					else
+						// expr.ToString()
+						expr = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
+
+					return expr;
+				}
+
 				if (IsCompatibleWith(expr.Type, type))
 				{
 					if (type.IsValueType || exact) return Expr.Convert(expr, type);
@@ -2880,7 +2880,7 @@ namespace ExoModel
 				return Expr.Call(
 					null,
 					typeof(string).GetMethod("Concat", new[] { typeof(object), typeof(object) }),
-					new[] { left.Type.IsValueType ? Expr.Convert(left, typeof(object)) : left, right.Type.IsValueType ? Expr.Convert(right, typeof(object)) : right });
+					new[] { PromoteExpression(left, typeof(string), true), PromoteExpression(right, typeof(string), true) });
 			}
 
 			MethodInfo GetStaticMethod(string methodName, Expression left, Expression right)
