@@ -132,7 +132,19 @@ namespace ExoModel
 		{
 			if (DefaultValue == null)
 				return null;
-			return (compiledDefaultValue ?? (compiledDefaultValue = DefaultValue.Compile())).DynamicInvoke();
+
+			object value = null;
+			try
+			{
+				value = (compiledDefaultValue ?? (compiledDefaultValue = DefaultValue.Compile())).DynamicInvoke();
+			}
+			catch
+			{
+				if (PropertyType.IsValueType)
+					value = Activator.CreateInstance(PropertyType);
+			}
+
+			return value;
 		}
 
 		#endregion
