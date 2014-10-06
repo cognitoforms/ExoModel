@@ -2546,14 +2546,6 @@ namespace ExoModel
 						MethodInfo joinMethod = typeof(String).GetMethod("Join", new Type[] { typeof(String), typeof(Object[]) });
 						expr = Expr.Call(joinMethod, new Expr[] { Expr.Constant(", "), expr });
 					}
-					else if (IsNullableType(expr.Type))
-					{
-						// expr == null ? "" : expr.ToString()
-						expr = Expr.Condition(
-							Expr.Equal(expr, Expr.Constant(null)),
-							Expr.Constant(""),
-							Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes)));
-					}
 					else if (expr is ModelExpression.ModelMemberExpression && !string.IsNullOrEmpty(((ModelExpression.ModelMemberExpression)expr).Property.Format) && typeof(IModelInstance).IsAssignableFrom(expr.Type))
 					{
 						expr = Expr.Call(
@@ -2562,8 +2554,43 @@ namespace ExoModel
 									Expr.Constant(((ModelExpression.ModelMemberExpression)expr).Property.Format));
 					}
 					else
-						// expr.ToString()
-						expr = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
+					{
+						string format = null;
+						if (expr is ModelExpression.ModelMemberExpression)
+							format = ((ModelExpression.ModelMemberExpression)expr).Property.Format;
+
+						if (IsNullableType(expr.Type))
+						{
+							MethodCallExpression toStringExp;
+							if (format != null)
+							{
+								var underlyingType = Nullable.GetUnderlyingType(expr.Type);
+								toStringExp = Expr.Call(
+													Expr.Convert(expr, underlyingType),
+													underlyingType.GetMethod("ToString", new Type[] { typeof(string) }),
+													Expr.Constant(format));
+							}
+							else
+								toStringExp = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
+
+							// expr == null ? "" : expr.ToString()
+							expr = Expr.Condition(
+								Expr.Equal(expr, Expr.Constant(null)),
+								Expr.Constant(""),
+								toStringExp);
+						}
+						else
+						{
+							// expr.ToString()
+							if (format != null)
+								expr = Expr.Call(
+										expr,
+										expr.Type.GetMethod("ToString", new Type[] { typeof(string) }),
+										Expr.Constant(format));
+							else
+								expr = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
+						}
+					}
 
 					return expr;
 				}
