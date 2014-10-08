@@ -263,7 +263,7 @@ namespace ExoModel
 		/// <summary>
 		/// Parses query paths into steps for processing
 		/// </summary>
-		static Regex pathParser = new Regex(@"[a-zA-Z0-9_]+|[{}.,]|\<[a-zA-Z0-9_.]+\>", RegexOptions.Compiled);
+		static Regex pathParser = new Regex(@"\w+|[{}.,]|\<[\w.]+\>", RegexOptions.Compiled);
 
 		/// <summary>
 		/// Notify path subscribers that the path has changed.

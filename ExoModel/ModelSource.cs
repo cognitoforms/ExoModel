@@ -10,8 +10,8 @@ namespace ExoModel
 	public class ModelSource
 	{
 		SourceStep [] steps;
-		static Regex pathValidation = new Regex(@"^(?<Property>[a-zA-Z0-9_]+)(\[(?<Index>\d+)\])?(\.(?<Property>[a-zA-Z0-9_]+)(\[(?<Index>\d+)\])?)*$", RegexOptions.Compiled);
-		static Regex tokenizer = new Regex(@"(?<Property>[a-zA-Z0-9_]+)(\[(?<Index>\d+)\])?", RegexOptions.Compiled);
+		static Regex pathValidation = new Regex(@"^(?<Property>\w+)(\[(?<Index>\d+)\])?(\.(?<Property>\w+)(\[(?<Index>\d+)\])?)*$", RegexOptions.Compiled);
+		static Regex tokenizer = new Regex(@"(?<Property>\w+)(\[(?<Index>\d+)\])?", RegexOptions.Compiled);
 		static Regex arraySyntaxRegex = new Regex(@"\[\d+\]", RegexOptions.Compiled);
 
 		ModelSource()
