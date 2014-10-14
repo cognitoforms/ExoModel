@@ -2993,7 +2993,15 @@ namespace ExoModel
 						break;
 					case '.':
 						NextChar();
-						t = TokenId.Dot;
+
+						if (!Char.IsDigit(ch))
+							t = TokenId.Dot;
+						else
+						{
+							ParseDigitToken();
+							t = TokenId.RealLiteral;
+						}
+
 						break;
 					case '/':
 						NextChar();
@@ -3093,33 +3101,7 @@ namespace ExoModel
 						}
 						if (Char.IsDigit(ch))
 						{
-							t = TokenId.IntegerLiteral;
-							do
-							{
-								NextChar();
-							} while (Char.IsDigit(ch));
-							if (ch == '.')
-							{
-								t = TokenId.RealLiteral;
-								NextChar();
-								ValidateDigit();
-								do
-								{
-									NextChar();
-								} while (Char.IsDigit(ch));
-							}
-							if (ch == 'E' || ch == 'e')
-							{
-								t = TokenId.RealLiteral;
-								NextChar();
-								if (ch == '+' || ch == '-') NextChar();
-								ValidateDigit();
-								do
-								{
-									NextChar();
-								} while (Char.IsDigit(ch));
-							}
-							if (ch == 'F' || ch == 'f') NextChar();
+							t = ParseDigitToken();
 							break;
 						}
 						if (textPos == textLen)
@@ -3133,6 +3115,39 @@ namespace ExoModel
 				token.id = t;
 				token.text = text.Substring(tokenPos, textPos - tokenPos);
 				token.pos = tokenPos;
+			}
+
+			TokenId ParseDigitToken()
+			{
+				TokenId t = TokenId.IntegerLiteral;
+				do
+				{
+					NextChar();
+				} while (Char.IsDigit(ch));
+				if (ch == '.')
+				{
+					t = TokenId.RealLiteral;
+					NextChar();
+					ValidateDigit();
+					do
+					{
+						NextChar();
+					} while (Char.IsDigit(ch));
+				}
+				if (ch == 'E' || ch == 'e')
+				{
+					t = TokenId.RealLiteral;
+					NextChar();
+					if (ch == '+' || ch == '-') NextChar();
+					ValidateDigit();
+					do
+					{
+						NextChar();
+					} while (Char.IsDigit(ch));
+				}
+				if (ch == 'F' || ch == 'f') NextChar();
+
+				return t;
 			}
 
 			bool TokenIdentifierIs(string id)
