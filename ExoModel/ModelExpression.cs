@@ -2560,10 +2560,13 @@ namespace ExoModel
 						{
 							// expr.ToString()
 							if (format != null)
-								expr = Expr.Call(
-										expr,
-										expr.Type.GetMethod("ToString", new Type[] { typeof(string) }),
-										Expr.Constant(format));
+							{
+								var method = expr.Type.GetMethod("ToString", new Type[] { typeof(string) });
+								if (method != null)
+									expr = Expr.Call(expr, method, Expr.Constant(format));
+								else
+									expr = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
+							}
 							else
 								expr = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
 						}
