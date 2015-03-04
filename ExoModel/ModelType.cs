@@ -56,8 +56,7 @@ namespace ExoModel
 			this.SubTypes = new ModelTypeList();
 			this.Properties = new ModelPropertyList();
 			this.Methods = new ModelMethodList();
-			this.InReferences = new List<ModelReferenceProperty>();
-			this.OutReferences = new ModelReferencePropertyList();
+			this.References = new ModelReferencePropertyList();
 			this.Values = new ModelValuePropertyList();
 			this.Paths = new ModelPathList();
 			this.Expressions = new Dictionary<string, ModelExpression>();
@@ -85,9 +84,7 @@ namespace ExoModel
 
 		public ModelMethodList Methods { get; private set; }
 
-		internal IEnumerable<ModelReferenceProperty> InReferences { get; private set; }
-
-		internal ModelReferencePropertyList OutReferences { get; private set; }
+		internal ModelReferencePropertyList References { get; private set; }
 
 		internal ModelValuePropertyList Values { get; private set; }
 
@@ -235,10 +232,7 @@ namespace ExoModel
 				property.Index = PropertyCount++;
 
 			if (property is ModelReferenceProperty)
-			{
-				OutReferences.Add((ModelReferenceProperty)property);
-				((List<ModelReferenceProperty>)((ModelReferenceProperty)property).PropertyType.InReferences).Add((ModelReferenceProperty)property);
-			}
+				References.Add((ModelReferenceProperty)property);
 			else
 				Values.Add((ModelValueProperty)property);
 
@@ -657,7 +651,7 @@ namespace ExoModel
 		/// <returns>The instance assigned to the property, or null if the property does not have a value</returns>
 		public ModelInstance GetReference(string property)
 		{
-			return GetReference(OutReferences[property]);
+			return GetReference(References[property]);
 		}
 
 		/// <summary>
@@ -723,7 +717,7 @@ namespace ExoModel
 		/// <returns>The list of instances</returns>
 		public ModelInstanceList GetList(string property)
 		{
-			return GetList(OutReferences[property]);
+			return GetList(References[property]);
 		}
 
 		/// <summary>
@@ -743,7 +737,7 @@ namespace ExoModel
 		/// <param name="value">The value of the property</param>
 		public void SetReference(string property, ModelInstance value)
 		{
-			SetReference(OutReferences[property], value);
+			SetReference(References[property], value);
 		}
 
 		/// <summary>

@@ -727,7 +727,7 @@ namespace ExoModel
 		/// <returns>The instance assigned to the property, or null if the property does not have a value</returns>
 		public ModelInstance GetReference(string property)
 		{
-			return GetReference(Type.OutReferences[property]);
+			return GetReference(Type.References[property]);
 		}
 
 		/// <summary>
@@ -813,7 +813,7 @@ namespace ExoModel
 		/// <returns>The list of instances</returns>
 		public ModelInstanceList GetList(string property)
 		{
-			return GetList(Type.OutReferences[property]);
+			return GetList(Type.References[property]);
 		}
 
 		/// <summary>
@@ -833,7 +833,7 @@ namespace ExoModel
 		/// <param name="value">The value of the property</param>
 		public void SetReference(string property, ModelInstance value)
 		{
-			SetReference(Type.OutReferences[property], value);
+			SetReference(Type.References[property], value);
 		}
 
 		/// <summary>
