@@ -20,7 +20,7 @@ namespace ExoModel
 		#region Fields
 
 		internal static ModelType Unknown = new UnknownModelType();
-		static Regex formatParser = new Regex(@"(?<!\\)\[(?<property>[a-z0-9_.]+)(?:\:(?<format>.+?))?(?<!\\)\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+		public static readonly Regex FormatParser = new Regex(@"(?<!\\)\[(?<property>[a-z0-9_.]+)(?:\:(?<format>.+?))?(?<!\\)\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
 		Dictionary<Type, object> customEvents = new Dictionary<Type, object>();
 		Dictionary<Type, object> transactedCustomEvents = new Dictionary<Type, object>();
@@ -1128,7 +1128,7 @@ namespace ExoModel
 
 				formatTokens = new List<FormatToken>();
 				int index = 0;
-				foreach (Match substitution in formatParser.Matches(escapedFormat))
+				foreach (Match substitution in FormatParser.Matches(escapedFormat))
 				{
 					var path = substitution.Groups["property"].Value;
 					ModelPath modelPath;
