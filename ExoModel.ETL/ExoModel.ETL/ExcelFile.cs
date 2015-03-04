@@ -148,11 +148,21 @@ namespace ExoModel.ETL
 						var percentSymbol = NumberFormatInfo.CurrentInfo.PercentSymbol;
 						if (column.Format == "P" || column.Format == "p" || column.Format.Contains(NumberFormatInfo.CurrentInfo.PercentSymbol))
 						{
-							Style = CreateStyle(11.10.ToString(column.Format).Replace("1", "#") + ";" + (-11.10).ToString(column.Format).Replace("1", "#"), document);
+							Style = CreateStyle(11.10.ToString(column.Format, CultureInfo.InvariantCulture).Replace("1", "#") + ";" + (-11.10).ToString(column.Format, CultureInfo.InvariantCulture).Replace("1", "#"), document);
 							GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : (Double.Parse(v.Replace(NumberFormatInfo.CurrentInfo.PercentSymbol, ""), NumberStyles.Any) / 100).ToString(CultureInfo.InvariantCulture);
 						}
+						else if (column.Format == "C" || column.Format == "c" || column.Format.Contains(NumberFormatInfo.CurrentInfo.CurrencySymbol))
+						{
+							// get the culture specific pattern
+							var pattern = 1110.00.ToString("C").Replace("1", "#").Replace(NumberFormatInfo.CurrentInfo.CurrencySymbol, "[$" + NumberFormatInfo.CurrentInfo.CurrencySymbol + "-1]");
+							// convert everything but the currency symbol and placement to the invariant pattern
+							pattern = new System.Text.RegularExpressions.Regex("#.##0.00").Replace(pattern, "#,##0.00");
+
+							// create the excel style
+							Style = CreateStyle(pattern + ";(" + pattern + ")", document);
+						}
 						else
-							Style = CreateStyle(1110.ToString(column.Format).Replace("1", "#") + ";" + (-1110).ToString(column.Format).Replace("1", "#") + ";" + 0.ToString(column.Format), document);
+							Style = CreateStyle(1111.10.ToString(column.Format, CultureInfo.InvariantCulture).Replace("1", "#") + ";" + (-1111.10).ToString(column.Format, CultureInfo.InvariantCulture).Replace("1", "#") + ";" + 0.ToString(column.Format, CultureInfo.InvariantCulture), document);
 					}
 						
 					if (GetCellValue == null)
