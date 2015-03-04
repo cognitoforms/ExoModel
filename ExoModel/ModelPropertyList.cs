@@ -1,4 +1,5 @@
-﻿namespace ExoModel
+﻿using System.Collections.Generic;
+namespace ExoModel
 {
 	/// <summary>
 	/// Exposes a list of <see cref="ModelProperty"/> instances keyed by name.
@@ -9,6 +10,10 @@
 			: base(i => i.Index)
 		{
 		}
+
+		public ModelPropertyList(IEnumerable<ModelProperty> items)
+			: base(items)
+		{ }
 
 		protected override string GetName(ModelProperty item)
 		{
