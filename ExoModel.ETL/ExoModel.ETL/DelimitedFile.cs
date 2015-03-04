@@ -150,7 +150,7 @@ namespace ExoModel.ETL
 
 				var value = new StringBuilder();
 
-				var stream = new StreamReader(file.InputStream);
+				var stream = new StreamReader(file.InputStream, Encoding.Unicode);
 
 				char c;
 				c = (char)stream.Read();

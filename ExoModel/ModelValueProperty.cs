@@ -119,7 +119,7 @@ namespace ExoModel
 		/// </summary>
 		/// <param name="instance"></param>
 		/// <returns></returns>
-		internal override string GetFormattedValue(ModelInstance instance, string format)
+		protected internal override string GetFormattedValue(ModelInstance instance, string format)
 		{
 			return FormatValue(GetValue(instance.Instance), format ?? Format);
 		}

@@ -158,7 +158,7 @@ namespace ExoModel
 		/// <param name="instance">The specific <see cref="ModelInstance"/></param>
 		/// <param name="format">The optional format specifier to use to format the value, or null to use the default property format</param>
 		/// <returns>The formatted value of the property</returns>
-		internal abstract string GetFormattedValue(ModelInstance instance, string format);
+		protected internal abstract string GetFormattedValue(ModelInstance instance, string format);
 
 		#endregion
 

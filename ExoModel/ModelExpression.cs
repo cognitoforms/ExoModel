@@ -2226,36 +2226,13 @@ namespace ExoModel
 				if (signatures != typeof(ISubtractSignatures) && signatures != typeof(IEqualitySignatures) && signatures != typeof(IRelationalSignatures))
 					return args;
 
-				Expression dateExpr, stringExpr;
-				bool dateIsFirst;
-
 				// Check if one side is DateTime and the other is String
 				if (GetNonNullableType(args[0].Type) == typeof(DateTime) && args[1].Type == typeof(String))
-				{
-					dateExpr = args[0];
-					stringExpr = args[1];
-					dateIsFirst = true;
-				}
+					args[1] = PromoteExpression(args[1], typeof(DateTime), true) ?? args[1];
 				else if (args[0].Type == typeof(String) && GetNonNullableType(args[1].Type) == typeof(DateTime))
-				{
-					stringExpr = args[0];
-					dateExpr = args[1];
-					dateIsFirst = false;
-				}
-				else
-					return args;
-
-				// Parse the string expression
-				MethodInfo tryParseMethod = typeof(DateTime).GetMethod("TryParse", new Type[] { typeof(String), typeof(DateTime).MakeByRefType() });
-				var outParam = Expr.Parameter(typeof(DateTime).MakeByRefType(), "dateParam");
-				MethodInfo parseMethod = typeof(DateTime).GetMethod("Parse", new Type[] { typeof(String) });
-
-				stringExpr = Expr.Condition(
-					Expr.Call(tryParseMethod, new Expr[] { stringExpr, outParam }),
-					GenerateConversion(Expr.Call(parseMethod, new Expr[] { stringExpr }), typeof(DateTime?), errorPos),
-					GenerateConversion(Expr.Constant(null), typeof(DateTime?), errorPos));
-
-				return dateIsFirst ? new Expression[] { dateExpr, stringExpr } : new Expression[] { stringExpr, dateExpr };
+					args[0] = PromoteExpression(args[0], typeof(DateTime), true) ?? args[0];
+					
+				return args;
 			}
 
 			Exception IncompatibleOperandsError(string opName, Expression left, Expression right, int pos)
@@ -3124,7 +3101,7 @@ namespace ExoModel
 				{
 					NextChar();
 				} while (Char.IsDigit(ch));
-				if (ch == '.')
+				if (ch.ToString() == CultureInfo.CurrentCulture.NumberFormat.CurrencyDecimalSeparator)
 				{
 					t = TokenId.RealLiteral;
 					NextChar();

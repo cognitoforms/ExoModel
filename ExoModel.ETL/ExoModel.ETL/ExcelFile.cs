@@ -49,12 +49,12 @@ namespace ExoModel.ETL
 		/// </summary>
 		/// <param name="table"></param>
 		/// <param name="file"></param>
-		public static void Write(ITable table, Stream file)
+		public static void Write(ITable table, Stream file, TimeZoneInfo timezone = null)
 		{
 			var document = Template.CreateDocument(file);
 			//Sheets sheets = document.WorkbookPart.Workbook.AppendChild<Sheets>(new Sheets());
 
-			Write(table, document);
+			Write(table, document, timezone);
 
 			document.WorkbookPart.Workbook.Save();
 			document.Close();
@@ -65,7 +65,7 @@ namespace ExoModel.ETL
 		/// </summary>
 		/// <param name="table"></param>
 		/// <param name="file"></param>
-		public static void Write(ITable table, SpreadsheetDocument document)
+		public static void Write(ITable table, SpreadsheetDocument document, TimeZoneInfo timezone = null)
 		{
 			var worksheetPart = document.WorkbookPart.AddNewPart<WorksheetPart>();
 			worksheetPart.Worksheet = new Worksheet(new SheetData());
@@ -98,7 +98,7 @@ namespace ExoModel.ETL
 					DataType = new EnumValue<CellValues>(CellValues.String)
 				};
 				row.InsertAt(cell, index++);
-				formats.Add(new ColumnFormat(column, document));
+				formats.Add(new ColumnFormat(column, document, timezone));
 			}
 
 			// Add rows for each table entity
@@ -134,7 +134,7 @@ namespace ExoModel.ETL
 		// Describes the format of a column in excel
 		class ColumnFormat
 		{
-			internal ColumnFormat(Column column, SpreadsheetDocument document)
+			internal ColumnFormat(Column column, SpreadsheetDocument document, TimeZoneInfo timezone = null)
 			{
 				this.Column = column;
 				var type = column.Type;
@@ -149,26 +149,35 @@ namespace ExoModel.ETL
 						if (column.Format == "P" || column.Format == "p" || column.Format.Contains(NumberFormatInfo.CurrentInfo.PercentSymbol))
 						{
 							Style = CreateStyle(11.10.ToString(column.Format).Replace("1", "#") + ";" + (-11.10).ToString(column.Format).Replace("1", "#"), document);
-							GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : (Double.Parse(v.Replace(NumberFormatInfo.CurrentInfo.PercentSymbol, ""), NumberStyles.Any)/100).ToString();
+							GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : (Double.Parse(v.Replace(NumberFormatInfo.CurrentInfo.PercentSymbol, ""), NumberStyles.Any) / 100).ToString(CultureInfo.InvariantCulture);
 						}
 						else
-							Style = CreateStyle(1110.ToString(column.Format).Replace("1", "#") + ";" + (-1110).ToString(column.Format).Replace("1", "#"), document);
+							Style = CreateStyle(1110.ToString(column.Format).Replace("1", "#") + ";" + (-1110).ToString(column.Format).Replace("1", "#") + ";" + 0.ToString(column.Format), document);
 					}
 						
 					if (GetCellValue == null)
-						GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : Double.Parse(v, NumberStyles.Any).ToString();
+						GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : Double.Parse(v, NumberStyles.Any).ToString(CultureInfo.InvariantCulture);
 				}
 				else
 					if (type == typeof(DateTime) || type == typeof(Nullable<DateTime>))
 					{
+						var isDateTime = true;
+						
 						DataType = new EnumValue<CellValues>(CellValues.Number);
 						if (!String.IsNullOrWhiteSpace(column.Format) && column.Format.Length == 1)
 						{
+							isDateTime = column.Format.ToLower() != "d" && column.Format.ToLower() != "t";
+
 							var patterns = DateTimeFormatInfo.CurrentInfo.GetAllDateTimePatterns(column.Format[0]);
 							if (patterns.Any())
 								Style = CreateStyle(patterns[0].Replace("tt", "AM/PM"), document);
 						}
-						GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : DateTime.Parse(v).ToOADate().ToString();
+
+						// adjust the time to match the specified timezone if the type is a true DateTime and not a Date only or Time only field
+						if (timezone != null && isDateTime)
+							GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : TimeZoneInfo.ConvertTime(DateTime.Parse(v), timezone).ToOADate().ToString(CultureInfo.InvariantCulture);
+						else
+							GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : DateTime.Parse(v).ToOADate().ToString(CultureInfo.InvariantCulture);
 					}
 					else
 					{
