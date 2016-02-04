@@ -88,7 +88,7 @@ namespace ExoModel
 		public static Expression Parse(ModelExpressionType resultType, ModelType rootType, string expression, params object[] values)
 		{
 			var parameters = rootType == null ? null : new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") };
-			ExpressionParser parser = new ExpressionParser(parameters, expression, false, values);
+			ExpressionParser parser = new ExpressionParser(parameters, expression, values);
 			return parser.Parse(resultType);
 		}
 
@@ -100,7 +100,7 @@ namespace ExoModel
 			// If parser initialization fails (expressions starts with ", /, etc.) return IntelliSense that would be initialized in ExpressionParser constructor
 			try
 			{
-				parser = new ExpressionParser(parameters, expression, true, values);
+				parser = new ExpressionParser(parameters, expression, values);
 			}
 			catch
 			{
@@ -117,21 +117,6 @@ namespace ExoModel
 
 			// Return the IntelliSense data
 			return parser.IntelliSense;
-		}
-
-		public static RenameExpression ParseRenameExpression(ModelType oldRootType, string expression, string oldContainingPath, string newContainingPath, params object[] values)
-		{
-			var parameters = oldRootType == null ? null : new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(oldRootType, false), "") };
-
-			// Setup objects
-			ExpressionParser parser = new ExpressionParser(parameters, expression.Substring(1), false, values);
-			parser.RenameExpression = new RenameExpression() { Expression = expression, OldContainingPath = oldContainingPath, NewContainingPath = newContainingPath, NumberFound = 0 };
-
-			// Will throw exception if expression is invalid
-			parser.Parse(null);
-
-			// Return position data
-			return parser.RenameExpression;
 		}
 
 		internal static Type CreateClass(params DynamicProperty[] properties)
@@ -721,21 +706,6 @@ namespace ExoModel
 
 		#endregion
 
-		#region RenameExpression
-
-		public class RenameExpression
-		{
-			public string OldContainingPath { get; internal set; }
-
-			public string NewContainingPath { get; internal set; }
-
-			public string Expression { get; internal set; }
-
-			public int NumberFound { get; internal set; }
-		}
-
-		#endregion
-
 		#region ParseErrorType
 
 		public enum ParseErrorType
@@ -792,7 +762,7 @@ namespace ExoModel
 
 		#region ExpressionParser
 
-		internal class ExpressionParser
+		public class ExpressionParser
 		{
 			struct Token
 			{
@@ -999,12 +969,15 @@ namespace ExoModel
 			int textPos;
 			int textLen;
 			char ch;
+			int depth;
+			static int maxDepth;
 			Token token;
 			Token prevToken;
 			QuerySyntax querySyntax;
 
 			internal IntelliSense IntelliSense { get; private set; }
-			public RenameExpression RenameExpression { get; internal set; }
+
+			public Action<ModelMemberExpression, int> RenameExpression { get; set; }
 
 			public ExpressionParser(ModelParameterExpression[] parameters, string expression, QuerySyntax querySyntax, params object[] values)
 			{
@@ -1084,6 +1057,7 @@ namespace ExoModel
 			// ?: operator
 			Expression ParseExpression(Type resultType = null)
 			{
+				depth++;
 				int errorPos = token.pos;
 				Expression expr = ParseIf(resultType);
 				if (token.id == TokenId.Question)
@@ -1109,6 +1083,12 @@ namespace ExoModel
 					}
 					expr = GenerateConditional(expr, expr1, expr2, errorPos);
 				}
+				if (depth > maxDepth)
+				{
+					maxDepth = maxDepth + 100;
+				}
+				depth--;
+
 				return expr;
 			}
 
@@ -1853,54 +1833,13 @@ namespace ExoModel
 
 						if (property != null)
 						{
+							var result = new ModelMemberExpression(instance, property);
+
 							// Rename support
 							if (RenameExpression != null)
-							{
-								string currentPropPath = id;
-								Expression expr = instance;
+								RenameExpression(result, token.pos);
 
-								// Traverse expression for multiple model member references (i.e. Section.Number)
-								while (expr is ModelMemberExpression)
-								{
-									currentPropPath = ((ModelMemberExpression)expr).Property.Name + "." + currentPropPath;
-									expr = ((ModelMemberExpression)expr).Expression;
-								}
-
-								// Old name was accessed, rename expression
-								if (currentPropPath.Equals(RenameExpression.OldContainingPath))
-								{
-									int numChangedOffset = (RenameExpression.NewContainingPath.Length - RenameExpression.OldContainingPath.Length) * RenameExpression.NumberFound++;
-
-									int startIndex = token.pos - RenameExpression.OldContainingPath.Length + numChangedOffset + 1; // "+ 1" represents '=' at the beginning of all expression 
-									var subString = RenameExpression.Expression.Substring(startIndex, RenameExpression.OldContainingPath.Length);
-
-									// Update the startIndex to handle spaces before the property path
-									while (subString != RenameExpression.OldContainingPath)
-									{
-										startIndex--;
-										subString = RenameExpression.Expression.Substring(startIndex, RenameExpression.OldContainingPath.Length);
-									}
-
-									RenameExpression.Expression = RenameExpression.Expression.Substring(0, startIndex) + RenameExpression.NewContainingPath + RenameExpression.Expression.Substring(startIndex + RenameExpression.OldContainingPath.Length);
-								}
-								// Try to scope within an aggregate function if expression is a list
-								else if (expr is ModelParameterExpression &&
-									(((ModelParameterExpression)expr).ModelType.Name + "." + currentPropPath).EndsWith(RenameExpression.OldContainingPath))
-								{
-									int scopedContainingPathIndex = RenameExpression.OldContainingPath.LastIndexOf(currentPropPath);
-									string newScopedContainingPath = RenameExpression.NewContainingPath.Substring(scopedContainingPathIndex);
-
-									// Rename expression if scoped path has changed
-									if (!newScopedContainingPath.Equals(currentPropPath))
-									{
-										int numChangedOffset = (newScopedContainingPath.Length - currentPropPath.Length) * RenameExpression.NumberFound++;
-										int startIndex = token.pos - currentPropPath.Length + numChangedOffset + 1;
-										RenameExpression.Expression = RenameExpression.Expression.Substring(0, startIndex) + newScopedContainingPath + RenameExpression.Expression.Substring(startIndex + currentPropPath.Length);
-									}
-								}
-							}
-
-							return new ModelMemberExpression(instance, property);
+							return result;
 						}
 						else
 						{
