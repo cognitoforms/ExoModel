@@ -560,9 +560,20 @@ namespace ExoModel
 		/// <returns></returns>
 		public ModelExpression GetExpression(Type resultType, string expression, ModelExpression.QuerySyntax querySyntax = ModelExpression.QuerySyntax.DotNet)
 		{
+			var key = expression;
+			if (resultType != null)
+			{
+				var typeName = resultType.Name;
+				if (resultType.IsGenericType && resultType.GetGenericTypeDefinition() == typeof(Nullable<>))
+					typeName = Nullable.GetUnderlyingType(resultType).Name;
+
+				key = expression + "|" + typeName;
+			}
+
 			ModelExpression exp;
-			if (!Expressions.TryGetValue(expression, out exp))
-				Expressions[expression] = exp = new ModelExpression(this, expression, resultType, querySyntax);
+			if (!Expressions.TryGetValue(key, out exp))
+				Expressions[key] = exp = new ModelExpression(this, expression, resultType, querySyntax);
+
 			return exp;
 		}
 
