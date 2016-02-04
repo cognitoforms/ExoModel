@@ -742,6 +742,17 @@ namespace ExoModel
 		}
 
 		/// <summary>
+		/// Gets the first <see cref="ModelInstance"/> that is the parent of the current instance through the specified property.
+		/// </summary>
+		/// <param name="property">The specific <see cref="ModelReferenceProperty"/> of the parent referencing this instance</param>
+		/// <returns>The first parent referencing this instance via the property, or null if a parent reference does not exist</returns>
+		public ModelInstance GetParentReference(ModelReferenceProperty property)
+		{
+			var reference = GetInReferences(property).FirstOrDefault();
+			return reference != null ? reference.In : null;
+		}
+
+		/// <summary>
 		/// Gets the value assigned to the specified property.
 		/// </summary>
 		/// <param name="property">The name of the property</param>
