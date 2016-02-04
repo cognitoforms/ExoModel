@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using ExoModel;
 using System.IO;
 using System.Data;
@@ -134,6 +135,8 @@ namespace ExoModel.ETL
 		// Describes the format of a column in excel
 		class ColumnFormat
 		{
+			private static readonly Regex TextFilter = new Regex(@"[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]", RegexOptions.Compiled | RegexOptions.Multiline);
+
 			internal ColumnFormat(Column column, SpreadsheetDocument document, TimeZoneInfo timezone = null)
 			{
 				this.Column = column;
@@ -192,7 +195,10 @@ namespace ExoModel.ETL
 					else
 					{
 						DataType = new EnumValue<CellValues>(CellValues.String);
-						GetCellValue = v => v;
+
+						// Cleanse string based on acceptable xml character set
+						// http://stackoverflow.com/questions/6468783/what-is-the-difference-between-cellvalues-inlinestring-and-cellvalues-string-in
+						GetCellValue = v => TextFilter.Replace(v, "");
 					}
 			}
 
