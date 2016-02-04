@@ -10,6 +10,7 @@ using System.Collections.ObjectModel;
 using Expr = System.Linq.Expressions.Expression;
 using System.Web.UI;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace ExoModel
 {
@@ -2477,33 +2478,22 @@ namespace ExoModel
 
 									else if (type == typeof(DateTime))
 									{
-										DateTime dateConstant;
-										if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AllowInnerWhite | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite | DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.NoCurrentDateDefault, out dateConstant))
-										{
-											// Assume this is a time if the year, month and day are all 1 (NoCurrentDefaultDate kicked in)
-											if (dateConstant.Year == 1 && dateConstant.Month == 1 && dateConstant.Day == 1)
-												dateConstant = dateConstant.AddYears(1969);
-
-											value = dateConstant;
-										}
+										var result = ParseDateTime(text);
+										if (result != null)
+											return result;
 									}
 
 									else if (type == typeof(DateTime?))
 									{
 										if (String.IsNullOrEmpty(text))
-											value = (DateTime?)null;
+											return Expr.Constant(null, typeof(DateTime?));
 										else
 										{
-											DateTime dateConstant;
-											if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AllowInnerWhite | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite | DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.NoCurrentDateDefault, out dateConstant))
-											{
-												// Assume this is a time if the year, month and day are all 1 (NoCurrentDefaultDate kicked in)
-												if (dateConstant.Year == 1 && dateConstant.Month == 1 && dateConstant.Day == 1)
-													dateConstant = dateConstant.AddYears(1969);
-
-												value = dateConstant;
-											}
+											var result = ParseDateTime(text);
+											if (result != null)
+												return result;
 										}
+
 									}
 									break;
 							}
@@ -2646,6 +2636,184 @@ namespace ExoModel
 					if (memberInfos.Length != 0) return ((FieldInfo)memberInfos[0]).GetValue(null);
 				}
 				return null;
+			}
+
+			const string dateTimeUnits = "year|month|week|day|hour|minute|second";
+
+			/// <summary>
+			/// Ex: "last year"
+			/// </summary>
+			static readonly Regex basicRelativeRegex = new Regex(@"^(last|next) +(" + dateTimeUnits + ")$");
+
+			/// <summary>
+			/// Ex: "+1 week"
+			/// Ex: " 1week"
+			/// </summary>
+			static readonly Regex simpleRelativeRegex = new Regex(@"^([+-]?\d+) *(" + dateTimeUnits + ")s?$");
+
+			/// <summary>
+			/// Ex: "2 minutes"
+			/// Ex: "3 months 5 days 1 hour ago"
+			/// </summary>
+			static readonly Regex completeRelativeRegex = new Regex(@"^(?: *(\d) *(" + dateTimeUnits + ")s?)+( +ago| +from now)?$");
+
+			/// <summary>
+			/// Parse a date/time string.
+			/// 
+			/// Can handle relative English-written date times like:
+			///  - "-1 day": Yesterday
+			///  - "+12 weeks": Today twelve weeks later
+			///  - "1 seconds": One second later from now.
+			///  - "5 days 1 hour ago"
+			///  - "1 year 2 months 3 weeks 4 days 5 hours 6 minutes 7 seconds"
+			///  - "today": This day at midnight.
+			///  - "now": Right now (date and time).
+			///  - "next week"
+			///  - "last month"
+			///  - "2010-12-31"
+			///  - "01/01/2010 1:59 PM"
+			///  - "23:59:58": Today at the given time.
+			/// 
+			/// If the relative time includes hours, minutes or seconds, it's relative to now,
+			/// else it's relative to today.
+			/// </summary>
+			static Expression ParseDateTime(string input)
+			{
+				// Return null if the string is blank
+				if (String.IsNullOrWhiteSpace(input))
+					return null;
+
+				// Try parse fixed dates like "01/01/2000".
+				DateTime dateLiteral;
+				if (DateTime.TryParse(input, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AllowInnerWhite | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite | DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.NoCurrentDateDefault, out dateLiteral))
+				{
+					// Assume this is a time if the year, month and day are all 1 (NoCurrentDefaultDate kicked in)
+					if (dateLiteral.Year == 1 && dateLiteral.Month == 1 && dateLiteral.Day == 1)
+						dateLiteral = dateLiteral.AddYears(1969);
+
+					return Expr.Constant(dateLiteral);
+				}
+
+				// Prepare for parsing
+				input = input.Trim().ToLower();
+
+				// Now, Today, Tomorrow, Yesterday
+				switch (input)
+				{
+					case "now":
+						return Expr.Property(null, typeof(DateTime), "Now");
+					case "today":
+						return Expr.Property(null, typeof(DateTime), "Today");
+					case "tomorrow":
+						return Expr.Call(Expr.Property(null, typeof(DateTime), "Today"), typeof(DateTime).GetMethod("AddDays"), Expr.Constant(1d));
+					case "yesterday":
+						return Expr.Call(Expr.Property(null, typeof(DateTime), "Today"), typeof(DateTime).GetMethod("AddDays"), Expr.Constant(-1d));
+				}
+
+				// Next/Last Year/Month/Week/Day/Hour/Minute/Second
+				var match = basicRelativeRegex.Match(input);
+				if (match.Success)
+				{
+					var unit = match.Groups[2].Value;
+					var sign = string.Compare(match.Groups[1].Value, "next", true) == 0 ? 1 : -1;
+					return AddOffset(unit, sign);
+				}
+
+				// Try simple format like "+1 week".
+				match = simpleRelativeRegex.Match(input);
+				if (match.Success)
+				{
+					var delta = Convert.ToDouble(match.Groups[1].Value);
+					var unit = match.Groups[2].Value;
+					return AddOffset(unit, delta);
+				}
+
+				// Try first the full format like "1 day 2 hours 10 minutes ago".
+				match = completeRelativeRegex.Match(input);
+				if (match.Success)
+				{
+					var values = match.Groups[1].Captures;
+					var units = match.Groups[2].Captures;
+					var sign = match.Groups[3].Success && match.Groups[3].Value.EndsWith("ago") ? -1 : 1;
+
+					// Determine whether to start with Today or Now
+					Expression result = Expr.Property(null, typeof(DateTime), "Today");
+					foreach (Capture unit in units)
+					{
+						if (UnitIncludesTime(unit.Value))
+						{
+							result = Expr.Property(null, typeof(DateTime), "Now");
+							break;
+						}
+					}
+
+					for (int i = 0; i < values.Count; ++i)
+					{
+						var value = sign * Convert.ToInt32(values[i].Value);
+						var unit = units[i].Value;
+
+						result = AddOffset(unit, value, result);
+					}
+
+					return result;
+				}
+
+				return null;
+			}
+
+			/// <summary>
+			/// Add/Remove years/days/hours... to a datetime expression.
+			/// </summary>
+			/// <param name="unit">Must be one of ValidUnits</param>
+			/// <param name="value">Value in given unit to add to the datetime</param>
+			/// <param name="dateTime">Relative datetime</param>
+			/// <returns>Relative datetime</returns>
+			static Expression AddOffset(string unit, double offset, Expression date)
+			{
+				switch (unit)
+				{
+					case "year":
+						return Expr.Call(date, typeof(DateTime).GetMethod("AddYears"), Expr.Constant((int)offset));
+					case "month":
+						return Expr.Call(date, typeof(DateTime).GetMethod("AddMonths"), Expr.Constant((int)offset));
+					case "week":
+						return Expr.Call(date, typeof(DateTime).GetMethod("AddDays"), Expr.Constant(offset * 7));
+					case "day":
+						return Expr.Call(date, typeof(DateTime).GetMethod("AddDays"), Expr.Constant(offset));
+					case "hour":
+						return Expr.Call(date, typeof(DateTime).GetMethod("AddHours"), Expr.Constant(offset));
+					case "minute":
+						return Expr.Call(date, typeof(DateTime).GetMethod("AddMinutes"), Expr.Constant(offset));
+					case "second":
+						return Expr.Call(date, typeof(DateTime).GetMethod("AddSeconds"), Expr.Constant(offset));
+				}
+
+				return null;
+			}
+
+			/// <summary>
+			/// Add/Remove years/days/hours... relative to today or now.
+			/// </summary>
+			/// <param name="unit">Must be one of ValidUnits</param>
+			/// <param name="value">Value in given unit to add to the datetime</param>
+			/// <returns>Relative datetime</returns>
+			static Expression AddOffset(string unit, double offset)
+			{
+				return AddOffset(unit, offset, Expr.Property(null, typeof(DateTime), UnitIncludesTime(unit) ? "Now" : "Today"));
+			}
+
+			static bool UnitIncludesTime(string unit)
+			{
+				switch (unit)
+				{
+					case "hour":
+					case "minute":
+					case "second":
+						return true;
+
+					default:
+						return false;
+				}
 			}
 
 			static bool IsCompatibleWith(Type source, Type target)
