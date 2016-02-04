@@ -1081,7 +1081,7 @@ namespace ExoModel
 				if (token.id == TokenId.Question)
 				{
 					NextToken();
-					Expression expr1 = ParseExpression();
+					Expression expr1 = ParseExpression(resultType);
 					if (resultType != null)
 					{
 						expr1 = PromoteExpression(expr1, resultType, true);
@@ -1090,7 +1090,7 @@ namespace ExoModel
 					}
 					ValidateToken(TokenId.Colon, ParseErrorType.ColonExpected);
 					NextToken();
-					Expression expr2 = ParseExpression();
+					Expression expr2 = ParseExpression(resultType);
 					if (resultType != null)
 					{
 						expr2 = PromoteExpression(expr2, resultType, true);
