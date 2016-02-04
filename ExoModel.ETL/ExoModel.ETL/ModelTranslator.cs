@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using DocumentFormat.OpenXml.Bibliography;
 using ExoModel;
 using System.Text.RegularExpressions;
 using System.Web.Query.Dynamic;
@@ -59,12 +60,12 @@ namespace ExoModel.ETL
 		}
 
 		/// <summary>
-		/// Adds a value <see cref="PropertyTranslator"/> to the current <see cref="ModelTranslator"/>.
+		/// Initializes a <see cref="PropertyTranslator"/>
 		/// </summary>
 		/// <param name="sourceExpression">The source expression</param>
 		/// <param name="destinationPath">The destination path</param>
-		/// <param name="valueConverter">The optional value converter to use</param>
-		public void AddPropertyTranslation(string sourceExpression, string destinationPath, TypeConverter valueConverter = null)
+		/// <returns></returns>
+		private PropertyTranslator CreatePropertyTranslator(string sourceExpression, string destinationPath)
 		{
 			// Replace property labels with property names in mapping expressions
 			foreach (var property in SourceType.Properties)
@@ -77,13 +78,28 @@ namespace ExoModel.ETL
 				throw new ApplicationException(string.Format("ModelSource cannot be found for this path {0}", destinationPath));
 
 			// Add the new value property translation
-			Properties.Add(new PropertyTranslator()
+			return new PropertyTranslator()
 			{
 				SourceExpression = String.IsNullOrEmpty(sourceExpression) ? null : SourceType.GetExpression(sourceExpression),
 				DestinationSource = destinationSource,
 				DestinationProperty = destinationProperty,
-				ValueConverter = valueConverter ?? getValueConverter(destinationProperty)
-			});
+			};
+		}
+
+		/// <summary>
+		/// Adds a value <see cref="PropertyTranslator"/> to the current <see cref="ModelTranslator"/>.
+		/// </summary>
+		/// <param name="sourceExpression">The source expression</param>
+		/// <param name="destinationPath">The destination path</param>
+		/// <param name="valueConverter">The optional value converter to use</param>
+		public void AddPropertyTranslation(string sourceExpression, string destinationPath, TypeConverter valueConverter = null)
+		{
+			// Create translator
+			var translator = CreatePropertyTranslator(sourceExpression, destinationPath);
+			translator.ValueConverter = valueConverter ?? getValueConverter(translator.DestinationProperty);
+
+			// Add the new value property translation
+			Properties.Add(translator);
 		}
 
 		/// <summary>
@@ -94,25 +110,31 @@ namespace ExoModel.ETL
 		/// <param name="valueConverter">The optional value converter to use</param>
 		public void AddPropertyTranslation(string sourceExpression, string destinationPath, ModelTranslator referenceConverter)
 		{
-			// Replace property labels with property names in mapping expressions
-			foreach (var property in SourceType.Properties)
-				sourceExpression = sourceExpression
-					.Replace("[" + property.Label + "]", property.Name);
-
-			// Create a translation containing compiled source expressions and destination sources
-			ModelSource destinationSource;
-			ModelProperty destinationProperty;
-			if (!ModelSource.TryGetSource(DestinationType, destinationPath, out destinationSource, out destinationProperty))
-				throw new ApplicationException(string.Format("ModelSource cannot be found for this path {0}", destinationPath));
+			// Create translator
+			var translator = CreatePropertyTranslator(sourceExpression, destinationPath);
+			translator.ReferenceConverter = referenceConverter;
 
 			// Add the new value property translation
-			Properties.Add(new PropertyTranslator()
-			{
-				SourceExpression = String.IsNullOrEmpty(sourceExpression) ? null : SourceType.GetExpression(sourceExpression),
-				DestinationSource = destinationSource,
-				DestinationProperty = destinationProperty,
-				ReferenceConverter = referenceConverter
-			});
+			Properties.Add(translator);
+		}
+
+		/// <summary>
+		/// Adds a value <see cref="PropertyTranslator"/> to the current <see cref="ModelTranslator"/>
+		/// </summary>
+		/// <param name="sourceExpression">The source expression</param>
+		/// <param name="destinationPath">The destination path</param>
+		/// <param name="delegateConverter">The delegate to use to generate the translated value</param>
+		public void AddPropertyTranslation(string sourceExpression, string destinationPath, Func<object, string> delegateConverter)
+		{
+			if (delegateConverter == null)
+				throw new ArgumentException("delegateConverter");
+
+			// Create translator
+			var translator = CreatePropertyTranslator(sourceExpression, destinationPath);
+			translator.DelegateConverter = delegateConverter;
+
+			// Add the new value property translation
+			Properties.Add(translator);
 		}
 
 		/// <summary>
@@ -174,6 +196,8 @@ namespace ExoModel.ETL
 				{
 					if (value != null && property.ValueConverter != null && !((ModelValueProperty)property.DestinationProperty).PropertyType.IsAssignableFrom(value.GetType()))
 						value = property.ValueConverter.ConvertFrom(null, Thread.CurrentThread.CurrentCulture, value);
+					else if (property.DelegateConverter != null)
+						value = property.DelegateConverter(value);
 
 					//the destination property is an enum, see if it is a concrete type
 					//and has a converter associated with it.  This is handled outside
@@ -243,5 +267,7 @@ namespace ExoModel.ETL
 		internal TypeConverter ValueConverter { get; set; }
 
 		internal ModelTranslator ReferenceConverter { get; set; }
+
+		internal Func<object, string> DelegateConverter { get; set; }
 	}
 }
