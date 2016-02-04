@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Linq;
@@ -8,9 +9,10 @@ using System.Reflection.Emit;
 using System.Threading;
 using System.Collections.ObjectModel;
 using Expr = System.Linq.Expressions.Expression;
-using System.Web.UI;
 using System.Globalization;
 using System.Text.RegularExpressions;
+
+#pragma warning disable 618
 
 namespace ExoModel
 {
@@ -20,14 +22,20 @@ namespace ExoModel
 	/// expose a <see cref="ModelPath"/> representing the dependencies of the expression.
 	/// </summary>
 	/// <remarks>
-	/// Call <see cref="ModelType.GetExpression"/> to create a <see cref="ModelExpression"/> based on a
+	/// Call <see cref="ModelType.GetExpression(string)"/> to create a <see cref="ModelExpression"/> based on a
 	/// <see cref="String"/> representation.
 	/// </remarks>
 	public class ModelExpression
 	{
-		#region Constructors
+		#region Fields
 
 		private Delegate compiledExp = null;
+
+		private ExpressionFormatter formatter;
+
+		#endregion
+
+		#region Constructors
 
 		public ModelExpression(ModelType rootType, LambdaExpression expression)
 		{
@@ -43,7 +51,7 @@ namespace ExoModel
 
 			// Parse the expression
 			var parameters = new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") };
-			var resultExpression = new ExpressionParser(parameters, expression, querySyntax, false).Parse(new ModelExpressionType(resultType));
+			var resultExpression = new ExpressionParser(parameters, expression, querySyntax, false).Parse(resultType == null ? null : new ModelExpressionType(resultType));
 
 			// Determine the model property paths referenced by the expression
 			this.Path = rootType.GetPath(resultExpression);
@@ -60,6 +68,16 @@ namespace ExoModel
 		#region Properties
 
 		public LambdaExpression Expression { get; private set; }
+
+		private ExpressionFormatter Formatter
+		{
+			get
+			{
+				if (formatter == null)
+					formatter = new ExpressionFormatter(this, CultureInfo.CurrentCulture);
+				return formatter;
+			}
+		}
 
 		public Delegate CompiledExpression
 		{
@@ -104,7 +122,7 @@ namespace ExoModel
 			}
 			catch
 			{
-				return new IntelliSense() { Position = 0, Type = parameters[0], Scope = parameters[0] == null ? IntelliSenseScope.Globals : IntelliSenseScope.Globals | IntelliSenseScope.InstanceMembers };
+				return new IntelliSense() { Position = 0, Type = parameters == null ? null : parameters[0], Scope = parameters == null || parameters[0] == null ? IntelliSenseScope.Globals : IntelliSenseScope.Globals | IntelliSenseScope.InstanceMembers };
 			}
 
 			// Parse the expression, ignoring parse errors
@@ -129,6 +147,16 @@ namespace ExoModel
 			return ClassFactory.Instance.GetDynamicClass(properties);
 		}
 
+		public ModelType GetResultModelType()
+		{
+			ModelType resultType;
+
+			if (!ExpressionHelper.TryGetResultModelType(Expression, out resultType))
+				return null;
+
+			return resultType;
+		}
+
 		/// <summary>
 		/// Invokes the expression for the specified root instance.
 		/// </summary>
@@ -145,7 +173,7 @@ namespace ExoModel
 			{
 				// Make sure a root instance was specified for expressions requiring a root instance
 				if (root == null)
-					throw new ArgumentNullException("A model instance must be specified to invoke this model expression.");
+					throw new ArgumentNullException("root", "A model instance must be specified to invoke this model expression.");
 
 				// Make sure the root instance is of the correct model type
 				if (!RootType.IsInstanceOfType(root))
@@ -153,6 +181,34 @@ namespace ExoModel
 
 				return CompiledExpression.DynamicInvoke(root.Instance);
 			}
+		}
+
+		/// <summary>
+		/// Gets the value of the expression.
+		/// </summary>
+		/// <param name="instance">The root model instance.</param>
+		/// <returns>The value of the expression.</returns>
+		public object GetValue(ModelInstance instance)
+		{
+			return Invoke(instance);
+		}
+
+		/// <summary>
+		/// Gets the value of the expression formatted as a string.
+		/// </summary>
+		/// <param name="instance">The root model instance.</param>
+		/// <param name="format">The optional format to use -or- null to use the format information from the model, if available, or the default format for the type.</param>
+		/// <param name="provider">The optional format provider to use.</param>
+		/// <param name="rawValue">The raw result value of the expression.</param>
+		/// <returns>The value of the expression, formatted as a string.</returns>
+		public string GetFormattedValue(ModelInstance instance, string format, IFormatProvider provider, out object rawValue)
+		{
+			rawValue = Invoke(instance);
+
+			if (rawValue == null)
+				return "";
+
+			return Formatter.FormatResult(rawValue, format, provider);
 		}
 
 		#endregion
@@ -926,6 +982,43 @@ namespace ExoModel
 				void Average(decimal selector);
 				void Average(decimal? selector);
 				void Select(object selector);
+				void OrderBy(object selector);
+				void OrderByDescending(object selector);
+				void Except(object items);
+
+				//void Max();
+				//void Min();
+				//void AsEnumerable();
+				//void Aggregate(object func);
+				//void Average();
+				//void Cast(???);
+				//void Concat(object items);
+				//void DefaultIfEmpty();
+				//void DefaultIfEmpty(object value);
+				//void Distinct();
+				//void Distinct(object comparer);
+				//void ElementAt(int index);
+				//void ElementAtOrDefault(int index);
+				//void GroupBy(object selector);
+				//void Intersect(object selector);
+				//void LongCount();
+				//void LongCount(bool predicate);
+				//void OfType(???);
+				//void Reverse();
+				//void SelectMany(object selector);
+				//void SequenceEqual(object items);
+				//void Single();
+				//void Single(bool predicate);
+				//void SingleOrDefault();
+				//void SingleOrDefault(bool predicate);
+				//void Skip(int selector);
+				//void SkipWhile(bool predicate);
+				//void Sum();
+				//void Take(int selector);
+				//void TakeWhile(bool predicate);
+				//void ToDictionary(object selector);
+				//void ToLookup(object selector);
+				//void Union(object items);
 			}
 
 			static readonly Type[] predefinedTypes = {
@@ -1803,6 +1896,27 @@ namespace ExoModel
 										break;
 								}
 							}
+
+							// Call ModelInstance.ToString(format) for model types.
+							if (type.ModelType != null)
+							{
+								if (instance != null && id == "ToString" && args.Length == 1)
+								{
+									// ModelInstanceFormatter.ToString((IModelInstance)instance, format)
+									return Expr.Call(
+										// ModelInstanceFormatter.ToString
+										typeof(ModelInstanceFormatter).GetMethod("ToString", BindingFlags.NonPublic | BindingFlags.Static, null, new[] { typeof(IModelInstance), typeof(string) }, null),
+										// (IModelInstance)instance, format
+										new[]
+										{
+											// (IModelInstance)instance
+											Expr.Convert(instance, typeof(IModelInstance)),
+											// (format)
+											args[0]
+										});
+								}
+							}
+
 							throw ParseError(errorPos, ParseErrorType.NoApplicableMethod, id, GetTypeName(type));
 						case 1:
 							MethodInfo method = (MethodInfo)mb;
@@ -1899,44 +2013,148 @@ namespace ExoModel
 				it = innerIt;
 				Expression[] args = ParseArgumentList();
 				it = outerIt;
+
 				MethodBase signature;
 				if (FindMethod(typeof(IEnumerableSignatures), methodName, false, ref args, out signature) != 1)
 					throw ParseError(errorPos, ParseErrorType.NoApplicableAggregate, methodName);
+
 				Type[] typeArgs;
 
 				// Contains
+				//		bool Method<TSource>(IEnumerable<TSource> source, TSource value)
 				if (signature.Name == "Contains")
 					return Expr.Call(typeof(Enumerable), "Contains", new Type[] { elementType.Type }, new Expression[] { instance, args[0] });
 
-				if (signature.Name == "Min" || signature.Name == "Max" || signature.Name == "Select")
+				// Except
+				//		IEnumerable<TSource> Except(IEnumerable<TSource> first, IEnumerable<TSource> second)
+				if (signature.Name == "Except")
+					return Expr.Call(typeof(Enumerable), "Except", new Type[] { elementType.Type }, new Expression[] { instance, args[0] });
+
+				if (signature.Name == "Min" || signature.Name == "Max" || signature.Name == "Select" || signature.Name == "OrderBy" || signature.Name == "OrderByDescending")
 				{
+					// Methods with a second type parameter that determines the result type of a selector or comparer function.
+					// Min, Max
+					//		TResult Method<TSource, TResult>(IEnumerable<TItem> source, Func<TSource, TResult> selector)
+					// Select
+					//		IEnumerable<TResult> Select<TSource, TResult>(IEnumerable<TItem> source, Func<TSource, TResult> selector)
+					// OrderBy, OrderByDescending
+					//		IEnumerable<TSource> Method<TSource, TKey>(IEnumerable<TItem> source, Func<TSource, TResult> comparer)
 					typeArgs = new Type[] { elementType.Type, args[0].Type };
 				}
 				else
 				{
+					// Methods that have only a single type parameter: no arguments, or optional predicate or item value.
+					// First, FirstOrDefault, Last, LastOrDefault
+					//		TSource Method<TSource>(IEnumerable<TSource> source)
+					//		TSource Method<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+					// Where
+					//		IEnumerable<TSource> Method<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+					// Any, All
+					//		bool Method<TSource>(IEnumerable<TSource> source)
+					//		bool Method<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+					// Count
+					//		int Method<TSource>(IEnumerable<TSource> source)
+					//		int Method<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+					// Except
+					//		IEnumerable<TSource> Method<TSource>(IEnumerable<TSource> first, IEnumerable<TSource> second)
 					typeArgs = new Type[] { elementType.Type };
 				}
+
 				if (args.Length == 0)
 				{
+					// Methods with no arguments that return a single value, e.g. `items.First()`, `items.Count()`, etc...
 					args = new Expression[] { instance };
 				}
 				else
 				{
+					// Methods with a single lambda expression argument, e.g. `items.Where(selector)`, `items.Max(selector)`, etc...
 					args = new Expression[] { instance, new ModelLambdaExpression(args[0], innerIt) };
 				}
+
+				// Some extension methods may need to be wrapped in some way, e.g. to track the model type of the result.
 				switch (signature.Name)
 				{
+					// IEnumerable<TSource> -> TSource
 					case "First":
 					case "FirstOrDefault":
 					case "Last":
 					case "LastOrDefault":
+
 						return new ModelCastExpression(Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args), elementType.ModelType, false);
+
+					// IEnumerable<TSource> -> IEnumerable<TSource>
 					case "Where":
-					case "Select":
+					case "OrderBy":
+					case "OrderByDescending":
+
 						return new ModelCastExpression(Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args), elementType.ModelType, true);
-					default:
-						return Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args);
+
+					// IEnumerable<TSource> -> TResult
+					case "Select":
+
+						var resultType = typeArgs[1];
+
+						if (typeof(IModelInstance).IsAssignableFrom(resultType))
+						{
+							var selector = args[1];
+							var modelType = GetModelType(selector);
+							if (modelType == null)
+								modelType = ModelContext.Current.GetModelType(resultType);
+
+							return new ModelCastExpression(Expr.Call(typeof (Enumerable), signature.Name, typeArgs, args), modelType, true);
+						}
+
+						break;
 				}
+
+				return Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args);
+			}
+
+			private static ModelType GetModelType(Expression expr)
+			{
+				var propExpr = expr as ModelMemberExpression;
+				if (propExpr != null)
+				{
+					// Simple property expression
+					return propExpr.ModelType;
+				}
+
+				var call = expr as MethodCallExpression;
+				if (call != null && call.Method.DeclaringType != null && call.Method.DeclaringType.FullName == "System.Linq.Enumerable")
+				{
+					var source = call.Arguments[0];
+
+					switch (call.Method.Name)
+					{
+						case "First":
+						case "Last":
+						case "Where":
+
+							// TSource First<TSource>(IEnumerable<TSource> source)
+							// TSource First<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+							// TSource Last<TSource>(IEnumerable<TSource> source)
+							// TSource Last<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+							// IEnumerable<TSource> Where<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+
+							return GetModelType(source);
+
+						case "Select":
+
+							if (call.Arguments.Count == 2)
+							{
+								// TResult Select<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
+
+								var selectorLambda = call.Arguments[1] as ModelLambdaExpression;
+								if (selectorLambda != null)
+									return GetModelType(selectorLambda.Body);
+							}
+
+							break;
+
+					}
+				}
+
+				return null;
 			}
 
 			Expression[] ParseArgumentList()
@@ -2353,7 +2571,7 @@ namespace ExoModel
 							// See if the additional arguments can be promoted into an array of the correct type
 							var parameters = m.GetParameters();
 							var arrayType = parameters.Last().ParameterType.GetElementType();
-							var elements = searchArgs.Skip(parameters.Count() - 1).Select(a => PromoteExpression(a, arrayType, false)).ToArray();
+							var elements = searchArgs.Skip(parameters.Length - 1).Select(a => PromoteExpression(a, arrayType, false)).ToArray();
 							if (elements.Any(e => e == null))
 								return null;
 
@@ -2394,7 +2612,7 @@ namespace ExoModel
 							{
 								MethodBase = m,
 								Parameters = parameters,
-								Args = searchArgs.Take(parameters.Count() - 1).Concat(elements).ToArray()
+								Args = searchArgs.Take(parameters.Length - 1).Concat(elements).ToArray()
 							};
 						}).
 						Where(m => m != null).
@@ -2492,62 +2710,126 @@ namespace ExoModel
 				}
 				else if (type == typeof(string))
 				{
-					// Use String.Join(", ", enumerableList) to print out an IEnumerable list
-					if (expr.Type.IsGenericType && expr.Type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
-					{
-						expr = Expr.Call(typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(typeof(Object)), expr);
-						expr = Expr.Call(typeof(Enumerable).GetMethod("ToArray").MakeGenericMethod(typeof(Object)), expr);
+					bool isModelType;
+					bool isList;
+					Type itemType;
+					string format;
+					IFormatProvider provider;
 
-						MethodInfo joinMethod = typeof(String).GetMethod("Join", new Type[] { typeof(String), typeof(Object[]) });
-						expr = Expr.Call(joinMethod, new Expr[] { Expr.Constant(", "), expr });
-					}
-					else if (expr is ModelExpression.ModelMemberExpression && !string.IsNullOrEmpty(((ModelExpression.ModelMemberExpression)expr).Property.Format) && typeof(IModelInstance).IsAssignableFrom(expr.Type))
+					if (expr is ModelCastExpression)
 					{
-						expr = Expr.Call(
-									Expr.Property(Expr.Convert(expr, typeof(IModelInstance)), "Instance"),
-									typeof(ModelInstance).GetMethod("ToString", new Type[] { typeof(string) }),
-									Expr.Constant(((ModelExpression.ModelMemberExpression)expr).Property.Format));
+						isModelType = true;
+						isList = ((ModelCastExpression)expr).IsList;
+						itemType = typeof (IModelInstance);
+						if (!ExpressionFormatter.TryGetFormat(((ModelCastExpression) expr).Expression, CultureInfo.CurrentCulture, out format, out provider))
+						{
+							// Fall back to the type-level format for model cast expressions
+							if (((ModelCastExpression) expr).ModelType != null)
+								format = ((ModelCastExpression) expr).ModelType.Format;
+						}
 					}
 					else
 					{
-						string format = null;
-						if (expr is ModelExpression.ModelMemberExpression)
-							format = ((ModelExpression.ModelMemberExpression)expr).Property.Format;
+						ExpressionHelper.GetTypeInfo(expr, out isModelType, out isList, out itemType);
+						ExpressionFormatter.TryGetFormat(expr, CultureInfo.CurrentCulture, out format, out provider);
+					}
 
-						if (IsNullableType(expr.Type))
+					if (isList)
+					{
+						// Use String.Join(", ", enumerableList) to print out an IEnumerable list
+						if (!string.IsNullOrEmpty(format))
 						{
-							MethodCallExpression toStringExp;
-							if (format != null)
+							if (isModelType)
 							{
-								var underlyingType = Nullable.GetUnderlyingType(expr.Type);
-								toStringExp = Expr.Call(
-													Expr.Convert(expr, underlyingType),
-													underlyingType.GetMethod("ToString", new Type[] { typeof(string) }),
-													Expr.Constant(format));
+								// Use IModelInstance.ToString(format, provider) ...
+
+								// IEnumerable<IModelInstance> Cast<IModelInstance>(this IEnumerable expr)
+								expr = ExpressionWriter.CallLinqCast<IModelInstance>(expr);
+
+								// IEnumerable<string> Select<IModelInstance, string>(IEnumerable<IModelInstance> list, (IModelInstance i) => ModelInstanceFormatter.ToString(i, format))
+								expr = ExpressionWriter.CallLinqSelect<IModelInstance, string>(expr, i =>
+									// ModelInstanceFormatter.ToString(i, format)
+									Expr.Call(
+										// ModelInstanceFormatter.ToString
+										typeof(ModelInstanceFormatter).GetMethod("ToString", BindingFlags.NonPublic | BindingFlags.Static, null, new[] { typeof(IModelInstance), typeof(string) }, null),
+										// (i, format)
+										new []
+										{
+											// i
+											i,
+											// format
+											Expr.Constant(format)
+										})
+									);
 							}
 							else
-								toStringExp = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
+							{
+								// IEnumerable<object> Cast<object>(this IEnumerable expr)
+								expr = ExpressionWriter.CallLinqCast<object>(expr);
 
-							// expr == null ? "" : expr.ToString()
-							expr = Expr.Condition(
-								Expr.Equal(expr, Expr.Constant(null)),
-								Expr.Constant(""),
-								toStringExp);
+								// Select<TItem, string>(expr, (TItem i) => i.ToString(format, provider))
+								expr = ExpressionWriter.CallLinqSelect<string>(expr, itemType, i =>
+								{
+									Expression toStringExpr;
+
+									// i.ToString(format, provider)
+									if (!ExpressionWriter.TryCallToString(i, format, provider, out toStringExpr))
+										// i.ToString()
+										toStringExpr = ExpressionWriter.CallToString(i);
+
+									return toStringExpr;
+								});
+							}
+
+							// string.Join(", ", string[])
+							expr = ExpressionWriter.CallStringJoin(", ", ExpressionWriter.CallLinqToArray(expr, typeof(string)), typeof(string[]));
+						}
+						else if (itemType == typeof (string))
+						{
+							// string.Join(", ", string[])
+							expr = ExpressionWriter.CallStringJoin(", ", ExpressionWriter.CallLinqToArray(expr, typeof(string)), typeof(string[]));
 						}
 						else
 						{
-							// expr.ToString()
-							if (format != null)
-							{
-								var method = expr.Type.GetMethod("ToString", new Type[] { typeof(string) });
-								if (method != null)
-									expr = Expr.Call(expr, method, Expr.Constant(format));
-								else
-									expr = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
-							}
-							else
-								expr = Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
+							// IEnumerable<object> Cast<object>(this IEnumerable expr)
+							expr = ExpressionWriter.CallLinqCast<object>(expr);
+
+							// string.Join(", ", object[])
+							expr = ExpressionWriter.CallStringJoin(", ", ExpressionWriter.CallLinqToArray(expr, typeof (object)), typeof(object[]));
 						}
+					}
+					else if (isModelType)
+					{
+						if (!String.IsNullOrEmpty(format))
+							expr = ExpressionWriter.CallModelInstanceToString(expr, format);
+						else
+							expr = ExpressionWriter.CallModelInstanceToString(expr);
+					}
+					else if (IsNullableType(expr.Type))
+					{
+						Expression toStringExpr;
+
+						// expr.ToString(format, provider)
+						if (format == null || !ExpressionWriter.TryCallToString(Expr.Convert(expr, Nullable.GetUnderlyingType(expr.Type)), format, provider, out toStringExpr))
+							// expr.ToString()
+							toStringExpr = ExpressionWriter.CallToString(expr);
+
+						// expr == null ? "" : ((T)expr).ToString(format, provider)
+						expr = Expr.Condition(
+							Expr.Equal(expr, Expr.Constant(null)),
+							Expr.Constant(""),
+							toStringExpr);
+					}
+					else
+					{
+						Expression toStringExpr;
+
+						// expr.ToString(format, provider)
+						if (format == null || !ExpressionWriter.TryCallToString(expr, format, provider, out toStringExpr))
+							// expr.ToString()
+							toStringExpr = ExpressionWriter.CallToString(expr);
+
+						expr = toStringExpr;
 					}
 
 					return expr;
@@ -2556,7 +2838,7 @@ namespace ExoModel
 				if (IsCompatibleWith(expr.Type, type))
 				{
 					if (type.IsValueType || exact) return Expr.Convert(expr, type);
-					return expr;
+						return expr;
 				}
 
 				return null;
@@ -2753,8 +3035,8 @@ namespace ExoModel
 			/// Add/Remove years/days/hours... to a datetime expression.
 			/// </summary>
 			/// <param name="unit">Must be one of ValidUnits</param>
-			/// <param name="value">Value in given unit to add to the datetime</param>
-			/// <param name="dateTime">Relative datetime</param>
+			/// <param name="offset">Value in given unit to add to the datetime</param>
+			/// <param name="date">Relative datetime</param>
 			/// <returns>Relative datetime</returns>
 			static Expression AddOffset(string unit, double offset, Expression date)
 			{
@@ -2783,7 +3065,7 @@ namespace ExoModel
 			/// Add/Remove years/days/hours... relative to today or now.
 			/// </summary>
 			/// <param name="unit">Must be one of ValidUnits</param>
-			/// <param name="value">Value in given unit to add to the datetime</param>
+			/// <param name="offset">Value in given unit to add to the datetime</param>
 			/// <returns>Relative datetime</returns>
 			static Expression AddOffset(string unit, double offset)
 			{
@@ -3352,6 +3634,1387 @@ namespace ExoModel
 
 		#endregion
 
+		#region ExpressionHelper
+
+		internal static class ExpressionHelper
+		{
+			private static readonly MethodInfo stringFormat1 = typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) });
+
+			private static readonly MethodInfo stringFormat2 = typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object), typeof(object) });
+
+			private static readonly MethodInfo stringFormat3 = typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object), typeof(object), typeof(object) });
+
+			private static readonly MethodInfo stringFormatN = typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object[]) });
+
+			private static readonly MethodInfo stringFormatWithProvider = typeof(string).GetMethod("Format", new[] { typeof(IFormatProvider), typeof(string), typeof(object[]) });
+
+			/// <summary>
+			/// Attempt to parse a call to 'obj.ToString(format, provider)'.
+			/// </summary>
+			internal static bool TryParseToStringMethod(MethodCallExpression call, out Expression callThis, out string callFormat, out IFormatProvider callProvider)
+			{
+				if (call.Method.IsStatic)
+				{
+					callThis = null;
+					callFormat = null;
+					callProvider = null;
+					return false;
+				}
+
+				if (call.Method.Name != "ToString")
+				{
+					callThis = null;
+					callFormat = null;
+					callProvider = null;
+					return false;
+				}
+
+				if (call.Arguments.Count == 1)
+				{
+					if (call.Arguments[0].Type == typeof(string))
+					{
+						callThis = call.Object;
+						callFormat = call.Arguments[0] is ConstantExpression ? (string) ((ConstantExpression) call.Arguments[0]).Value : null;
+						callProvider = null;
+						return true;
+					}
+
+					if (call.Arguments[0].Type == typeof(IFormatProvider))
+					{
+						callThis = call.Object;
+						callFormat = null;
+						callProvider = call.Arguments[0] is ConstantExpression ? (IFormatProvider) ((ConstantExpression) call.Arguments[0]).Value : null;
+						return true;
+					}
+				}
+				else if (call.Arguments.Count == 2)
+				{
+					if (call.Arguments[0].Type == typeof(string) && call.Arguments[1].Type == typeof(IFormatProvider))
+					{
+						callThis = call.Object;
+						callFormat = call.Arguments[0] is ConstantExpression ? (string) ((ConstantExpression) call.Arguments[0]).Value : null;
+						callProvider = call.Arguments[1] is ConstantExpression ? (IFormatProvider) ((ConstantExpression) call.Arguments[1]).Value : null;
+						return true;
+					}
+				}
+
+				callThis = null;
+				callFormat = null;
+				callProvider = null;
+				return false;
+			}
+
+			/// <summary>
+			/// Attempt to parse a call to 'String.Format(provider, template, args...)'.
+			/// </summary>
+			internal static bool TryParseStringFormatMethod(MethodCallExpression call, out IFormatProvider callProvider, out string callFormat, out Expression[] callArgs)
+			{
+				if (call.Method == stringFormat1 || call.Method == stringFormat2 || call.Method == stringFormat3 || call.Method == stringFormatN || call.Method == stringFormatWithProvider)
+				{
+					ConstantExpression providerExpr;
+					ConstantExpression formatExpr;
+
+					if (call.Method == stringFormat1 || call.Method == stringFormat2 || call.Method == stringFormat3 || call.Method == stringFormatN)
+					{
+						providerExpr = null;
+						formatExpr = call.Arguments[0] as ConstantExpression;
+
+						if (call.Method == stringFormat1 || call.Method == stringFormat2 || call.Method == stringFormat3 || call.Method == stringFormatN)
+						{
+							callArgs = new[] { call.Arguments[1] };
+						}
+						else if (call.Method == stringFormat1 || call.Method == stringFormat2 || call.Method == stringFormat3 || call.Method == stringFormatN)
+						{
+							callArgs = new[] { call.Arguments[1], call.Arguments[2] };
+						}
+						else if (call.Method == stringFormat1 || call.Method == stringFormat2 || call.Method == stringFormat3 || call.Method == stringFormatN)
+						{
+							callArgs = new[] { call.Arguments[1], call.Arguments[2], call.Arguments[3] };
+						}
+						else
+						{
+							var paramsArrayExpr = call.Arguments[1] as NewArrayExpression;
+							if (paramsArrayExpr != null)
+								callArgs = paramsArrayExpr.Expressions.ToArray();
+							else
+								callArgs = call.Arguments.Skip(1).ToArray();
+						}
+					}
+					else
+					{
+						providerExpr = call.Arguments[0] as ConstantExpression;
+						formatExpr = call.Arguments[1] as ConstantExpression;
+
+						var argsArrayExpr = call.Arguments[2] as NewArrayExpression;
+						if (argsArrayExpr != null)
+							callArgs = argsArrayExpr.Expressions.ToArray();
+						else
+							callArgs = call.Arguments.Skip(2).ToArray();
+					}
+
+					if (providerExpr != null)
+						callProvider = providerExpr.Value as IFormatProvider;
+					else
+						callProvider = null;
+
+					if (formatExpr != null)
+						callFormat = formatExpr.Value as string;
+					else
+						callFormat = null;
+
+					return true;
+				}
+
+				callProvider = null;
+				callFormat = null;
+				callArgs = null;
+				return false;
+			}
+
+			/// <summary>
+			/// Try to determine the return type of the given expression.
+			/// </summary>
+			internal static bool TryGetReturnType(Expression expr, out Type returnType)
+			{
+				Expression body;
+				if (TryGetLambdaBody(expr, out body))
+					expr = body;
+
+				if (expr.NodeType == ExpressionType.Convert)
+				{
+					returnType = expr.Type;
+					return true;
+				}
+
+				var memberExpr = expr as MemberExpression;
+				if (memberExpr != null)
+				{
+					var property = memberExpr.Member as PropertyInfo;
+					if (property != null)
+					{
+						returnType = property.PropertyType;
+						return true;
+					}
+
+					var method = memberExpr.Member as MethodInfo;
+					if (method != null)
+					{
+						returnType = method.ReturnType;
+						return true;
+					}
+				}
+
+				var callExpr = expr as MethodCallExpression;
+				if (callExpr != null)
+				{
+					returnType = callExpr.Method.ReturnType;
+					return true;
+				}
+
+				returnType = null;
+				return false;
+			}
+
+			/// <summary>
+			/// Try to get the model type of the 
+			/// </summary>
+			public static bool TryGetResultModelType(Expression expr, out ModelType resultType)
+			{
+				Expression body;
+				if (TryGetLambdaBody(expr, out body))
+					expr = body;
+
+				var castExpr = expr as ModelCastExpression;
+				if (castExpr != null)
+				{
+					resultType = castExpr.ModelType;
+					return true;
+				}
+
+				var memberExpr = expr as ModelMemberExpression;
+				if (memberExpr != null)
+				{
+					if (memberExpr.Property is ModelReferenceProperty)
+					{
+						resultType = ((ModelReferenceProperty) memberExpr.Property).PropertyType;
+						return true;
+					}
+
+					// If the property is not a reference property,
+					// then the result type is not a model type.
+					resultType = null;
+					return false;
+				}
+
+				Type returnType;
+				if (TryGetReturnType(expr, out returnType))
+				{
+					bool isModelType;
+					bool isList;
+					Type itemType;
+
+					ModelType.GetTypeInfo(returnType, out isModelType, out isList, out itemType);
+
+					if (!isModelType)
+					{
+						resultType = null;
+						return false;
+					}
+
+					if (isList)
+						resultType = ModelContext.Current.GetModelType(itemType);
+					else
+						resultType = ModelContext.Current.GetModelType(returnType);
+
+					return true;
+				}
+
+				resultType = null;
+				return false;
+			}
+
+			/// <summary>
+			/// If the expression is a lambda (or wrapper), then return its body expression.
+			/// </summary>
+			internal static bool TryGetLambdaBody(Expression expr, out Expression body)
+			{
+				var lambda = expr as LambdaExpression;
+				if (lambda != null)
+				{
+					body = lambda.Body;
+					return true;
+				}
+
+				var modelLambda = expr as ModelLambdaExpression;
+				if (modelLambda != null)
+				{
+					body = modelLambda.Body;
+					return true;
+				}
+
+				body = null;
+				return false;
+			}
+
+			/// <summary>
+			/// Try to get the model property from a property access expression.
+			/// </summary>
+			internal static bool TryGetModelProperty(Expression expr, out ModelProperty property)
+			{
+				var propExpr = expr as ModelMemberExpression;
+				if (propExpr != null)
+				{
+					property = propExpr.Property;
+					return true;
+				}
+
+				var memberExpr = expr as MemberExpression;
+				if (memberExpr != null)
+				{
+					var propertyInfo = memberExpr.Member as PropertyInfo;
+					if (propertyInfo != null)
+					{
+						if (memberExpr.Expression != null)
+						{
+							var instanceType = memberExpr.Expression.Type;
+							var instanceModelType = ModelContext.Current.GetModelType(instanceType);
+							if (instanceModelType != null && instanceModelType.Properties.Contains(propertyInfo.Name))
+							{
+								property = instanceModelType.Properties[propertyInfo.Name];
+								return true;
+							}
+						}
+					}
+				}
+
+				property = null;
+				return false;
+			}
+
+			/// <summary>
+			/// Get type information for the given expression.
+			/// </summary>
+			internal static void GetTypeInfo(Expression expr, out bool isModelType, out bool isList, out Type itemType)
+			{
+				Type returnType;
+				if (!TryGetReturnType(expr, out returnType))
+					returnType = expr.Type;
+
+				ModelType.GetTypeInfo(returnType, out isModelType, out isList, out itemType);
+			}
+		}
+
+		#endregion
+
+		#region FormatParser
+
+		/// <summary>
+		/// Provides methods for parsing and interpreting format strings.
+		/// </summary>
+		internal static class FormatParser
+		{
+			private static readonly Regex specifierAndPrecisionParser = new Regex("^(?<specifier>[A-Za-z])(?<precision>\\d{0,2})$", RegexOptions.Compiled);
+
+			/// <summary>
+			/// An enumeration that represents the standard .NET numeric format specifiers.
+			/// https://msdn.microsoft.com/en-us/library/dwhawy9k(v=vs.110).aspx
+			/// </summary>
+			internal enum StandardNumberFormatSpecifier
+			{
+				None,
+				Unknown,
+				Currency,
+				Decimal,
+				Exponential,
+				FixedPoint,
+				General,
+				Number,
+				Percent,
+				Roundtrip,
+				Hexadecimal
+			}
+
+			/// <summary>
+			/// Determine if the given format string is a standard numeric format specifier.
+			/// </summary>
+			/// <remarks>
+			/// Standard Numeric Format Strings: https://msdn.microsoft.com/en-us/library/dwhawy9k(v=vs.110).aspx
+			/// </remarks>
+			internal static bool TryGetStandardNumericFormat(Type type, string format, CultureInfo culture, out StandardNumberFormatSpecifier specifier, out int? precision, out bool isSemantic)
+			{
+				if (string.IsNullOrEmpty(format))
+				{
+					specifier = StandardNumberFormatSpecifier.None;
+					precision = null;
+					isSemantic = false;
+					return false;
+				}
+
+				var match = specifierAndPrecisionParser.Match(format);
+
+				if (!match.Success)
+				{
+					specifier = StandardNumberFormatSpecifier.None;
+					precision = null;
+					isSemantic = false;
+					return false;
+				}
+
+				var specifierText = match.Groups["specifier"].Value.ToLower();
+
+				switch (specifierText)
+				{
+					case "c":
+						specifier = StandardNumberFormatSpecifier.Currency;
+						break;
+					case "d":
+						specifier = StandardNumberFormatSpecifier.Decimal;
+						break;
+					case "e":
+						specifier = StandardNumberFormatSpecifier.Exponential;
+						break;
+					case "f":
+						specifier = StandardNumberFormatSpecifier.FixedPoint;
+						break;
+					case "g":
+						specifier = StandardNumberFormatSpecifier.General;
+						break;
+					case "n":
+						specifier = StandardNumberFormatSpecifier.Number;
+						break;
+					case "p":
+						specifier = StandardNumberFormatSpecifier.Percent;
+						break;
+					case "r":
+						specifier = StandardNumberFormatSpecifier.Roundtrip;
+						break;
+					case "x":
+						specifier = StandardNumberFormatSpecifier.Hexadecimal;
+						break;
+					default:
+						specifier = StandardNumberFormatSpecifier.Unknown;
+						break;
+				}
+
+				var precisionText = match.Groups["precision"].Value;
+				if (string.IsNullOrEmpty(precisionText))
+					precision = GetDefaultPrecision(type, specifier, culture);
+				else
+				{
+					int precisionNumber;
+					if (int.TryParse(precisionText, out precisionNumber))
+						precision = precisionNumber;
+					else
+						precision = null;
+				}
+
+				isSemantic = specifier == StandardNumberFormatSpecifier.Currency || specifier == StandardNumberFormatSpecifier.Percent;
+
+				return true;
+			}
+
+			/// <summary>
+			/// Get the default precision for the given type, standard numeric format specifier, and culture.
+			/// </summary>
+			private static int? GetDefaultPrecision(Type type, StandardNumberFormatSpecifier specifier, CultureInfo culture)
+			{
+				switch (specifier)
+				{
+					case StandardNumberFormatSpecifier.Currency:
+						return culture.NumberFormat.CurrencyDecimalDigits;
+
+					case StandardNumberFormatSpecifier.Decimal:
+						return null;
+
+					case StandardNumberFormatSpecifier.Exponential:
+						return 6;
+
+					case StandardNumberFormatSpecifier.FixedPoint:
+						return culture.NumberFormat.NumberDecimalDigits;
+
+					case StandardNumberFormatSpecifier.General:
+
+						// https://msdn.microsoft.com/en-us/library/dwhawy9k(v=vs.110).aspx#GFormatString
+
+						if (type == typeof(Byte) || type == typeof(SByte))
+							return 3;
+
+						if (type == typeof(Int16) || type == typeof(UInt16))
+							return 5;
+
+						if (type == typeof(Int32) || type == typeof(UInt32))
+							return 10;
+
+						if (type == typeof(Int64))
+							return 19;
+
+						if (type == typeof(UInt64))
+							return 20;
+
+						//if (type == typeof(BigInteger))
+						//	return 50;
+
+						if (type == typeof(Single))
+							return 7;
+
+						if (type == typeof(Double))
+							return 15;
+
+						if (type == typeof(Decimal))
+							return 29;
+
+						return null;
+
+					case StandardNumberFormatSpecifier.Number:
+						return culture.NumberFormat.NumberDecimalDigits;
+
+					case StandardNumberFormatSpecifier.Percent:
+						return culture.NumberFormat.PercentDecimalDigits;
+
+					case StandardNumberFormatSpecifier.Roundtrip:
+						return null;
+
+					case StandardNumberFormatSpecifier.Hexadecimal:
+						return null;
+				}
+
+				return null;
+			}
+
+			/// <summary>
+			/// Determines if the given type is a true numeric type, not simply convertable to a number.
+			/// </summary>
+			internal static bool IsTrueNumericType(Type type)
+			{
+				return type == typeof(int) || type == typeof(double) || type == typeof(decimal)
+					   || type == typeof(long) || type == typeof(float) || type == typeof(short)
+					   || type == typeof(ushort) || type == typeof(uint) || type == typeof(ulong);
+			}
+		}
+
+		#endregion
+
+		#region ExpressionFormatter
+
+		/// <summary>
+		/// Provides options for determining the default formatting arguments
+		/// to use when formatting an expression's result as a string, as well
+		/// as a method to format an object using those formatting arguments.
+		/// </summary>
+		internal class ExpressionFormatter
+		{
+			private static readonly Regex singleFormatArgParser = new Regex("^{0:(?<format>.+)}$", RegexOptions.Compiled);
+
+			private readonly ModelExpression expression;
+
+			private readonly CultureInfo culture;
+
+			private bool _hasAnalyzedExpression;
+
+			private string _format;
+
+			private IFormatProvider _provider;
+
+			/// <summary>
+			/// Creates a new formatter for the given expression and culture.
+			/// </summary>
+			public ExpressionFormatter(ModelExpression expression, CultureInfo culture)
+			{
+				this.expression = expression;
+				this.culture = culture;
+			}
+
+			/// <summary>
+			/// Gets the default format string to use to
+			/// format the expression result as as string.
+			/// </summary>
+			public string Format
+			{
+				get
+				{
+					if (!_hasAnalyzedExpression)
+					{
+						TryGetFormat(expression.Expression, culture, out _format, out _provider);
+						_hasAnalyzedExpression = true;
+					}
+
+					return _format;
+				}
+			}
+
+			/// <summary>
+			/// Gets the default format provider to use to
+			/// format the expression result as as string.
+			/// </summary>
+			public IFormatProvider Provider
+			{
+				get
+				{
+					if (!_hasAnalyzedExpression)
+					{
+						TryGetFormat(expression.Expression, culture, out _format, out _provider);
+						_hasAnalyzedExpression = true;
+					}
+
+					return _provider;
+				}
+			}
+
+			/// <summary>
+			/// Get format information from a model member expression, e.g. property access.
+			/// </summary>
+			private static void GetPropertyFormat(ModelProperty property, out string format, out IFormatProvider provider)
+			{
+				format = property.Format;
+
+				var valueProperty = property as ModelValueProperty;
+				if (valueProperty != null)
+					provider = valueProperty.FormatProvider;
+				else
+					provider = null;
+			}
+
+			/// <summary>
+			/// Determine format information for the left and right operands of a binary expression and choose the best format to use.
+			/// </summary>
+			private static bool TryGetBinaryFormat(BinaryExpression expr, CultureInfo culture, out string format, out IFormatProvider provider)
+			{
+				// Attempt to get the format information for the left operand.
+				bool leftIsConstant;
+				Type leftConvertedFrom;
+				string leftFormat;
+				IFormatProvider leftProvider;
+				if (!TryGetFormat(expr.Left, culture, out leftIsConstant, out leftConvertedFrom, out leftFormat, out leftProvider) && !leftIsConstant)
+				{
+					format = null;
+					provider = null;
+					return false;
+				}
+
+				// Attempt to get the format information for the right operand.
+				bool rightIsConstant;
+				Type rightConvertedFrom;
+				string rightFormat;
+				IFormatProvider rightProvider;
+				if (!TryGetFormat(expr.Right, culture, out rightIsConstant, out rightConvertedFrom, out rightFormat, out rightProvider) && !rightIsConstant)
+				{
+					format = null;
+					provider = null;
+					return false;
+				}
+
+				// Attempt to choose a best format...
+
+				// A model expression compared to true or false, e.g. Property == true
+				if (rightIsConstant)
+				{
+					format = leftFormat;
+					provider = leftProvider;
+					return true;
+				}
+
+				// ...also check for inverted conditional, e.g. true == Property
+				if (leftIsConstant)
+				{
+					format = rightFormat;
+					provider = rightProvider;
+					return true;
+				}
+
+				// If the format providers are different, then it would be ambiguous which one to use.
+				if (!Equals(leftProvider, rightProvider))
+				{
+					format = null;
+					provider = null;
+					return false;
+				}
+
+				var resultType = expr.Type;
+				var resultIsNumeric = FormatParser.IsTrueNumericType(resultType);
+
+				var leftFormatTargetType = leftConvertedFrom ?? expr.Left.Type;
+				var leftFormatIsNumeric = FormatParser.IsTrueNumericType(leftFormatTargetType);
+
+				var rightFormatTargetType = rightConvertedFrom ?? expr.Right.Type;
+				var rightFormatIsNumeric = FormatParser.IsTrueNumericType(rightFormatTargetType);
+
+				// First, check if the formats are equivalent. 
+
+				if (leftFormat == rightFormat)
+				{
+					// Determine if the format is truly equivalent, depending on the type(s)
+					// that it is applied to, and whether it also applies to the result.
+
+					if (leftFormatTargetType == rightFormatTargetType)
+					{
+						// The target types of the formats are equivalent, so determine
+						// if the format can also be applied to the result. 
+
+						if (leftFormatTargetType == resultType)
+						{
+							// The target type of the formats and the result are equivalent,
+							// so the format can be applied to the result.
+							format = leftFormat;
+							provider = leftProvider;
+							return true;
+						}
+
+						// The source type of the format is different than the result type.
+						format = null;
+						provider = null;
+						return false;
+					}
+
+					if (leftFormatIsNumeric && rightFormatIsNumeric)
+					{
+						// The target types of the formats are both numeric, so determine if the
+						// numeric format can also be applied to the result. 
+
+						if (resultIsNumeric)
+						{
+							// The target type of the formats and the result are both numeric, so the
+							// format can be applied to the result. This ignores the possibility of
+							// loss of precision that could impact the format's usefulness or validity.
+							format = leftFormat;
+							provider = leftProvider;
+							return true;
+						}
+
+						// The result is not numeric, so it can't be formatted using a numeric format string.
+						format = null;
+						provider = null;
+						return false;
+					}
+
+					// The formats were applied to different types,
+					// so not sure if the format applies to the result.
+					format = null;
+					provider = null;
+					return false;
+				}
+
+				// Otherwise, attempt to choose the best format between the two.
+
+				if (expr.Left.Type == expr.Right.Type)
+				{
+					if (resultType == typeof(bool))
+					{
+						// Can't decide between differing boolean formats.
+						format = null;
+						provider = null;
+						return false;
+					}
+
+					if (resultIsNumeric)
+					{
+						if (leftConvertedFrom != null && !leftFormatIsNumeric)
+						{
+							// Converted left from a non-numeric type, so it's format would not apply to a numeric result.
+							format = rightFormat;
+							provider = rightProvider;
+							return true;
+						}
+
+						if (rightConvertedFrom != null && !rightFormatIsNumeric)
+						{
+							// Converted right from a non-numeric type, so it's format would not apply to a numeric result.
+							format = leftFormat;
+							provider = leftProvider;
+							return false;
+						}
+
+						FormatParser.StandardNumberFormatSpecifier leftSpecifier;
+						int? leftPrecision;
+						bool leftIsSemantic;
+						var leftIsStandardFormat = FormatParser.TryGetStandardNumericFormat(leftFormatTargetType, leftFormat, culture, out leftSpecifier, out leftPrecision, out leftIsSemantic);
+
+						FormatParser.StandardNumberFormatSpecifier rightSpecifier;
+						int? rightPrecision;
+						bool rightIsSemantic;
+						var rightIsStandardFormat = FormatParser.TryGetStandardNumericFormat(rightFormatTargetType, rightFormat, culture, out rightSpecifier, out rightPrecision, out rightIsSemantic);
+
+						if ((leftIsStandardFormat && (rightIsStandardFormat || string.IsNullOrEmpty(rightFormat))) || (rightIsStandardFormat && string.IsNullOrEmpty(leftFormat)))
+						{
+							if (leftIsSemantic)
+							{
+								if (rightIsSemantic)
+								{
+									// Both formats are semantic, so only return a format if it is
+									// the same type. Use the format with the least precision.
+									if (leftSpecifier == rightSpecifier && leftPrecision.HasValue && rightPrecision.HasValue)
+									{
+										if (leftPrecision.Value < rightPrecision.Value)
+										{
+											format = leftFormat;
+											provider = leftProvider;
+											return true;
+										}
+
+										format = rightFormat;
+										provider = rightProvider;
+										return true;
+									}
+
+									format = null;
+									provider = null;
+									return false;
+								}
+
+								format = leftFormat;
+								provider = leftProvider;
+								return true;
+							}
+							else if (rightIsSemantic)
+							{
+								format = rightFormat;
+								provider = rightProvider;
+								return true;
+							}
+						}
+					}
+					else
+					{
+						if (leftConvertedFrom != null && rightConvertedFrom != null)
+						{
+							// Both values were converted, so most likely neither format would
+							// apply to the result (numeric formats may apply to different types).
+							format = null;
+							provider = null;
+							return false;
+						}
+					}
+				}
+
+				// Could not choose between the two formats.
+				format = null;
+				provider = null;
+				return false;
+			}
+
+			/// <summary>
+			/// Attempt to determine format information for the given expression.
+			/// </summary>
+			internal static bool TryGetFormat(Expression expr, CultureInfo culture, out string format, out IFormatProvider provider)
+			{
+				bool isConstant;
+				Type convertedFrom;
+
+				Expression lambdaBody;
+				if (ExpressionHelper.TryGetLambdaBody(expr, out lambdaBody))
+					return TryGetFormat(lambdaBody, culture, out isConstant, out convertedFrom, out format, out provider);
+
+				return TryGetFormat(expr, culture, out isConstant, out convertedFrom, out format, out provider);
+			}
+
+			/// <summary>
+			/// Attempt to determine format information for the given expression.
+			/// </summary>
+			private static bool TryGetFormat(Expression expr, CultureInfo culture, out bool isConstant, out Type convertedFrom, out string format, out IFormatProvider provider)
+			{
+				if (expr is ConstantExpression)
+				{
+					isConstant = true;
+					convertedFrom = null;
+					format = null;
+					provider = null;
+					return false;
+				}
+
+				isConstant = false;
+
+				var unaryExpr = expr as UnaryExpression;
+				if (unaryExpr != null && unaryExpr.NodeType == ExpressionType.Convert)
+				{
+					convertedFrom = unaryExpr.Operand.Type;
+
+					Type operandConvertedFrom;
+					if (TryGetFormat(unaryExpr.Operand, culture, out isConstant, out operandConvertedFrom, out format, out provider))
+					{
+						if (operandConvertedFrom != null)
+							convertedFrom = operandConvertedFrom;
+
+						return true;
+					}
+
+					return false;
+				}
+
+				convertedFrom = null;
+
+				var binaryExpr = expr as BinaryExpression;
+				if (binaryExpr != null)
+					return TryGetBinaryFormat(binaryExpr, culture, out format, out provider);
+
+				ModelProperty property;
+				if (ExpressionHelper.TryGetModelProperty(expr, out property))
+				{
+					// Simple property expression
+					GetPropertyFormat(property, out format, out provider);
+					return true;
+				}
+
+				var call = expr as MethodCallExpression;
+				if (call != null && call.Method.DeclaringType != null)
+				{
+					if (call.Method.DeclaringType == typeof (ModelInstance))
+					{
+						if (call.Method.IsSpecialName && call.Method.Name == "get_Item")
+						{
+							var indexerArgExpr = call.Arguments[0];
+							if (indexerArgExpr is ConstantExpression)
+							{
+								var indexerArg = ((ConstantExpression) indexerArgExpr).Value;
+								if (indexerArg is ModelProperty)
+								{
+									GetPropertyFormat((ModelProperty) indexerArg, out format, out provider);
+									return true;
+								}
+							}
+						}
+
+						format = null;
+						provider = null;
+						return false;
+					}
+
+					// Detect a call to ToString(format, provider) that is consistent with the inferred format and provider for the call object.
+					Expression toStringThis;
+					IFormatProvider toStringProvider;
+					string toStringFormat;
+					if (ExpressionHelper.TryParseToStringMethod(call, out toStringThis, out toStringFormat, out toStringProvider))
+					{
+						if (toStringThis != null && toStringFormat != null)
+						{
+							bool thisIsConstant;
+							Type thisConvertedFrom;
+							string thisFormat;
+							IFormatProvider thisProvider;
+
+							if (TryGetFormat(toStringThis, culture, out thisIsConstant, out thisConvertedFrom, out thisFormat, out thisProvider))
+							{
+								// Make sure that the format and provider match.
+								if (thisFormat == toStringFormat && Equals(thisProvider, toStringProvider))
+								{
+									isConstant = thisIsConstant;
+
+									// The ToString() call "converted" the argument.
+									convertedFrom = thisConvertedFrom ?? (toStringThis.Type != typeof(string) ? toStringThis.Type : null);
+
+									format = thisFormat;
+									provider = thisProvider;
+									return true;
+								}
+							}
+						}
+
+						format = null;
+						provider = null;
+						return false;
+					}
+
+					// Detect a call to BooleanFormatter.ToString(value, format), which uses the Exo custom format provider for booleans.
+					if (call.Method.DeclaringType == typeof(BooleanFormatter))
+					{
+						if (call.Method.Name == "ToString" && call.Arguments.Count == 2 && call.Arguments[0].Type == typeof(Boolean) && call.Arguments[1].Type == typeof(string))
+						{
+							var callFormat = call.Arguments[1] is ConstantExpression ? (string) ((ConstantExpression) call.Arguments[1]).Value : null;
+
+							if (!string.IsNullOrEmpty(callFormat))
+							{
+								bool valueIsConstant;
+								Type valueConvertedFrom;
+								string valueFormat;
+								IFormatProvider valueProvider;
+
+								if (TryGetFormat(call.Arguments[0], culture, out valueIsConstant, out valueConvertedFrom, out valueFormat, out valueProvider))
+								{
+									// Make sure that the format and provider match.
+									if (valueFormat == callFormat && Equals(valueProvider, ModelType.BooleanFormatInfo.Instance))
+									{
+										isConstant = valueIsConstant;
+
+										// The ToString() call "converted" the argument.
+										convertedFrom = valueConvertedFrom ?? typeof(Boolean);
+
+										format = valueFormat;
+										provider = valueProvider;
+										return true;
+									}
+								}
+							}
+						}
+
+						format = null;
+						provider = null;
+						return false;
+					}
+
+					// Detect a call to string.Format(provider, "{0:format}", arg) that is consistent with the inferred format and provider for the arg.
+					IFormatProvider stringFormatProvider;
+					string stringFormatString;
+					Expression[] stringFormatArgs;
+					if (ExpressionHelper.TryParseStringFormatMethod(call, out stringFormatProvider, out stringFormatString, out stringFormatArgs))
+					{
+						// If there is a single argument, then it may be possible
+						// to treat the single argument as if it wasn't being
+						// formatted (for purposes of detecting the format anyway).
+						if (stringFormatArgs.Length == 1)
+						{
+							// Is there a format string? ... (there should be)
+							if (stringFormatString != null)
+							{
+								// Is it of the form "{0:***}"?
+								var singleArgMatch = singleFormatArgParser.Match(stringFormatString);
+								if (singleArgMatch.Success)
+								{
+									var singleArgFormat = singleArgMatch.Groups["format"].Value;
+
+									bool argIsConstant;
+									Type argConvertedFrom;
+									string argFormat;
+									IFormatProvider argProvider;
+									if (TryGetFormat(stringFormatArgs[0], culture, out argIsConstant, out argConvertedFrom, out argFormat, out argProvider))
+									{
+										// Make sure that the format and provider match.
+										if (argFormat == singleArgFormat && Equals(argProvider, stringFormatProvider))
+										{
+											isConstant = argIsConstant;
+
+											// The string.Format() call "converted" the argument.
+											convertedFrom = argConvertedFrom ?? (stringFormatArgs[0].Type != typeof(string) ? stringFormatArgs[0].Type : null);
+
+											format = argFormat;
+											provider = argProvider;
+											return true;
+										}
+									}
+								}
+							}
+						}
+
+						format = null;
+						provider = null;
+						return false;
+					}
+
+					if (call.Method.DeclaringType == typeof(Enumerable))
+					{
+						var source = call.Arguments[0];
+
+						switch (call.Method.Name)
+						{
+							case "Any":
+							case "All":
+
+								if (call.Arguments.Count == 1)
+								{
+									// Boolean Any<TSource>(IEnumerable<TSource> source)
+
+									format = null;
+									provider = null;
+									return true;
+								}
+
+								if (call.Arguments.Count == 2)
+								{
+									// Boolean Any<TSource>(IEnumerable<TSource> source, IEnumerable<TSource, bool> predicate)
+									// Boolean All<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+
+									Expression predicateBody;
+									if (ExpressionHelper.TryGetLambdaBody(call.Arguments[1], out predicateBody))
+									{
+										bool lamdbaIsConstant;
+										Type lambdaConvertedFrom;
+										return TryGetFormat(predicateBody, culture, out lamdbaIsConstant, out lambdaConvertedFrom, out format, out provider);
+									}
+								}
+
+								break;
+
+							case "First":
+							case "Last":
+							case "Where":
+
+								// TSource First<TSource>(IEnumerable<TSource> source)
+								// TSource First<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+								// TSource Last<TSource>(IEnumerable<TSource> source)
+								// TSource Last<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+								// IEnumerable<TSource> Where<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+
+								bool sourceIsConstant;
+								Type sourceConvertedFrom;
+								return TryGetFormat(source, culture, out sourceIsConstant, out sourceConvertedFrom, out format, out provider);
+
+							case "Select":
+
+								if (call.Arguments.Count == 2)
+								{
+									// TResult Select<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
+
+									Expression selectorBody;
+									if (ExpressionHelper.TryGetLambdaBody(call.Arguments[1], out selectorBody))
+									{
+										bool lamdbaIsConstant;
+										Type lambdaConvertedFrom;
+										return TryGetFormat(selectorBody, culture, out lamdbaIsConstant, out lambdaConvertedFrom, out format, out provider);
+									}
+								}
+
+								break;
+
+							case "Average":
+							case "Min":
+							case "Max":
+							case "Sum":
+
+								if (call.Arguments.Count == 2)
+								{
+									// TResult Average<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
+									// TResult Min<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
+									// TResult Max<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
+									// TResult Sum<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
+
+									Expression selectorBody;
+									if (ExpressionHelper.TryGetLambdaBody(call.Arguments[1], out selectorBody))
+									{
+										bool lamdbaIsConstant;
+										Type lambdaConvertedFrom;
+										return TryGetFormat(selectorBody, culture, out lamdbaIsConstant, out lambdaConvertedFrom, out format, out provider);
+									}
+								}
+
+								break;
+						}
+					}
+				}
+
+				format = null;
+				provider = null;
+				return false;
+			}
+
+			/// <summary>
+			/// Format the given model instance list as a string.
+			/// </summary>
+			private static string FormatInstanceList(IEnumerable<IModelInstance> instances, string format, IFormatProvider provider)
+			{
+				return string.Join(", ", instances.Select(i => i.Instance.ToString(format, provider)));
+			}
+
+			/// <summary>
+			/// Format the given value list as a string.
+			/// </summary>
+			private static string FormatValueList(IEnumerable<object> values, string format, IFormatProvider provider)
+			{
+				return string.Join(", ", values.Select(o => FormatValue(o, format, provider)));
+			}
+
+			/// <summary>
+			/// Format the given model instance as a string.
+			/// </summary>
+			private static string FormatInstance(ModelInstance instance)
+			{
+				return instance.ToString();
+			}
+
+			/// <summary>
+			/// Format the given model instance as a string.
+			/// </summary>
+			private static string FormatInstance(ModelInstance instance, string format)
+			{
+				return instance.ToString(format);
+			}
+
+			/// <summary>
+			/// Format the given value as a string.
+			/// </summary>
+			private static string FormatValue(object value, string format, IFormatProvider provider)
+			{
+				var formattable = value as IFormattable;
+				if (formattable != null)
+					return formattable.ToString(format, provider);
+
+				var template = string.Format("{{0:{0}}}", format);
+
+				return string.Format(provider, template, value);
+			}
+
+			/// <summary>
+			/// Format an expression result as a string using format information inferred from the expression.
+			/// </summary>
+			public string FormatResult(object result)
+			{
+				return FormatResult(result, null, null);
+			}
+
+			/// <summary>
+			/// Format an expression result as a string using the given format or information inferred from the expression.
+			/// </summary>
+			public string FormatResult(object result, string format, IFormatProvider provider)
+			{
+				if (result == null)
+					return "";
+
+				bool isModelType;
+				bool isList;
+				Type itemType;
+
+				Type returnType;
+				if (!ExpressionHelper.TryGetReturnType(expression.Expression, out returnType))
+					returnType = expression.Expression.Type;
+
+				ModelType.GetTypeInfo(returnType, out isModelType, out isList, out itemType);
+
+				if (string.IsNullOrEmpty(format))
+				{
+					// If a format is not specified, then use information inferred from the expression.
+					format = Format;
+					provider = Provider;
+				}
+
+				if (isList)
+				{
+					var list = (IEnumerable)result;
+
+					if (isModelType)
+						return FormatInstanceList(list.Cast<IModelInstance>(), format, provider);
+
+					return FormatValueList(list.Cast<object>(), format, provider);
+				}
+
+				if (isModelType)
+				{
+					if (!string.IsNullOrEmpty(format))
+						return FormatInstance(((IModelInstance) result).Instance, format);
+
+					return FormatInstance(((IModelInstance) result).Instance);
+				}
+
+				return FormatValue(result, format, provider);
+			}
+		}
+
+		#endregion
+
+		#region ExpressionWriter
+
+		/// <summary>
+		/// A class that contains various helper methods for writing expressions.
+		/// </summary>
+		internal static class ExpressionWriter
+		{
+			/// <summary>
+			/// Converts the given expression to call <see cref="IModelInstance.ToString()"/>.
+			/// </summary>
+			public static Expr CallModelInstanceToString(Expr expr)
+			{
+				// ModelInstanceFormatter.ToString((IModelInstance)expr, format)
+				return Expr.Call(
+					// ModelInstanceFormatter.ToString
+					typeof(ModelInstanceFormatter).GetMethod("ToString", BindingFlags.NonPublic | BindingFlags.Static, null, new[] { typeof(IModelInstance) }, null),
+					// ((IModelInstance)expr, format)
+					new Expression[]
+					{
+						// (IModelInstance)expr
+						Expr.Convert(expr, typeof(IModelInstance))
+					});
+			}
+
+			/// <summary>
+			/// Converts the given expression to call <see cref="IModelInstance.ToString()"/>.
+			/// </summary>
+			public static Expr CallModelInstanceToString(Expr expr, String format)
+			{
+				// ModelInstanceFormatter.ToString((IModelInstance)expr, format)
+				return Expr.Call(
+					// ModelInstanceFormatter.ToString
+					typeof(ModelInstanceFormatter).GetMethod("ToString", BindingFlags.NonPublic | BindingFlags.Static, null, new[] { typeof(IModelInstance), typeof(string) }, null),
+					// ((IModelInstance)expr, format)
+					new Expression[]
+					{
+						// (IModelInstance)expr
+						Expr.Convert(expr, typeof(IModelInstance)),
+						// format
+						Expr.Constant(format)
+					});
+			}
+
+			/// <summary>
+			/// Attempt to call ToString(format, provider) for the given expression. If a "ToString" method cannot be found which
+			/// accepts the format and provider parameters, then the method returns false to indicate that it was not successful.
+			/// </summary>
+			public static bool TryCallToString(Expr expr, String format, IFormatProvider provider, out Expr result)
+			{
+				if (string.IsNullOrEmpty(format))
+				{
+					result = null;
+					return false;
+				}
+
+				var typeDeclaredToString = expr.Type.GetMethod("ToString", new[] { typeof(String), typeof(IFormatProvider) });
+				if (typeDeclaredToString != null)
+				{
+					// value.ToString(format, provider)
+					result = Expr.Call(expr, typeDeclaredToString, Expr.Constant(format), Expr.Constant(provider, typeof(IFormatProvider)));
+					return true;
+				}
+
+				if (typeof(IFormattable).IsAssignableFrom(expr.Type))
+				{
+					// ((IFormattable)value).ToString(format, provider)
+					result = Expr.Call(
+						Expr.Convert(expr, typeof(IFormattable)),
+						(typeof(IFormattable)).GetMethod("ToString", new[] { typeof(String), typeof(IFormatProvider) }),
+						new Expression[]
+						{
+							Expr.Constant(format),
+							Expr.Constant(provider, typeof(IFormatProvider))
+						});
+
+					return true;
+				}
+
+				if (expr.Type == typeof (Boolean) && provider is ModelType.BooleanFormatInfo)
+				{
+					// BooleanFormatter.Format(value, format)
+					result = Expr.Call(
+						typeof(BooleanFormatter).GetMethod("ToString", BindingFlags.NonPublic | BindingFlags.Static, null, new[] { typeof(Boolean), typeof(string) }, null),
+						expr,
+						Expr.Constant(format)
+						);
+
+					return true;
+				}
+
+				result = null;
+				return false;
+			}
+
+			/// <summary>
+			/// Calls ToString() for the given expression.
+			/// </summary>
+			public static Expr CallToString(Expr expr)
+			{
+				return Expr.Call(expr, typeof(object).GetMethod("ToString", Type.EmptyTypes));
+			}
+
+			/// <summary>
+			/// 
+			/// </summary>
+			public static Expr CallLinqCast<TSource>(Expr expr)
+			{
+				return Expr.Call(typeof(Enumerable).GetMethod("Cast").MakeGenericMethod(typeof(TSource)), expr);
+			}
+
+			/// <summary>
+			/// Call Linq 'Select' with a source type that is only known at run time, and a result type that is known at design time.
+			/// </summary>
+			public static Expr CallLinqSelect<TResult>(Expr expr, Type sourceType, Func<Expr, Expr> selector)
+			{
+				var selectMethod = typeof(Enumerable).GetMethods()
+					.Single(
+						m => m.Name == "Select" && m.GetParameters()[1].ParameterType.GetGenericTypeDefinition() == typeof(Func<,>));
+
+				// IEnumerable<TResult> Select<TSource, TResult>(IEnumerable<TSource> list, (TSource i) => selector(i))
+				var instanceParam = Expr.Parameter(typeof(object));
+				return Expr.Call(selectMethod.MakeGenericMethod(typeof(object), typeof(TResult)),
+					// IEnumerable<TSource> list
+					expr,
+					// (TSource i) => selector(i)
+					Expr.Lambda<Func<object, TResult>>(
+					// selector
+						selector(Expr.Convert(instanceParam, sourceType)),
+					// (TSource i)
+						instanceParam)
+					);
+			}
+
+			/// <summary>
+			/// Call Linq 'Select' with a source and result type that are both known at design time.
+			/// </summary>
+			public static Expr CallLinqSelect<TSource, TResult>(Expr expr, Func<Expr, Expr> selector)
+			{
+				var selectMethod = typeof(Enumerable).GetMethods()
+					.Single(
+						m => m.Name == "Select" && m.GetParameters()[1].ParameterType.GetGenericTypeDefinition() == typeof(Func<,>));
+
+				// IEnumerable<TResult> Select<TSource, TResult>(IEnumerable<TSource> list, (TSource i) => selector(i))
+				var instanceParam = Expr.Parameter(typeof(TSource));
+				return Expr.Call(selectMethod.MakeGenericMethod(typeof(TSource), typeof(TResult)),
+					// IEnumerable<TSource> list
+					expr,
+					// (TSource i) => selector(i)
+					Expr.Lambda<Func<TSource, TResult>>(
+					// selector
+						selector(instanceParam),
+					// (TSource i)
+						instanceParam)
+					);
+			}
+
+			/// <summary>
+			/// 
+			/// </summary>
+			public static Expr CallLinqToArray(Expr expr, Type sourceType)
+			{
+				return Expr.Call(typeof(Enumerable).GetMethod("ToArray").MakeGenericMethod(sourceType), expr);
+			}
+
+			/// <summary>
+			/// 
+			/// </summary>
+			public static Expression CallStringJoin(string seperator, Expression values, Type arrayType)
+			{
+				return Expr.Call(typeof (string).GetMethod("Join", new[] {typeof (string), arrayType}), new[]
+				{
+					Expr.Constant(seperator),
+					values
+				});
+			}
+		}
+
+		#endregion
+
 		#region ExpressionCompiler
 
 		/// <summary>
@@ -3404,6 +5067,39 @@ namespace ExoModel
 				// Attempt to coerce the property get into a simple member invocation
 				if (m.Property is IReflectionModelProperty)
 					return Expr.MakeMemberAccess(Visit(m.Expression), ((IReflectionModelProperty)m.Property).PropertyInfo);
+
+				// Handle enum model type properties.
+				else if (m.Property.DeclaringType is EnumTypeProvider.EnumModelType)
+				{
+					if (m.Property.Name == "Id")
+					{
+						// EnumExtensions.GetId((Enum)enum)
+						return Expr.Call(
+							typeof(EnumExtensions).GetMethod("GetId", new[] { typeof(Enum) }),
+							Expr.Convert(Visit(m.Expression), typeof(Enum))
+							);
+					}
+
+					if (m.Property.Name == "Name")
+					{
+						// EnumExtensions.GetName((Enum)enum)
+						return Expr.Call(
+							typeof(EnumExtensions).GetMethod("GetName", new[] { typeof(Enum) }),
+							Expr.Convert(Visit(m.Expression), typeof(Enum))
+							);
+					}
+
+					if (m.Property.Name == "DisplayName")
+					{
+						// EnumExtensions.GetDisplayName((Enum)enum)
+						return Expr.Call(
+							typeof(EnumExtensions).GetMethod("GetDisplayName", new[] { typeof(Enum) }),
+							Expr.Convert(Visit(m.Expression), typeof(Enum))
+							);
+					}
+
+					return m;
+				}
 
 				// Otherwise, delegate to the model instance to access the property value
 				else
@@ -3842,6 +5538,51 @@ namespace ExoModel
 					return Expr.Invoke(expr, args);
 				}
 				return iv;
+			}
+		}
+
+		#endregion
+
+		#region BooleanFormatter
+
+		/// <summary>
+		/// A class that implements Exo-specific formatting for boolean values. 
+		/// </summary>
+		public static class BooleanFormatter
+		{
+			/// <summary>
+			/// Formats the given boolean value using the given format string and the Exo boolean format provider.
+			/// </summary>
+			internal static string ToString(Boolean value, string format)
+			{
+				var formatTemplate = "{0:" + format + "}";
+				return string.Format(ModelType.BooleanFormatInfo.Instance, formatTemplate, value);
+			}
+		}
+
+		#endregion
+
+		#region ModelInstanceFormatter
+
+		/// <summary>
+		/// A class that implements formatting for model instances. 
+		/// </summary>
+		public static class ModelInstanceFormatter
+		{
+			/// <summary>
+			/// Formats the given model instance using the default type-level format specifier.
+			/// </summary>
+			internal static string ToString(IModelInstance instance)
+			{
+				return instance.Instance.ToString();
+			}
+
+			/// <summary>
+			/// Formats the given model instance using the given format string.
+			/// </summary>
+			internal static string ToString(IModelInstance instance, string format)
+			{
+				return instance.Instance.ToString(format);
 			}
 		}
 

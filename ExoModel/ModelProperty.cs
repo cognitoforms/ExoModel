@@ -160,6 +160,14 @@ namespace ExoModel
 		/// <returns>The formatted value of the property</returns>
 		protected internal abstract string GetFormattedValue(ModelInstance instance, string format);
 
+		/// <summary>
+		/// Gets the formatted value of the current property for the specified instance.
+		/// </summary>
+		/// <param name="instance">The specific <see cref="ModelInstance"/></param>
+		/// <param name="format">The optional format specifier to use to format the value, or null to use the default property format</param>
+		/// <param name="provider">The optional format provider to use to format the value, or null to use the default format provider</param>
+		/// <returns>The formatted value of the property</returns>
+		protected internal abstract string GetFormattedValue(ModelInstance instance, string format, IFormatProvider provider);
 		#endregion
 
 		#region ISerializable Members

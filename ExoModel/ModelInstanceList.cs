@@ -9,7 +9,7 @@ namespace ExoModel
 	/// <summary>
 	/// Exposes an editable list of instances for a specific list property.
 	/// </summary>
-	public class ModelInstanceList : ICollection<ModelInstance>, IFormattable
+	public class ModelInstanceList : IList<ModelInstance>, IFormattable
 	{
 		#region Fields
 
@@ -35,6 +35,7 @@ namespace ExoModel
 			get { return property.PropertyType.GetModelInstance(GetList()[index]); }
 			set { GetList()[index] = value.Instance; }
 		}
+
 		/// <summary>
 		/// Gets the underlying list and coerces it into a valid <see cref="IList"/> implementation.
 		/// </summary>
@@ -46,23 +47,29 @@ namespace ExoModel
 
 		/// <summary>
 		/// Gets the string representation of the current list, with each item formatted using the
-		/// specified format, separated by commas.
+		/// default property format, separated by commas.
 		/// </summary>
-		/// <param name="format"></param>
-		/// <returns></returns>
-		public string ToString(string format)
+		public override string ToString()
 		{
-			return ((IFormattable)this).ToString(format, null);
+			return ToString(property.Format);
 		}
 
 		/// <summary>
 		/// Gets the string representation of the current list, with each item formatted using the
-		/// default property format, separated by commas.
+		/// specified format, separated by commas.
 		/// </summary>
-		/// <returns></returns>
-		public override string ToString()
+		public string ToString(string format)
 		{
-			return ToString(property.Format);
+			return ToString(format, null);
+		}
+
+		/// <summary>
+		/// Gets the string representation of the current list, with each item formatted using the
+		/// specified format, separated by commas.
+		/// </summary>
+		public string ToString(string format, IFormatProvider provider)
+		{
+			return ((IFormattable)this).ToString(format, provider);
 		}
 
 		/// <summary>
@@ -165,6 +172,51 @@ namespace ExoModel
 		string IFormattable.ToString(string format, IFormatProvider formatProvider)
 		{
 			return this.Aggregate("", (result, i) => result + (result == "" ? "" : ", ") + i);
+		}
+
+		#endregion
+
+		#region IList<ModelInstance> Members
+
+		/// <summary>
+		/// Determines the index of a specified instance in the list.
+		/// </summary>
+		public int IndexOf(ModelInstance item)
+		{
+			IList list = GetList();
+			if (list == null)
+			{
+				property.DeclaringType.InitializeList(owner, property);
+				list = GetList();
+			}
+			object instance = item.Instance;
+			return list.IndexOf(instance);
+		}
+
+		public void Insert(int index, ModelInstance item)
+		{
+			IList list = GetList();
+			if (list == null)
+			{
+				property.DeclaringType.InitializeList(owner, property);
+				list = GetList();
+			}
+			object instance = item.Instance;
+			var previousIndex = list.IndexOf(instance);
+			list.Insert(index, instance);
+			if (previousIndex >= 0)
+				list.RemoveAt(previousIndex);
+		}
+
+		public void RemoveAt(int index)
+		{
+			IList list = GetList();
+			if (list == null)
+			{
+				property.DeclaringType.InitializeList(owner, property);
+				list = GetList();
+			}
+			list.RemoveAt(index);
 		}
 
 		#endregion

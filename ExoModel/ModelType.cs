@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
@@ -25,7 +26,7 @@ namespace ExoModel
 
 		Dictionary<Type, object> customEvents = new Dictionary<Type, object>();
 		Dictionary<Type, object> transactedCustomEvents = new Dictionary<Type, object>();
-		Dictionary<string, List<FormatToken>> formats = new Dictionary<string, List<FormatToken>>();
+		Dictionary<string, FormatToken[]> formats = new Dictionary<string, FormatToken[]>();
 		Attribute[] attributes;
 		Dictionary<Type, object> extensions;
 
@@ -130,44 +131,111 @@ namespace ExoModel
 		}
 
 		/// <summary>
-		/// Gets the item type of a list type, or returns false if the type is not a supported list type.
+		/// Attempt to determine whether a type is a "multi-type"
+		/// (enumerable/list), and if so, also determine its item type.
 		/// </summary>
-		/// <param name="listType"></param>
-		/// <param name="itemType"></param>
-		/// <returns></returns>
-		protected internal virtual bool TryGetListItemType(Type listType, out Type itemType)
+		internal static bool TryGetMultiType(Type type, out bool isCollection, out Type itemType)
 		{
-			// First see if the type is ICollection<T>
-			if (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(ICollection<>))
+			if (type == typeof(string))
 			{
-				itemType = listType.GetGenericArguments()[0];
+				isCollection = false;
+				itemType = null;
+				return false;
+			}
+
+			if (type.IsGenericType)
+			{
+				var genericTypeDef = type.GetGenericTypeDefinition();
+
+				// Shortcuts for expression result of type ICollection<T>, IList<T>, List<T>.
+				// NOTE: IsAssignableFrom would work as long as a generic type parameter, e.g. Object, was specified.
+				if (genericTypeDef == typeof (ICollection<>) || genericTypeDef == typeof (IList<>) || genericTypeDef == typeof (List<>))
+				{
+					isCollection = true;
+					itemType = type.GetGenericArguments()[0];
+					return true;
+				}
+
+				// Shortcuts for expression result of type IEnumerable<T>
+				if (genericTypeDef == typeof (IEnumerable<>))
+				{
+					isCollection = false;
+					itemType = type.GetGenericArguments()[0];
+					return true;
+				}
+			}
+
+			Type enumerableItemType = null;
+
+			// Look for implementation of IEnumerable<T>.
+			foreach (var i in type.GetInterfaces())
+			{
+				if (i.IsGenericType)
+				{
+					var genericTypeDef = i.GetGenericTypeDefinition();
+
+					if (genericTypeDef == typeof (ICollection<>))
+					{
+						isCollection = true;
+						itemType = i.GetGenericArguments()[0];
+						return true;
+					}
+
+					if (genericTypeDef == typeof (IEnumerable<>))
+						enumerableItemType = i.GetGenericArguments()[0];
+				}
+			}
+
+			if (enumerableItemType != null)
+			{
+				isCollection = false;
+				itemType = enumerableItemType;
 				return true;
 			}
 
-			// Then see if the type implements ICollection<T>
-			foreach (Type interfaceType in listType.GetInterfaces())
-			{
-				if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>))
-				{
-					itemType = interfaceType.GetGenericArguments()[0];
-					return true;
-				}
-			}
-
-			// Then see if the type implements IList and has a strongly-typed Item property indexed by an integer value
-			if (typeof(IList).IsAssignableFrom(listType))
-			{
-				PropertyInfo itemProperty = listType.GetProperty("Item", new Type[] { typeof(int) });
-				if (itemProperty != null)
-				{
-					itemType = itemProperty.PropertyType;
-					return true;
-				}
-			}
-
-			// Return false to indicate that the specified type is not a supported list type
+			isCollection = false;
 			itemType = null;
 			return false;
+		}
+
+		/// <summary>
+		/// Gets the item type of a list type, or returns false if the type is not a supported list type.
+		/// </summary>
+		protected internal virtual bool TryGetListItemType(Type listType, out Type itemType)
+		{
+			bool isCollection;
+			if (TryGetMultiType(listType, out isCollection, out itemType) && isCollection)
+				return true;
+
+			itemType = null;
+			return false;
+		}
+
+		/// <summary>
+		/// Get basic information about the given type.
+		/// </summary>
+		internal static void GetTypeInfo(Type type, out bool isModelType, out bool isMulti, out Type itemType)
+		{
+			if (typeof (IModelInstance).IsAssignableFrom(type))
+			{
+				isModelType = true;
+				isMulti = false;
+				itemType = null;
+			}
+			else
+			{
+				bool isCollection;
+				if (TryGetMultiType(type, out isCollection, out itemType))
+				{
+					isMulti = true;
+					isModelType = typeof (IModelInstance).IsAssignableFrom(itemType);
+				}
+				else
+				{
+					isMulti = false;
+					isModelType = false;
+				}
+			}
 		}
 
 		/// <summary>
@@ -704,11 +772,31 @@ namespace ExoModel
 		/// <summary>
 		/// Gets the formatted value of the specified property.
 		/// </summary>
+		/// <param name="property">The name of the property</param>
+		/// <returns>The formatted of the property</returns>
+		public string GetFormattedValue(string property, string format, IFormatProvider provider)
+		{
+			return GetFormattedValue(Properties[property], format, provider);
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
 		/// <param name="property">The specific <see cref="ModelProperty"/></param>
 		/// <returns>The formatted value of the property</returns>
 		public string GetFormattedValue(ModelProperty property, string format)
 		{
 			return property.GetFormattedValue(null, format);
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
+		/// <param name="property">The specific <see cref="ModelProperty"/></param>
+		/// <returns>The formatted value of the property</returns>
+		public string GetFormattedValue(ModelProperty property, string format, IFormatProvider provider)
+		{
+			return property.GetFormattedValue(null, format, provider);
 		}
 
 		/// <summary>
@@ -1045,7 +1133,7 @@ namespace ExoModel
 		protected internal IFormatProvider GetFormatProvider(Type type)
 		{
 			if (type == typeof(bool) || type == typeof(bool?))
-				return BooleanFormatter.Instance;
+				return BooleanFormatInfo.Instance;
 			return null;
 		}
 
@@ -1078,16 +1166,15 @@ namespace ExoModel
 		}
 
 		/// <summary>
-		/// Returns a list of <see cref="ModelSources"/> given a format string
+		/// Returns a list of <see cref="ModelSource"/> given a format string
 		/// </summary>
 		/// <param name="format">Format string from which the model sources should be extracted</param>
 		/// <returns>List of <see cref="ModelSource"/>s</returns>
-		public List<ModelSource> GetFormatModelSources(string format)
+		public ModelSource[] GetFormatModelSources(string format)
 		{
-			List<FormatToken> formatTokens;
+			FormatToken[] formatTokens;
 			TryGetFormatTokens(format, out formatTokens);
-
-			return formatTokens.Select(ft => ft.Property).ToList();
+			return formatTokens.Select(ft => ft.Property).ToArray();
 		}
 
 		/// <summary>
@@ -1098,11 +1185,11 @@ namespace ExoModel
 		/// <returns></returns>
 		internal bool TryFormatInstance(ModelInstance instance, string format, out string value)
 		{
-			List<FormatToken> formatTokens;
-			bool hasError = TryGetFormatTokens(format, out formatTokens);
+			FormatToken[] formatTokens;
+			bool isValid = TryGetFormatTokens(format, out formatTokens);
 
 			// Handle simple case of [Property]
-			if (formatTokens.Count == 1 && formatTokens[0].Literal == null)
+			if (formatTokens.Length == 1 && formatTokens[0].Literal == null)
 			{
 				value = formatTokens[0].Property.GetFormattedValue(instance, formatTokens[0].Format);
 				return true;
@@ -1116,18 +1203,19 @@ namespace ExoModel
 				if (token.Property != null)
 					result.Append(token.Property.GetFormattedValue(instance, token.Format));
 			}
+
 			value = result.ToString();
 
-			return !hasError;
+			return isValid;
 		}
 
 		/// <summary>
-		/// Attempts to format the instance using the specified format.
+		/// Attempts to get the tokens contained in the given format string.
 		/// </summary>
 		/// <param name="instance"></param>
 		/// <param name="format"></param>
 		/// <returns></returns>
-		bool TryGetFormatTokens(string format, out List<FormatToken> formatTokens)
+		public bool TryGetFormatTokens(string format, out FormatToken[] formatTokens)
 		{
 			bool hasError = false;
 
@@ -1135,12 +1223,12 @@ namespace ExoModel
 			if (!formats.TryGetValue(format, out formatTokens))
 			{
 				// Replace \\ escape sequence with char 0, \[ escape sequence with char 1, and \] escape sequence with char 2
-				var escapedFormat = format.Replace(@"\\", ((char)0).ToString()).Replace(@"\[", ((char)1).ToString()).Replace(@"\]", ((char)1).ToString());
+				var escapedFormat = format.Replace(@"\\", ((char)0).ToString(CultureInfo.InvariantCulture)).Replace(@"\[", ((char)1).ToString()).Replace(@"\]", ((char)1).ToString());
 
 				// Replace \\ escape sequence with \, \[ escape sequence with [, and \] escape sequence with ]
 				var correctedFormat = format.Replace(@"\\", @"\").Replace(@"\[", "[").Replace(@"\]", "]");
 
-				formatTokens = new List<FormatToken>();
+				var formatTokensList = new List<FormatToken>();
 				int index = 0;
 				foreach (Match substitution in FormatParser.Matches(escapedFormat))
 				{
@@ -1149,29 +1237,41 @@ namespace ExoModel
 					if (!TryGetPath(path, out modelPath))
 					{
 						hasError = true;
-						formatTokens.Add(new FormatToken() { Literal = correctedFormat.Substring(index, substitution.Index - index) });
+						formatTokensList.Add(new FormatToken(index, substitution.Index + substitution.Length - 1)
+						{
+							Literal = correctedFormat.Substring(index, substitution.Index - index),
+						});
 					}
 					else
-						formatTokens.Add(
-							new FormatToken()
-							{
-								Literal = substitution.Index > index ? correctedFormat.Substring(index, substitution.Index - index) : null,
-								Property = new ModelSource(modelPath),
-								Format = substitution.Groups["format"].Success ? correctedFormat.Substring(substitution.Groups["format"].Index, substitution.Groups["format"].Length) : null
-							});
+					{
+						formatTokensList.Add(new FormatToken(index, substitution.Index + substitution.Length - 1)
+						{
+							Literal = substitution.Index > index ? correctedFormat.Substring(index, substitution.Index - index) : null,
+							Property = new ModelSource(modelPath),
+							Format = substitution.Groups["format"].Success ? correctedFormat.Substring(substitution.Groups["format"].Index, substitution.Groups["format"].Length) : null,
+						});
+					}
 
 					index = substitution.Index + substitution.Length;
 				}
+
 				// Add the trailing literal
 				if (index < correctedFormat.Length)
-					formatTokens.Add(new FormatToken() { Literal = correctedFormat.Substring(index, correctedFormat.Length - index) });
+				{
+					formatTokensList.Add(new FormatToken(index, correctedFormat.Length - 1)
+					{
+						Literal = correctedFormat.Substring(index, correctedFormat.Length - index),
+					});
+				}
+
+				formatTokens = formatTokensList.ToArray();
 
 				// Cache the parsed format expression
 				if (!hasError)
 					formats.Add(format, formatTokens);
 			}
 
-			return hasError;
+			return !hasError;
 		}
 
 		/// <summary>
@@ -1181,7 +1281,7 @@ namespace ExoModel
 		/// <param name="rootStep"></param>
 		internal void AddFormatSteps(ModelStep rootStep, string format)
 		{
-			List<FormatToken> formatTokens;
+			FormatToken[] formatTokens;
 			TryGetFormatTokens(format, out formatTokens);
 			foreach (var token in formatTokens)
 			{
@@ -1215,13 +1315,23 @@ namespace ExoModel
 		/// <summary>
 		/// Represents a token portion of a model instance format expression.
 		/// </summary>
-		class FormatToken
+		public class FormatToken
 		{
-			internal string Literal { get; set; }
+			public FormatToken(int startIndex, int endIndex)
+			{
+				StartIndex = startIndex;
+				EndIndex = endIndex;
+			}
 
-			internal ModelSource Property { get; set; }
+			public int StartIndex { get; set; }
 
-			internal string Format { get; set; }
+			public int EndIndex { get; set; }
+
+			public string Literal { get; internal set; }
+
+			public ModelSource Property { get; internal set; }
+
+			public string Format { get; internal set; }
 
 			public override string ToString()
 			{
@@ -1238,9 +1348,13 @@ namespace ExoModel
 		/// for <see cref="Boolean"/> properties by default.  The usage of this class can be eliminated
 		/// by overriding the behavior of <see cref="GetFormatProvider"/>.
 		/// </summary>
-		private class BooleanFormatter : IFormatProvider, ICustomFormatter
+		internal class BooleanFormatInfo : IFormatProvider, ICustomFormatter
 		{
-			internal static BooleanFormatter Instance = new BooleanFormatter();
+			internal static BooleanFormatInfo Instance = new BooleanFormatInfo();
+
+			private BooleanFormatInfo()
+			{
+			}
 
 			object IFormatProvider.GetFormat(Type formatType)
 			{

@@ -808,11 +808,31 @@ namespace ExoModel
 		/// <summary>
 		/// Gets the formatted value of the specified property.
 		/// </summary>
+		/// <param name="property">The name of the property</param>
+		/// <returns>The formatted of the property</returns>
+		public string GetFormattedValue(string property, string format, IFormatProvider provider)
+		{
+			return GetFormattedValue(Type.Properties[property], format, provider);
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
 		/// <param name="property">The specific <see cref="ModelProperty"/></param>
 		/// <returns>The formatted value of the property</returns>
 		public string GetFormattedValue(ModelProperty property, string format)
 		{
-			return property.GetFormattedValue(this, format);
+			return GetFormattedValue(property, format, null);
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
+		/// <param name="property">The specific <see cref="ModelProperty"/></param>
+		/// <returns>The formatted value of the property</returns>
+		public string GetFormattedValue(ModelProperty property, string format, IFormatProvider provider)
+		{
+			return property.GetFormattedValue(this, format, provider);
 		}
 
 		/// <summary>
@@ -902,7 +922,6 @@ namespace ExoModel
 		/// Returns the string representation of the underlying model instance,
 		/// potentially formatted using the default format specified by the model type.
 		/// </summary>
-		/// <returns></returns>
 		public override string ToString()
 		{
 			// Return a typed identifier for the instance if a format does not exist for the type
@@ -916,11 +935,18 @@ namespace ExoModel
 		/// Returns the string representation of the underlying model instance,
 		/// using the specified format.
 		/// </summary>
-		/// <param name="format"></param>
-		/// <returns></returns>
 		public string ToString(string format)
 		{
-			return ((IFormattable)this).ToString(format, null);
+			return ToString(format, null);
+		}
+
+		/// <summary>
+		/// Returns the string representation of the underlying model instance,
+		/// using the specified format.
+		/// </summary>
+		public string ToString(string format, IFormatProvider provider)
+		{
+			return ((IFormattable)this).ToString(format, provider);
 		}
 
 		/// <summary>
@@ -945,12 +971,13 @@ namespace ExoModel
 		/// using the specified format.
 		/// </summary>
 		/// <param name="format"></param>
+		/// <param name="formatProvider"></param>
 		/// <returns></returns>
 		string IFormattable.ToString(string format, IFormatProvider formatProvider)
 		{
 			// Just return the string value of the underlying instance if a format was not specified
 			if (String.IsNullOrEmpty(format))
-				return "" + instance;
+				return Convert.ToString(instance);
 
 			// Delegate to the type to format the instance
 			return Type.FormatInstance(this, format);

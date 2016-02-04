@@ -274,25 +274,35 @@ namespace ExoModel
 					else if ((referenceType = Context.GetModelType(property.PropertyType)) != null)
 					{
 						var format = property.GetCustomAttributes(true).OfType<ModelFormatAttribute>().Select(a => a.Format).FirstOrDefault();
-						ModelReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, null, format, property.GetGetMethod().IsStatic, referenceType, false, property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+						var reference = provider.CreateReferenceProperty(this, property, property.Name, null, null, format, property.GetGetMethod().IsStatic, referenceType, false, property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (reference != null)
 							AddProperty(reference);
 					}
 
-					// Create references based on properties that are lists of other instance types
-					else if (TryGetListItemType(property.PropertyType, out listItemType) && (referenceType = Context.GetModelType(listItemType)) != null)
+					else if (TryGetListItemType(property.PropertyType, out listItemType))
 					{
-						var format = property.GetCustomAttributes(true).OfType<ModelFormatAttribute>().Select(a => a.Format).FirstOrDefault();
-						ModelReferenceProperty reference = provider.CreateReferenceProperty(this, property, property.Name, null, null, format, property.GetGetMethod().IsStatic, referenceType, true, false, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
-						if (reference != null)
-							AddProperty(reference);
+						if ((referenceType = Context.GetModelType(listItemType)) != null)
+						{
+							// Create references based on properties that are lists of other instance types
+							var format = property.GetCustomAttributes(true).OfType<ModelFormatAttribute>().Select(a => a.Format).FirstOrDefault();
+							var reference = provider.CreateReferenceProperty(this, property, property.Name, null, null, format, property.GetGetMethod().IsStatic, referenceType, true, false, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+							if (reference != null)
+								AddProperty(reference);
+						}
+						else
+						{
+							// Create references based on properties that are lists of values
+							// TODO: Should the property type be 'listItemType'?
+							var value = provider.CreateValueProperty(this, property, property.Name, null, null, null, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(listItemType), true, false, true, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
+							if (value != null)
+								AddProperty(value);
+						}
 					}
 
 					// Create values for all other properties
 					else
 					{
-						var value = provider.CreateValueProperty(this, property, property.Name, null, null, null, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), TryGetListItemType(property.PropertyType, out listItemType), property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
-
+						var value = provider.CreateValueProperty(this, property, property.Name, null, null, null, property.GetGetMethod().IsStatic, property.PropertyType, TypeDescriptor.GetConverter(property.PropertyType), false, property.GetSetMethod() == null, property.GetSetMethod() != null, property.GetCustomAttributes(true).Cast<Attribute>().ToArray());
 						if (value != null)
 							AddProperty(value);
 					}

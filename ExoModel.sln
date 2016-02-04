@@ -1,82 +1,79 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph.Injection.UnitTest", "ExoGraph.Injection.UnitTest\ExoGraph.Injection.UnitTest.csproj", "{5D63D4F5-4CEE-4775-AD22-D3AD73BD94F0}"
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.40629.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoModel", "ExoModel\ExoModel.csproj", "{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph", "ExoGraph\ExoGraph.csproj", "{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoModel.EntityFramework", "ExoModel.EntityFramework\ExoModel.EntityFramework.csproj", "{48D45BC6-1815-4F09-BD2F-FC5011B7DBC2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph.UnitTest", "ExoGraph.UnitTest\ExoGraph.UnitTest.csproj", "{943D65C3-5E48-4771-8BA8-A8494C0FFB32}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoModel.ETL", "ExoModel.ETL\ExoModel.ETL\ExoModel.ETL.csproj", "{1A8D211D-2EFC-4BAC-9103-27DFD34BDDA8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph.Injection", "ExoGraph.Injection\ExoGraph.Injection.csproj", "{FECB1E15-5C85-43D4-8B4D-D14B6D21C468}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoModel.Json", "ExoModel.Json\ExoModel.Json.csproj", "{67E8A5CD-DEFB-47C7-9B2E-48A142EEC404}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph.NHibernate", "ExoGraph.NHibernate\ExoGraph.NHibernate.csproj", "{4FC5F7D5-D0A0-46A4-8134-B35259A9F9EE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoModel.UnitTests", "ExoModel.UnitTests\ExoModel.UnitTests.csproj", "{943D65C3-5E48-4771-8BA8-A8494C0FFB32}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoGraph.NHibernate.UnitTest", "ExoGraph.NHibernate.UnitTest\ExoGraph.NHibernate.UnitTest.csproj", "{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B159A1F9-218C-4FBF-91A8-638D2F2B01F2}"
-	ProjectSection(SolutionItems) = preProject
-		ExoGraph1.vsmdi = ExoGraph1.vsmdi
-	EndProjectSection
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExoModel.Json.Amender", "ExoModel.Json.Amender\ExoModel.Json.Amender.csproj", "{8CCE1630-55D0-4D72-95BF-0035514270DA}"
 EndProject
 Global
 	GlobalSection(TeamFoundationVersionControl) = preSolution
 		SccNumberOfProjects = 7
 		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
-		SccTeamFoundationServer = http://appdev-build:8080/
+		SccTeamFoundationServer = http://tfs.vc3.com:8080/tfs/defaultcollection
 		SccLocalPath0 = .
-		SccProjectUniqueName1 = ExoGraph.Injection.UnitTest\\ExoGraph.Injection.UnitTest.csproj
-		SccProjectName1 = ExoGraph.Injection.UnitTest
-		SccLocalPath1 = ExoGraph.Injection.UnitTest
-		SccProjectUniqueName2 = ExoGraph.Injection\\ExoGraph.Injection.csproj
-		SccProjectName2 = ExoGraph.Injection
-		SccLocalPath2 = ExoGraph.Injection
-		SccProjectUniqueName3 = ExoGraph.UnitTest\\ExoGraph.UnitTest.csproj
-		SccProjectName3 = ExoGraph.UnitTest
-		SccLocalPath3 = ExoGraph.UnitTest
-		SccProjectUniqueName4 = ExoGraph\\ExoGraph.csproj
-		SccProjectName4 = ExoGraph
-		SccLocalPath4 = ExoGraph
-		SccProjectUniqueName5 = ExoGraph.NHibernate\\ExoGraph.NHibernate.csproj
-		SccProjectName5 = ExoGraph.NHibernate
-		SccLocalPath5 = ExoGraph.NHibernate
-		SccProjectUniqueName6 = ExoGraph.NHibernate.UnitTest\\ExoGraph.NHibernate.UnitTest.csproj
-		SccProjectName6 = ExoGraph.NHibernate.UnitTest
-		SccLocalPath6 = ExoGraph.NHibernate.UnitTest
-	EndGlobalSection
-	GlobalSection(TestCaseManagementSettings) = postSolution
-		CategoryFile = ExoGraph1.vsmdi
+		SccProjectUniqueName1 = ExoModel\\ExoModel.csproj
+		SccProjectName1 = ExoModel
+		SccLocalPath1 = ExoModel
+		SccProjectUniqueName2 = ExoModel.EntityFramework\\ExoModel.EntityFramework.csproj
+		SccProjectName2 = ExoModel.EntityFramework
+		SccLocalPath2 = ExoModel.EntityFramework
+		SccProjectUniqueName3 = ExoModel.ETL\\ExoModel.ETL\\ExoModel.ETL.csproj
+		SccProjectName3 = ExoModel.ETL/ExoModel.ETL
+		SccLocalPath3 = ExoModel.ETL\\ExoModel.ETL
+		SccProjectUniqueName4 = ExoModel.Json\\ExoModel.Json.csproj
+		SccProjectName4 = ExoModel.Json
+		SccLocalPath4 = ExoModel.Json
+		SccProjectUniqueName5 = ExoModel.UnitTests\\ExoModel.UnitTests.csproj
+		SccProjectName5 = ExoModel.UnitTests
+		SccLocalPath5 = ExoModel.UnitTests
+		SccProjectUniqueName6 = ExoModel.Json.Amender\\ExoModel.Json.Amender.csproj
+		SccProjectName6 = ExoModel.Json.Amender
+		SccLocalPath6 = ExoModel.Json.Amender
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{5D63D4F5-4CEE-4775-AD22-D3AD73BD94F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5D63D4F5-4CEE-4775-AD22-D3AD73BD94F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5D63D4F5-4CEE-4775-AD22-D3AD73BD94F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5D63D4F5-4CEE-4775-AD22-D3AD73BD94F0}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F1D92AF4-9E97-4D29-8A24-B3C3011F2A42}.Release|Any CPU.Build.0 = Release|Any CPU
+		{48D45BC6-1815-4F09-BD2F-FC5011B7DBC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{48D45BC6-1815-4F09-BD2F-FC5011B7DBC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{48D45BC6-1815-4F09-BD2F-FC5011B7DBC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{48D45BC6-1815-4F09-BD2F-FC5011B7DBC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A8D211D-2EFC-4BAC-9103-27DFD34BDDA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A8D211D-2EFC-4BAC-9103-27DFD34BDDA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A8D211D-2EFC-4BAC-9103-27DFD34BDDA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A8D211D-2EFC-4BAC-9103-27DFD34BDDA8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{67E8A5CD-DEFB-47C7-9B2E-48A142EEC404}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{67E8A5CD-DEFB-47C7-9B2E-48A142EEC404}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{67E8A5CD-DEFB-47C7-9B2E-48A142EEC404}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{67E8A5CD-DEFB-47C7-9B2E-48A142EEC404}.Release|Any CPU.Build.0 = Release|Any CPU
 		{943D65C3-5E48-4771-8BA8-A8494C0FFB32}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{943D65C3-5E48-4771-8BA8-A8494C0FFB32}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{943D65C3-5E48-4771-8BA8-A8494C0FFB32}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{943D65C3-5E48-4771-8BA8-A8494C0FFB32}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FECB1E15-5C85-43D4-8B4D-D14B6D21C468}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FECB1E15-5C85-43D4-8B4D-D14B6D21C468}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FECB1E15-5C85-43D4-8B4D-D14B6D21C468}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FECB1E15-5C85-43D4-8B4D-D14B6D21C468}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4FC5F7D5-D0A0-46A4-8134-B35259A9F9EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4FC5F7D5-D0A0-46A4-8134-B35259A9F9EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4FC5F7D5-D0A0-46A4-8134-B35259A9F9EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4FC5F7D5-D0A0-46A4-8134-B35259A9F9EE}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D83D8DCE-D2FB-45C3-88A0-AF0C6824DF74}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8CCE1630-55D0-4D72-95BF-0035514270DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8CCE1630-55D0-4D72-95BF-0035514270DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8CCE1630-55D0-4D72-95BF-0035514270DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8CCE1630-55D0-4D72-95BF-0035514270DA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(TestCaseManagementSettings) = postSolution
+		CategoryFile = ExoGraph1.vsmdi
 	EndGlobalSection
 EndGlobal

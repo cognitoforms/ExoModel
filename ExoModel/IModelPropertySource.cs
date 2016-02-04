@@ -76,10 +76,28 @@ namespace ExoModel
 		/// <summary>
 		/// Gets the formatted value of the specified property.
 		/// </summary>
+		/// <param name="property">The name of the property</param>
+		/// <param name="format">The optional format to use</param>
+		/// <param name="provider">The optional format provider to use</param>
+		/// <returns>The formatted value of the property</returns>
+		string GetFormattedValue(string property, string format, IFormatProvider provider);
+
+		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
 		/// <param name="property">The specific <see cref="ModelProperty"/></param>
 		/// <param name="format">The optional format to use</param>
 		/// <returns>The formatted value of the property</returns>
 		string GetFormattedValue(ModelProperty property, string format);
+
+		/// <summary>
+		/// Gets the formatted value of the specified property.
+		/// </summary>
+		/// <param name="property">The specific <see cref="ModelProperty"/></param>
+		/// <param name="format">The optional format to use</param>
+		/// <param name="provider">The optional format provider to use</param>
+		/// <returns>The formatted value of the property</returns>
+		string GetFormattedValue(ModelProperty property, string format, IFormatProvider provider);
 
 		/// <summary>
 		/// Gets the list of <see cref="ModelInstance"/> items assigned to the specified property.

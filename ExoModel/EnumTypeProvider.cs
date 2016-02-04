@@ -163,10 +163,10 @@ namespace ExoModel
 			protected internal override void OnInit()
 			{
 				// Id
-				AddProperty(new EnumValueProperty<int>(this, "Id", e => Convert.ToInt32(e)));
+				AddProperty(new EnumValueProperty<int>(this, "Id", e => e.GetId()));
 
 				// Name
-				AddProperty(new EnumValueProperty<string>(this, "Name", e => e.ToString()));
+				AddProperty(new EnumValueProperty<string>(this, "Name", e => e.GetName()));
 
 				// Display Name
 				AddProperty(new EnumValueProperty<string>(this, "DisplayName", e => e.GetDisplayName()));
@@ -275,6 +275,16 @@ namespace ExoModel
 	public static class EnumExtensions
 	{
 		static readonly Regex nameRegex = new Regex(@"(^[a-z]+|[A-Z]{2,}(?=[A-Z][a-z]|$)|[A-Z][a-z]*)", RegexOptions.Singleline | RegexOptions.Compiled);
+
+		public static int GetId(this Enum value)
+		{
+			return Convert.ToInt32(value);
+		}
+
+		public static string GetName(this Enum value)
+		{
+			return value.ToString();
+		}
 
 		public static string GetDisplayName(this Enum value)
 		{

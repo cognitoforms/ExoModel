@@ -1,0 +1,5 @@
+﻿{
+    "1": { "Name": "High (2 Hour)" },
+    "2": { "Name": "Medium (Next Business Day)" },
+    "3": { "Name": "Low (One Week)" }
+}

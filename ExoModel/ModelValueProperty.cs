@@ -101,33 +101,52 @@ namespace ExoModel
 		/// <returns>The formatted value</returns>
 		public string FormatValue(object value, string format)
 		{
+			return FormatValue(value, format, null);
+		}
+
+		/// <summary>
+		/// Gets the formatted representation of a value based on the formatting rules
+		/// defined for the current property.
+		/// </summary>
+		/// <param name="value">The correct value type to format</param>
+		/// <param name="format">The format specifier, or null to use the default property format</param>
+		/// <param name="provider">The format provider, or null to use the property's default format provider</param>
+		/// <returns>The formatted value</returns>
+		public string FormatValue(object value, string format, IFormatProvider provider)
+		{
 			if (value == null)
 				return "";
 			format = format ?? Format;
-			if (format == null || format == "")
+			var formatProvider = provider ?? FormatProvider;
+			if (string.IsNullOrEmpty(format))
 			{
-				if (FormatProvider == null)
+				if (formatProvider == null)
 					return value.ToString();
 				else
-					return String.Format(FormatProvider, "{0}", value);
+					return String.Format(formatProvider, "{0}", value);
 			}
-			return String.Format(FormatProvider, "{0:" + format + "}", value);
+			return String.Format(formatProvider, "{0:" + format + "}", value);
 		}
 
 		/// <summary>
 		/// Gets the formatted value of the property for the specified instance.
 		/// </summary>
-		/// <param name="instance"></param>
-		/// <returns></returns>
 		protected internal override string GetFormattedValue(ModelInstance instance, string format)
 		{
-			return FormatValue(GetValue(instance.Instance), format ?? Format);
+			return FormatValue(GetValue(instance.Instance), format, null);
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the property for the specified instance.
+		/// </summary>
+		protected internal override string GetFormattedValue(ModelInstance instance, string format, IFormatProvider provider)
+		{
+			return FormatValue(GetValue(instance.Instance), format ?? Format, provider);
 		}
 
 		/// <summary>
 		/// Gets the current default value for this property, or null if no default value has been specified.
 		/// </summary>
-		/// <returns></returns>
 		public object GetDefaultValue()
 		{
 			if (DefaultValue == null)

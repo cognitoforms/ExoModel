@@ -314,6 +314,42 @@ namespace ExoModel
 		}
 
 		/// <summary>
+		/// Gets the formatted value of the property for the current source path.
+		/// </summary>
+		/// <param name="root"></param>
+		/// <param name="rawValue"></param>
+		/// <returns></returns>
+		public string GetFormattedValue(ModelInstance root, out object rawValue)
+		{
+			return GetFormattedValue(root, null, out rawValue);
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the property for the current source path.
+		/// </summary>
+		public string GetFormattedValue(ModelInstance root, string format, out object rawValue)
+		{
+			return GetFormattedValue(root, format, null, out rawValue);
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the property for the current source path.
+		/// </summary>
+		public string GetFormattedValue(ModelInstance root, string format, IFormatProvider provider, out object rawValue)
+		{
+			IModelPropertySource source = GetSource(root);
+
+			if (source == null)
+			{
+				rawValue = null;
+				return null;
+			}
+
+			rawValue = source[SourceProperty];
+			return source.GetFormattedValue(SourceProperty, format);
+		}
+
+		/// <summary>
 		/// Determines whether the value of the property along the source path has a value or not.
 		/// </summary>
 		/// <param name="root"></param>

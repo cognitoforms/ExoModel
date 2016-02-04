@@ -441,7 +441,9 @@ namespace ExoModel
 				return m;
 			}
 
-			static MethodInfo modelInstanceToString = typeof(ModelInstance).GetMethod("ToString", new Type[] { typeof(string) });
+			static MethodInfo modelInstanceToString1 = typeof(ModelInstance).GetMethod("ToString", new Type[] { typeof(string) });
+
+			static MethodInfo modelInstanceToString2 = typeof(ModelInstance).GetMethod("ToString", new Type[] { typeof(string), typeof(IFormatProvider) });
 
 			protected override Expression VisitMethodCall(MethodCallExpression m)
 			{
@@ -485,7 +487,7 @@ namespace ExoModel
 				}
 
 				// Determine if ToString is being called on a model reference property
-				if (m.Method == modelInstanceToString)
+				if (m.Method == modelInstanceToString1 || m.Method == modelInstanceToString2)
 				{
 					if (m.Object is MemberExpression)
 					{

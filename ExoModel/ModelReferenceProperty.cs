@@ -62,16 +62,22 @@ namespace ExoModel
 		/// <summary>
 		/// Gets the formatted value of the property for the specified instance.
 		/// </summary>
-		/// <param name="instance"></param>
-		/// <returns></returns>
 		protected internal override string GetFormattedValue(ModelInstance instance, string format)
 		{
+			return GetFormattedValue(instance, format, null);
+		}
+
+		/// <summary>
+		/// Gets the formatted value of the property for the specified instance.
+		/// </summary>
+		protected internal override string GetFormattedValue(ModelInstance instance, string format, IFormatProvider provider)
+		{
 			if (IsList)
-				return instance.GetList(this).ToString(format ?? Format);
+				return instance.GetList(this).ToString(format ?? Format, provider);
 			else
 			{
 				var reference = instance.GetReference(this);
-				return reference != null ? reference.ToString(format ?? Format) : "";
+				return reference != null ? reference.ToString(format ?? Format, provider) : "";
 			}
 		}
 
