@@ -1078,6 +1078,19 @@ namespace ExoModel
 		}
 
 		/// <summary>
+		/// Returns a list of <see cref="ModelSources"/> given a format string
+		/// </summary>
+		/// <param name="format">Format string from which the model sources should be extracted</param>
+		/// <returns>List of <see cref="ModelSource"/>s</returns>
+		public List<ModelSource> GetFormatModelSources(string format)
+		{
+			List<FormatToken> formatTokens;
+			TryGetFormatTokens(format, out formatTokens);
+
+			return formatTokens.Select(ft => ft.Property).ToList();
+		}
+
+		/// <summary>
 		/// Attempts to format the instance using the specified format.
 		/// </summary>
 		/// <param name="instance"></param>

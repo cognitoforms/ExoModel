@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -49,6 +50,57 @@ namespace ExoModel
 			get
 			{
 				return steps;
+			}
+		}
+
+		/// <summary>
+		/// Fetches a <see cref="ModelProperty"/> based on the root <see cref="ModelType"/>
+		/// </summary>
+		/// <param name="root">The root type from which the property should be inferred</param>
+		/// <returns>The <see cref="ModelProperty"/> instance on the root type</returns>
+		public ModelProperty GetModelProperty(ModelType root)
+		{
+			var rootType = root;
+			var lastStep = Steps.Last();
+			ModelProperty property = null;
+			foreach (var step in Steps)
+			{
+				// If we are on the last step, retreive the property and break
+				if (step == lastStep)
+				{
+					property = rootType.Properties[step.Property];
+					break;
+				}
+				
+				if (rootType.Properties[step.Property] is ModelReferenceProperty)
+				{
+					rootType = ((ModelReferenceProperty) rootType.Properties[step.Property]).PropertyType;
+				}
+
+
+				property = rootType.Properties[step.Property];
+			}
+
+			return property;
+		}
+
+		/// <summary>
+		/// Walks the steps of the <see cref="ModelSource"/>
+		/// </summary>
+		/// <param name="root">The root type from which the property should be inferred</param>
+		/// <returns>Each <see cref="ModelProperty"/> represneting a step along the path defined by this <see cref="ModelSource"/></returns>
+		public IEnumerable<ModelProperty> GetModelProperties(ModelType root)
+		{
+			var rootType = root;
+
+			foreach (var step in Steps)
+			{
+				yield return rootType.Properties[step.Property];
+
+				if (rootType.Properties[step.Property] is ModelReferenceProperty)
+				{
+					rootType = ((ModelReferenceProperty)rootType.Properties[step.Property]).PropertyType;
+				}
 			}
 		}
 
