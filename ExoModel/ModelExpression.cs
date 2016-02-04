@@ -1446,7 +1446,7 @@ namespace ExoModel
 				if (text[0] != '-')
 				{
 					ulong value;
-					if (!UInt64.TryParse(text, out value))
+					if (!UInt64.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out value))
 						throw ParseError(ParseErrorType.InvalidIntegerLiteral, text);
 					NextToken();
 					if (value <= (ulong)Int32.MaxValue) return CreateLiteral((int)value, text);
@@ -1457,7 +1457,7 @@ namespace ExoModel
 				else
 				{
 					long value;
-					if (!Int64.TryParse(text, out value))
+					if (!Int64.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out value))
 						throw ParseError(ParseErrorType.InvalidIntegerLiteral, text);
 					NextToken();
 					if (value >= Int32.MinValue && value <= Int32.MaxValue)
@@ -1475,12 +1475,12 @@ namespace ExoModel
 				if (last == 'F' || last == 'f')
 				{
 					float f;
-					if (Single.TryParse(text.Substring(0, text.Length - 1), out f)) value = f;
+					if (Single.TryParse(text.Substring(0, text.Length - 1), NumberStyles.Any, CultureInfo.InvariantCulture, out f)) value = f;
 				}
 				else
 				{
 					double d;
-					if (Double.TryParse(text, out d)) value = d;
+					if (Double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out d)) value = d;
 				}
 				if (value == null) throw ParseError(ParseErrorType.InvalidRealLiteral, text);
 				NextToken();
@@ -2478,7 +2478,7 @@ namespace ExoModel
 									else if (type == typeof(DateTime))
 									{
 										DateTime dateConstant;
-										if (DateTime.TryParse(text, null, DateTimeStyles.AssumeLocal | DateTimeStyles.AllowInnerWhite | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite | DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.NoCurrentDateDefault, out dateConstant))
+										if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AllowInnerWhite | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite | DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.NoCurrentDateDefault, out dateConstant))
 										{
 											// Assume this is a time if the year, month and day are all 1 (NoCurrentDefaultDate kicked in)
 											if (dateConstant.Year == 1 && dateConstant.Month == 1 && dateConstant.Day == 1)
@@ -2495,7 +2495,7 @@ namespace ExoModel
 										else
 										{
 											DateTime dateConstant;
-											if (DateTime.TryParse(text, null, DateTimeStyles.AssumeLocal | DateTimeStyles.AllowInnerWhite | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite | DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.NoCurrentDateDefault, out dateConstant))
+											if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AllowInnerWhite | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite | DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.NoCurrentDateDefault, out dateConstant))
 											{
 												// Assume this is a time if the year, month and day are all 1 (NoCurrentDefaultDate kicked in)
 												if (dateConstant.Year == 1 && dateConstant.Month == 1 && dateConstant.Day == 1)
@@ -2590,47 +2590,47 @@ namespace ExoModel
 				{
 					case TypeCode.SByte:
 						sbyte sb;
-						if (sbyte.TryParse(text, out sb)) return sb;
+						if (sbyte.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out sb)) return sb;
 						break;
 					case TypeCode.Byte:
 						byte b;
-						if (byte.TryParse(text, out b)) return b;
+						if (byte.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out b)) return b;
 						break;
 					case TypeCode.Int16:
 						short s;
-						if (short.TryParse(text, out s)) return s;
+						if (short.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out s)) return s;
 						break;
 					case TypeCode.UInt16:
 						ushort us;
-						if (ushort.TryParse(text, out us)) return us;
+						if (ushort.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out us)) return us;
 						break;
 					case TypeCode.Int32:
 						int i;
-						if (int.TryParse(text, out i)) return i;
+						if (int.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out i)) return i;
 						break;
 					case TypeCode.UInt32:
 						uint ui;
-						if (uint.TryParse(text, out ui)) return ui;
+						if (uint.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out ui)) return ui;
 						break;
 					case TypeCode.Int64:
 						long l;
-						if (long.TryParse(text, out l)) return l;
+						if (long.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out l)) return l;
 						break;
 					case TypeCode.UInt64:
 						ulong ul;
-						if (ulong.TryParse(text, out ul)) return ul;
+						if (ulong.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out ul)) return ul;
 						break;
 					case TypeCode.Single:
 						float f;
-						if (float.TryParse(text, out f)) return f;
+						if (float.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out f)) return f;
 						break;
 					case TypeCode.Double:
 						double d;
-						if (double.TryParse(text, out d)) return d;
+						if (double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out d)) return d;
 						break;
 					case TypeCode.Decimal:
 						decimal e;
-						if (decimal.TryParse(text, out e)) return e;
+						if (decimal.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out e)) return e;
 						break;
 				}
 				return null;
@@ -3104,7 +3104,7 @@ namespace ExoModel
 				{
 					NextChar();
 				} while (Char.IsDigit(ch));
-				if (ch.ToString() == CultureInfo.CurrentCulture.NumberFormat.CurrencyDecimalSeparator)
+				if (ch.ToString() == ".")
 				{
 					t = TokenId.RealLiteral;
 					NextChar();
