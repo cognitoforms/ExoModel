@@ -658,7 +658,9 @@ namespace ExoModel
 			    { ParseErrorType.DotOrOpenParenExpected, "'.' or '(' expected" },
 			    { ParseErrorType.OpenBracketExpected, "'[' expected" },
 			    { ParseErrorType.CloseBracketOrCommaExpected, "']' or ',' expected" },
-			    { ParseErrorType.IdentifierExpected, "Identifier expected" }
+			    { ParseErrorType.IdentifierExpected, "Identifier expected" },
+				{ ParseErrorType.ThenExpected, "'then' expected" },
+				{ ParseErrorType.ElseExpected, "'else' expected" },
 		    };
 
 			public ParseException(string message, int position, params object[] args)
@@ -782,6 +784,8 @@ namespace ExoModel
 			OpenBracketExpected,
 			CloseBracketOrCommaExpected,
 			IdentifierExpected,
+			ThenExpected,
+			ElseExpected
 		}
 
 		#endregion
@@ -830,7 +834,10 @@ namespace ExoModel
 				LessGreater,
 				DoubleEqual,
 				GreaterThanEqual,
-				DoubleBar
+				DoubleBar,
+				If,
+				Then,
+				Else
 			}
 
 			interface ILogicalSignatures
@@ -1078,29 +1085,71 @@ namespace ExoModel
 			Expression ParseExpression(Type resultType = null)
 			{
 				int errorPos = token.pos;
-				Expression expr = ParseLogicalOr();
+				Expression expr = ParseIf(resultType);
 				if (token.id == TokenId.Question)
 				{
 					NextToken();
 					Expression expr1 = ParseExpression(resultType);
 					if (resultType != null)
 					{
+						var type = expr1.Type;
 						expr1 = PromoteExpression(expr1, resultType, true);
 						if (expr1 == null)
-							throw ParseError(ParseErrorType.CannotConvertValue);
+							throw ParseError(ParseErrorType.CannotConvertValue, GetTypeName(new ModelExpressionType(type)), GetTypeName(new ModelExpressionType(resultType)));
 					}
 					ValidateToken(TokenId.Colon, ParseErrorType.ColonExpected);
 					NextToken();
 					Expression expr2 = ParseExpression(resultType);
 					if (resultType != null)
 					{
+						var type = expr2.Type;
 						expr2 = PromoteExpression(expr2, resultType, true);
 						if (expr2 == null)
-							throw ParseError(ParseErrorType.CannotConvertValue);
+							throw ParseError(ParseErrorType.CannotConvertValue, GetTypeName(new ModelExpressionType(type)), GetTypeName(new ModelExpressionType(resultType)));
 					}
 					expr = GenerateConditional(expr, expr1, expr2, errorPos);
 				}
 				return expr;
+			}
+
+			// If Then Else operator
+			Expression ParseIf(Type resultType = null)
+			{
+				int errorPos = token.pos;
+				if (token.id == TokenId.If)
+				{
+					NextToken();
+					Expression ifExpr = ParseExpression(typeof(bool));
+					if (resultType != null)
+					{
+						ifExpr = PromoteExpression(ifExpr, typeof(bool), true);
+						if (ifExpr == null)
+							throw ParseError(ParseErrorType.FirstExprMustBeBool);
+					}
+					ValidateToken(TokenId.Then, ParseErrorType.ThenExpected);
+					NextToken();
+					Expression expr1 = ParseExpression(resultType);
+					if (resultType != null)
+					{
+						var type = expr1.Type;
+						expr1 = PromoteExpression(expr1, resultType, true);
+						if (expr1 == null)
+							throw ParseError(ParseErrorType.CannotConvertValue, GetTypeName(new ModelExpressionType(type)), GetTypeName(new ModelExpressionType(resultType)));
+					}
+					ValidateToken(TokenId.Else, ParseErrorType.ElseExpected);
+					NextToken();
+					Expression expr2 = ParseExpression(resultType);
+					if (resultType != null)
+					{
+						var type = expr2.Type;
+						expr2 = PromoteExpression(expr2, resultType, true);
+						if (expr2 == null)
+							throw ParseError(ParseErrorType.CannotConvertValue, GetTypeName(new ModelExpressionType(type)), GetTypeName(new ModelExpressionType(resultType)));
+					}
+					return GenerateConditional(ifExpr, expr1, expr2, errorPos);
+				}
+				else
+					return ParseLogicalOr();
 			}
 
 			// ||, or operator
@@ -3244,7 +3293,14 @@ namespace ExoModel
 							{
 								NextChar();
 							} while (Char.IsLetterOrDigit(ch) || ch == '_');
-							t = TokenId.Identifier;
+							var identifier = text.Substring(tokenPos, textPos - tokenPos).ToLower();
+							switch (identifier)
+							{
+								case "if": t = TokenId.If; break;
+								case "then": t = TokenId.Then; break;
+								case "else": t = TokenId.Else; break;
+								default: t = TokenId.Identifier; break;
+							}
 							break;
 						}
 						if (Char.IsDigit(ch))
