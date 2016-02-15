@@ -133,7 +133,7 @@ namespace ExoModel
 			{
 				// ensure there are no gaps between tokens except for whitespace
 				if (tokenMatch.Index != expectedTokenStart && path.Substring(expectedTokenStart, tokenMatch.Index - expectedTokenStart - 1).Trim() != "" )
-					throw new ArgumentException("The specified path, '" + path + "', is not valid. Character " + (expectedTokenStart));
+					return null; // throw new ArgumentException("The specified path, '" + path + "', is not valid. Character " + (expectedTokenStart));
 
 				expectedTokenStart = tokenMatch.Index + tokenMatch.Length;
 
@@ -177,14 +177,14 @@ namespace ExoModel
 						{
 							// Ensure the current step is a valid reference property
 							if (step.Property != null && step.Property is ModelValueProperty)
-								throw new ArgumentException("Property '" + step.Property.Name + "' is a value property and cannot have child properties specified.");
+								return null; // throw new ArgumentException("Property '" + step.Property.Name + "' is a value property and cannot have child properties specified.");
 
 							// Get the type of the current step
 							var currentType = step.Property != null ? ((ModelReferenceProperty)step.Property).PropertyType : step.Path.RootType;
 							if (step.Filter != null)
 							{
 								if (step.Filter != currentType && !currentType.IsSubType(step.Filter))
-									throw new ArgumentException("Filter type '" + step.Filter.Name + "' is not a valid subtype of '" + currentType.Name + "'.");
+									return null; // throw new ArgumentException("Filter type '" + step.Filter.Name + "' is not a valid subtype of '" + currentType.Name + "'.");
 								currentType = step.Filter;
 							}
 

@@ -606,36 +606,25 @@ namespace ExoModel
 		/// <returns>True if the path is valid and was returned as an output parameter, otherwise false.</returns>
 		public bool TryGetPath(string path, out ModelPath modelPath)
 		{
-			try
-			{	
-				// First see if the path has already been created for this instance type
-				path = path.Replace(" ", "");
-				modelPath = Paths[path];
-				if (modelPath != null)
-					return true;
-
-				if (invalidPaths.Contains(path))
-					return false;
-
-				// Otherwise, create and cache a new path
-				modelPath = ModelPath.CreatePath(this, path);
-				if (modelPath == null)
-				{
-					invalidPaths.Add(path);
-					return false;
-				}
-
-				Paths.Add(modelPath);
+			// First see if the path has already been created for this instance type
+			path = path.Replace(" ", "");
+			modelPath = Paths[path];
+			if (modelPath != null)
 				return true;
-			}
-			catch (Exception ex)
+
+			if (invalidPaths.Contains(path))
+				return false;
+
+			// Otherwise, create and cache a new path
+			modelPath = ModelPath.CreatePath(this, path);
+			if (modelPath == null)
 			{
-				throw new ApplicationException(string.Format("Error trying to get path '{0}' on type '{1}': [{2}]",
-					path,
-					Name ?? "UNKNOWN",
-					ex.Message),
-				ex);
+				invalidPaths.Add(path);
+				return false;
 			}
+
+			Paths.Add(modelPath);
+			return true;
 		}
 
 		/// <summary>
