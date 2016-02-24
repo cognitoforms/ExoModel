@@ -147,11 +147,12 @@ namespace ExoModel
 			return ClassFactory.Instance.GetDynamicClass(properties);
 		}
 
-		public ModelType GetResultModelType()
+		public ModelType GetResultModelType(Func<UnaryExpression, ModelProperty> getDynamicMemberAccess = null)
 		{
 			ModelType resultType;
+			bool resultIsList;
 
-			if (!ExpressionHelper.TryGetResultModelType(Expression, out resultType))
+			if (!ExpressionHelper.TryGetResultModelType(Expression, getDynamicMemberAccess, out resultType, out resultIsList))
 				return null;
 
 			return resultType;
@@ -2038,7 +2039,7 @@ namespace ExoModel
 					// Select
 					//		IEnumerable<TResult> Select<TSource, TResult>(IEnumerable<TItem> source, Func<TSource, TResult> selector)
 					// OrderBy, OrderByDescending
-					//		IEnumerable<TSource> Method<TSource, TKey>(IEnumerable<TItem> source, Func<TSource, TResult> comparer)
+					//		IEnumerable<TSource> Method<TSource, TKey>(IEnumerable<TItem> source, Func<TSource, TKey> comparer)
 					typeArgs = new Type[] { elementType.Type, args[0].Type };
 				}
 				else
@@ -3818,7 +3819,7 @@ namespace ExoModel
 			/// <summary>
 			/// Try to get the model type of the 
 			/// </summary>
-			public static bool TryGetResultModelType(Expression expr, out ModelType resultType)
+			public static bool TryGetResultModelType(Expression expr, Func<UnaryExpression, ModelProperty> getDynamicMemberAccess, out ModelType modelType, out bool isList)
 			{
 				Expression body;
 				if (TryGetLambdaBody(expr, out body))
@@ -3827,49 +3828,137 @@ namespace ExoModel
 				var castExpr = expr as ModelCastExpression;
 				if (castExpr != null)
 				{
-					resultType = castExpr.ModelType;
+					modelType = castExpr.ModelType;
+					isList = castExpr.IsList;
 					return true;
 				}
 
 				var memberExpr = expr as ModelMemberExpression;
 				if (memberExpr != null)
 				{
-					if (memberExpr.Property is ModelReferenceProperty)
+					var reference = memberExpr.Property as ModelReferenceProperty;
+					if (reference != null)
 					{
-						resultType = ((ModelReferenceProperty) memberExpr.Property).PropertyType;
+						modelType = reference.PropertyType;
+						isList = reference.IsList;
 						return true;
 					}
 
 					// If the property is not a reference property,
 					// then the result type is not a model type.
-					resultType = null;
+					modelType = null;
+					isList = false;
 					return false;
+				}
+
+				var call = expr as MethodCallExpression;
+				if (call != null)
+				{
+					if (call.Method.DeclaringType == typeof(Enumerable))
+					{
+						var source = call.Arguments[0];
+
+						switch (call.Method.Name)
+						{
+							case "First":
+							case "FirstOrDefault":
+							case "Last":
+							case "LastOrDefault":
+							case "Where":
+							case "OrderBy":
+							case "OrderByDescending":
+							case "Except":
+
+								// TSource First<TSource>(IEnumerable<TSource> source)
+								// TSource First<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+								// TSource Last<TSource>(IEnumerable<TSource> source)
+								// TSource Last<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+								// IEnumerable<TSource> Where<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+								// IEnumerable<TSource> OrderBy<TSource, TKey>(IEnumerable<TItem> source, Func<TSource, TKey> comparer)
+								// IEnumerable<TSource> OrderByDescending<TSource, TKey>(IEnumerable<TItem> source, Func<TSource, TKey> comparer)
+								// IEnumerable<TSource> Except(IEnumerable<TSource> first, IEnumerable<TSource> second)
+
+								return TryGetResultModelType(source, getDynamicMemberAccess, out modelType, out isList);
+
+							case "Select":
+
+								if (call.Arguments.Count == 2)
+								{
+									// TResult Select<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector)
+
+									Expression selectorBody;
+									if (TryGetLambdaBody(call.Arguments[1], out selectorBody))
+									{
+										return TryGetResultModelType(selectorBody, getDynamicMemberAccess, out modelType, out isList);
+									}
+								}
+
+								break;
+
+							case "Any":
+							case "All":
+							case "Contains":
+							case "Count":
+							case "Average":
+							case "Min":
+							case "Max":
+							case "Sum":
+
+								modelType = null;
+								isList = false;
+								return false;
+						}
+					}	
+				}
+
+				var unaryExpr = expr as UnaryExpression;
+				if (unaryExpr != null)
+				{
+					if (getDynamicMemberAccess != null)
+					{
+						var property = getDynamicMemberAccess(unaryExpr);
+						if (property != null)
+						{
+							isList = property.IsList;
+
+							var reference = property as ModelReferenceProperty;
+							if (reference != null)
+							{
+								modelType = reference.PropertyType;
+								return true;
+							}
+
+							modelType = null;
+							return false;
+						}
+					}
 				}
 
 				Type returnType;
 				if (TryGetReturnType(expr, out returnType))
 				{
 					bool isModelType;
-					bool isList;
 					Type itemType;
 
 					ModelType.GetTypeInfo(returnType, out isModelType, out isList, out itemType);
 
 					if (!isModelType)
 					{
-						resultType = null;
+						modelType = null;
+						isList = false;
 						return false;
 					}
 
 					if (isList)
-						resultType = ModelContext.Current.GetModelType(itemType);
+						modelType = ModelContext.Current.GetModelType(itemType);
 					else
-						resultType = ModelContext.Current.GetModelType(returnType);
+						modelType = ModelContext.Current.GetModelType(returnType);
 
 					return true;
 				}
 
-				resultType = null;
+				modelType = null;
+				isList = false;
 				return false;
 			}
 
@@ -4672,14 +4761,22 @@ namespace ExoModel
 								break;
 
 							case "First":
+							case "FirstOrDefault":
 							case "Last":
+							case "LastOrDefault":
 							case "Where":
+							case "OrderBy":
+							case "OrderByDescending":
+							case "Except":
 
 								// TSource First<TSource>(IEnumerable<TSource> source)
 								// TSource First<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
 								// TSource Last<TSource>(IEnumerable<TSource> source)
 								// TSource Last<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
 								// IEnumerable<TSource> Where<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
+								// IEnumerable<TSource> OrderBy<TSource, TKey>(IEnumerable<TItem> source, Func<TSource, TKey> comparer)
+								// IEnumerable<TSource> OrderByDescending<TSource, TKey>(IEnumerable<TItem> source, Func<TSource, TKey> comparer)
+								// IEnumerable<TSource> Except(IEnumerable<TSource> first, IEnumerable<TSource> second)
 
 								bool sourceIsConstant;
 								Type sourceConvertedFrom;
@@ -4724,6 +4821,13 @@ namespace ExoModel
 								}
 
 								break;
+
+							case "Contains":
+							case "Count":
+
+								format = null;
+								provider = null;
+								return false;
 						}
 					}
 				}
