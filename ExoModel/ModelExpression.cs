@@ -200,11 +200,10 @@ namespace ExoModel
 		/// <param name="instance">The root model instance.</param>
 		/// <param name="format">The optional format to use -or- null to use the format information from the model, if available, or the default format for the type.</param>
 		/// <param name="provider">The optional format provider to use.</param>
-		/// <param name="rawValue">The raw result value of the expression.</param>
 		/// <returns>The value of the expression, formatted as a string.</returns>
-		public string GetFormattedValue(ModelInstance instance, string format, IFormatProvider provider, out object rawValue)
+		public string GetFormattedValue(ModelInstance instance, string format, IFormatProvider provider)
 		{
-			rawValue = Invoke(instance);
+			var rawValue = Invoke(instance);
 
 			if (rawValue == null)
 				return "";
@@ -232,6 +231,15 @@ namespace ExoModel
 			Type Type { get; }
 
 			bool IsList { get; }
+		}
+
+		#endregion
+
+		#region ITimeZoneProvider
+
+		public interface ITimeZoneProvider
+		{
+			TimeZoneInfo TimeZone { get; }
 		}
 
 		#endregion
@@ -2810,6 +2818,9 @@ namespace ExoModel
 					{
 						Expression toStringExpr;
 
+						if (format == null && expr.Type == typeof(DateTime?))
+							format = "g";
+
 						// expr.ToString(format, provider)
 						if (format == null || !ExpressionWriter.TryCallToString(Expr.Convert(expr, Nullable.GetUnderlyingType(expr.Type)), format, provider, out toStringExpr))
 							// expr.ToString()
@@ -2824,6 +2835,9 @@ namespace ExoModel
 					else
 					{
 						Expression toStringExpr;
+
+						if (format == null && expr.Type == typeof(DateTime))
+							format = "g";
 
 						// expr.ToString(format, provider)
 						if (format == null || !ExpressionWriter.TryCallToString(expr, format, provider, out toStringExpr))
@@ -4874,6 +4888,9 @@ namespace ExoModel
 			/// </summary>
 			private static string FormatValue(object value, string format, IFormatProvider provider)
 			{
+				if (value is DateTime)
+					return DateTimeFormatter.ToString((DateTime)value, format, provider);
+
 				var formattable = value as IFormattable;
 				if (formattable != null)
 					return formattable.ToString(format, provider);
@@ -4983,6 +5000,10 @@ namespace ExoModel
 					});
 			}
 
+			static MethodInfo iformattableMethod = (typeof(IFormattable)).GetMethod("ToString", new[] { typeof(String), typeof(IFormatProvider) });
+			static MethodInfo booleanFormatterMethod = typeof(BooleanFormatter).GetMethod("ToString", BindingFlags.NonPublic | BindingFlags.Static, null, new[] { typeof(Boolean), typeof(string) }, null);
+			static MethodInfo dateTimeFormatterMethod = typeof(DateTimeFormatter).GetMethod("ToString", BindingFlags.NonPublic | BindingFlags.Static, null, new[] { typeof(DateTime), typeof(string), typeof(IFormatProvider) }, null);
+
 			/// <summary>
 			/// Attempt to call ToString(format, provider) for the given expression. If a "ToString" method cannot be found which
 			/// accepts the format and provider parameters, then the method returns false to indicate that it was not successful.
@@ -4993,6 +5014,19 @@ namespace ExoModel
 				{
 					result = null;
 					return false;
+				}
+
+				if (expr.Type == typeof(DateTime))
+				{
+					// DateTimeFormatter.ToString(value, format, provider)
+					result = Expr.Call(
+						dateTimeFormatterMethod,
+						expr,
+						Expr.Constant(format),
+						Expr.Constant(provider, typeof(IFormatProvider))
+						);
+
+					return true;
 				}
 
 				var typeDeclaredToString = expr.Type.GetMethod("ToString", new[] { typeof(String), typeof(IFormatProvider) });
@@ -5008,7 +5042,7 @@ namespace ExoModel
 					// ((IFormattable)value).ToString(format, provider)
 					result = Expr.Call(
 						Expr.Convert(expr, typeof(IFormattable)),
-						(typeof(IFormattable)).GetMethod("ToString", new[] { typeof(String), typeof(IFormatProvider) }),
+						iformattableMethod,
 						new Expression[]
 						{
 							Expr.Constant(format),
@@ -5020,9 +5054,9 @@ namespace ExoModel
 
 				if (expr.Type == typeof (Boolean) && provider is ModelType.BooleanFormatInfo)
 				{
-					// BooleanFormatter.Format(value, format)
+					// BooleanFormatter.ToString(value, format)
 					result = Expr.Call(
-						typeof(BooleanFormatter).GetMethod("ToString", BindingFlags.NonPublic | BindingFlags.Static, null, new[] { typeof(Boolean), typeof(string) }, null),
+						booleanFormatterMethod,
 						expr,
 						Expr.Constant(format)
 						);
@@ -5661,6 +5695,27 @@ namespace ExoModel
 			{
 				var formatTemplate = "{0:" + format + "}";
 				return string.Format(ModelType.BooleanFormatInfo.Instance, formatTemplate, value);
+			}
+		}
+
+		#endregion
+
+		#region DateTimeFormatter
+
+		/// <summary>
+		/// A class that implements Exo-specific formatting for date/time values. 
+		/// </summary>
+		public static class DateTimeFormatter
+		{
+			/// <summary>
+			/// Formats the given date/time value using the given format string and the Exo date/time format provider.
+			/// </summary>
+			internal static string ToString(DateTime date, string format, IFormatProvider formatProvider)
+			{
+				var timezoneProvider = CultureInfo.CurrentCulture as ITimeZoneProvider;
+				var timezone = timezoneProvider != null ? timezoneProvider.TimeZone : TimeZoneInfo.Local;
+
+				return TimeZoneInfo.ConvertTime(date, timezone).ToString(format, formatProvider);
 			}
 		}
 
