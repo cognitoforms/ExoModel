@@ -822,7 +822,7 @@ namespace ExoModel
 		/// <returns>The formatted value of the property</returns>
 		public string GetFormattedValue(ModelProperty property, string format)
 		{
-			return GetFormattedValue(property, format, null);
+			return property.GetFormattedValue(this, format);
 		}
 
 		/// <summary>
