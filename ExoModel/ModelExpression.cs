@@ -152,7 +152,7 @@ namespace ExoModel
 			ModelType resultType;
 			bool resultIsList;
 
-			if (!ExpressionHelper.TryGetResultModelType(Expression, getDynamicMemberAccess, out resultType, out resultIsList))
+			if (!ExpressionHelper.TryGetResultModelType(Expression, RootType, getDynamicMemberAccess, out resultType, out resultIsList))
 				return null;
 
 			return resultType;
@@ -3833,7 +3833,7 @@ namespace ExoModel
 			/// <summary>
 			/// Try to get the model type of the 
 			/// </summary>
-			public static bool TryGetResultModelType(Expression expr, Func<UnaryExpression, ModelProperty> getDynamicMemberAccess, out ModelType modelType, out bool isList)
+			public static bool TryGetResultModelType(Expression expr, ModelType rootType, Func<UnaryExpression, ModelProperty> getDynamicMemberAccess, out ModelType modelType, out bool isList)
 			{
 				Expression body;
 				if (TryGetLambdaBody(expr, out body))
@@ -3892,7 +3892,7 @@ namespace ExoModel
 								// IEnumerable<TSource> OrderByDescending<TSource, TKey>(IEnumerable<TItem> source, Func<TSource, TKey> comparer)
 								// IEnumerable<TSource> Except(IEnumerable<TSource> first, IEnumerable<TSource> second)
 
-								return TryGetResultModelType(source, getDynamicMemberAccess, out modelType, out isList);
+								return TryGetResultModelType(source, rootType, getDynamicMemberAccess, out modelType, out isList);
 
 							case "Select":
 
@@ -3903,7 +3903,7 @@ namespace ExoModel
 									Expression selectorBody;
 									if (TryGetLambdaBody(call.Arguments[1], out selectorBody))
 									{
-										return TryGetResultModelType(selectorBody, getDynamicMemberAccess, out modelType, out isList);
+										return TryGetResultModelType(selectorBody, rootType, getDynamicMemberAccess, out modelType, out isList);
 									}
 								}
 
@@ -3964,9 +3964,9 @@ namespace ExoModel
 					}
 
 					if (isList)
-						modelType = ModelContext.Current.GetModelType(itemType);
+						modelType = rootType.Context.GetModelType(itemType);
 					else
-						modelType = ModelContext.Current.GetModelType(returnType);
+						modelType = rootType.Context.GetModelType(returnType);
 
 					return true;
 				}
