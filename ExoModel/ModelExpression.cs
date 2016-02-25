@@ -208,6 +208,10 @@ namespace ExoModel
 			if (rawValue == null)
 				return "";
 
+			// Assumes the value has already been formatted if the value is a string
+			if (rawValue is string)
+				return (string)rawValue;
+
 			return Formatter.FormatResult(rawValue, format, provider);
 		}
 
@@ -4916,6 +4920,10 @@ namespace ExoModel
 				if (result == null)
 					return "";
 
+				// Assumes the result has already been formatted if the result is a string
+				if (result is string)
+					return (string)result;
+
 				bool isModelType;
 				bool isList;
 				Type itemType;
@@ -5712,10 +5720,15 @@ namespace ExoModel
 			/// </summary>
 			internal static string ToString(DateTime date, string format, IFormatProvider formatProvider)
 			{
-				var timezoneProvider = CultureInfo.CurrentCulture as ITimeZoneProvider;
-				var timezone = timezoneProvider != null ? timezoneProvider.TimeZone : TimeZoneInfo.Local;
+				if (format.ToLower() == "d" || format.ToLower() == "t")
+					return date.ToString(format, formatProvider);
+				else
+				{
+					var timezoneProvider = CultureInfo.CurrentCulture as ITimeZoneProvider;
+					var timezone = timezoneProvider != null ? timezoneProvider.TimeZone : TimeZoneInfo.Local;
 
-				return TimeZoneInfo.ConvertTime(date, timezone).ToString(format, formatProvider);
+					return TimeZoneInfo.ConvertTime(date, timezone).ToString(format, formatProvider);
+				}
 			}
 		}
 

@@ -1365,16 +1365,25 @@ namespace ExoModel
 
 			string ICustomFormatter.Format(string format, object arg, IFormatProvider formatProvider)
 			{
-				if (String.IsNullOrEmpty(format))
-					return arg + "";
-				var options = format.Split(';');
-				if (arg == null && options.Length >= 3)
-					return options[2]; // Unspecified
-				else if (((arg is bool && (bool)arg) || (arg is bool? && ((bool?)arg).HasValue && ((bool?)arg).Value)) && options.Length >= 1)
-					return options[0]; // True
-				else if (options.Length >= 2)
-					return options[1]; // False
-				return null;
+				if (arg is Boolean)
+				{
+					if (String.IsNullOrEmpty(format))
+						return arg + "";
+					var options = format.Split(';');
+					if (arg == null && options.Length >= 3)
+						return options[2]; // Unspecified
+					else if (((arg is bool && (bool)arg) || (arg is bool? && ((bool?)arg).HasValue && ((bool?)arg).Value)) && options.Length >= 1)
+						return options[0]; // True
+					else if (options.Length >= 2)
+						return options[1]; // False
+					return null;
+				}
+				else if (arg is IFormattable)
+					return ((IFormattable)arg).ToString(format, formatProvider);
+				else if (arg == null)
+					return "";
+				else
+					return arg.ToString();
 			}
 		}
 
