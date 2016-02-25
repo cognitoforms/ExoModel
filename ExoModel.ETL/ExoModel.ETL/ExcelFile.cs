@@ -188,7 +188,10 @@ namespace ExoModel.ETL
 
 						// adjust the time to match the specified timezone if the type is a true DateTime and not a Date only or Time only field
 						if (timezone != null && isDateTime)
-							GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : TimeZoneInfo.ConvertTime(DateTime.Parse(v), timezone).ToOADate().ToString(CultureInfo.InvariantCulture);
+							GetCellValue = (v) =>
+							{
+								return String.IsNullOrWhiteSpace(v) ? v : TimeZoneInfo.ConvertTime(DateTime.Parse(v, null, DateTimeStyles.AssumeUniversal), timezone).ToOADate().ToString(CultureInfo.InvariantCulture);
+							};
 						else
 							GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : DateTime.Parse(v).ToOADate().ToString(CultureInfo.InvariantCulture);
 					}
