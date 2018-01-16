@@ -196,7 +196,7 @@ namespace ExoModel.ETL
 				{
 					if (value != null && property.ValueConverter != null && !((ModelValueProperty)property.DestinationProperty).PropertyType.IsAssignableFrom(value.GetType()))
 						value = property.ValueConverter.ConvertFrom(null, Thread.CurrentThread.CurrentCulture, value);
-					else if (property.DelegateConverter != null)
+					else if (value != null && property.DelegateConverter != null)
 						value = property.DelegateConverter(value);
 
 					//the destination property is an enum, see if it is a concrete type

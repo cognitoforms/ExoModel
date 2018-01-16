@@ -59,6 +59,7 @@
     <Compile Include="Dictionary.cs" />
     <Compile Include="ExcelFile.cs" />
     <Compile Include="FileStream.cs" />
+    <Compile Include="IColumn.cs" />
     <Compile Include="ITable.cs" />
     <Compile Include="TableMapping.cs" />
     <Compile Include="ModelTranslator.cs" />

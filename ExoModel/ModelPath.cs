@@ -475,7 +475,8 @@ namespace ExoModel
 								(IEnumerable<Expression>)((LambdaExpression)argument).Parameters : 
 								(IEnumerable<Expression>)((ModelExpression.ModelLambdaExpression)argument).Parameters;
 							var element = parameters.FirstOrDefault(p => listType.GetGenericArguments()[0].IsAssignableFrom(p.Type));
-							if (element != null)
+							//if (element != null)
+							if (element != null && (!steps.ContainsKey(element) || steps[element] != step))
 								steps.Add(element, step);
 
 							// If the method return the original list, associate the step with the return value

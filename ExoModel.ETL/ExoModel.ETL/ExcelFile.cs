@@ -69,7 +69,25 @@ namespace ExoModel.ETL
 		public static void Write(ITable table, SpreadsheetDocument document, TimeZoneInfo timezone = null)
 		{
 			var worksheetPart = document.WorkbookPart.AddNewPart<WorksheetPart>();
-			worksheetPart.Worksheet = new Worksheet(new SheetData());
+			worksheetPart.Worksheet = new Worksheet();
+
+			Columns columns = new Columns(); 
+
+			// Set column widths
+			UInt32Value colIndex = 1;
+			foreach (var column in table.Columns)
+			{
+				if (column.Width.HasValue)
+					columns.Append(new DocumentFormat.OpenXml.Spreadsheet.Column() { Min = colIndex, Max = colIndex, Width = column.Width, CustomWidth = true });
+
+				colIndex++;
+			}
+
+			if (columns.Count() > 0)
+				worksheetPart.Worksheet.Append(columns);
+
+			worksheetPart.Worksheet.Append(new SheetData());
+
 			Sheet sheet = new Sheet()
 			{
 				Id = document.WorkbookPart.GetIdOfPart(worksheetPart),
@@ -132,6 +150,21 @@ namespace ExoModel.ETL
 				Write(child, document);
 		}
 
+		/// <summary>
+		/// The Column width measured as the number of characters of the maximum digit width of the numbers 0, 1, 2, …, 9 as 
+		/// rendered in the normal style's font. There are 4 pixels of margin padding (two on each side), plus 1 pixel padding 
+		/// for the gridlines. Using the Calibri font as an example, the maximum digit width of 11 point font size is 7 pixels (at 96 dpi). 
+		/// To translate from pixels to character width, use this calculation:
+		/// =Truncate(({pixels}-5)/{Maximum Digit Width} * 100+0.5)/100
+		/// </summary>
+		/// <param name="pixels"></param>
+		/// <returns></returns>
+		public static double ToColumnWidth(int pixels)
+		{
+			int maxDigitWidth = 7; // Based on calibri 11 point font size
+			return Math.Truncate(((pixels - 5) / maxDigitWidth * 100 + .05) / 100);
+		}
+
 		// Describes the format of a column in excel
 		class ColumnFormat
 		{
@@ -149,7 +182,7 @@ namespace ExoModel.ETL
 					if (!String.IsNullOrWhiteSpace(column.Format))
 					{
 						var percentSymbol = NumberFormatInfo.CurrentInfo.PercentSymbol;
-						if (column.Format == "P" || column.Format == "p" || column.Format.Contains(NumberFormatInfo.CurrentInfo.PercentSymbol))
+						if (column.Format.ToLower().StartsWith("p") || column.Format.Contains(NumberFormatInfo.CurrentInfo.PercentSymbol))
 						{
 							Style = CreateStyle(11.10.ToString(column.Format, CultureInfo.InvariantCulture).Replace("1", "#") + ";" + (-11.10).ToString(column.Format, CultureInfo.InvariantCulture).Replace("1", "#"), document);
 							GetCellValue = v => String.IsNullOrWhiteSpace(v) ? v : (Double.Parse(v.Replace(NumberFormatInfo.CurrentInfo.PercentSymbol, ""), NumberStyles.Any) / 100).ToString(CultureInfo.InvariantCulture);

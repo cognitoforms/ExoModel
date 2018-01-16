@@ -212,7 +212,7 @@ namespace ExoModel
 				if (!Int32.TryParse(token.Groups["Index"].Value, out index))
 					index = -1;
 
-				steps[i] = new SourceStep() { Property = sourceProperty.Name, Index = index, DeclaringType = sourceProperty.DeclaringType.Name, IsReferenceProperty = sourceProperty is ModelReferenceProperty };
+				steps[i] = new SourceStep() { Property = sourceProperty.Name, Index = index, DeclaringType = sourceProperty.DeclaringType, IsReferenceProperty = sourceProperty is ModelReferenceProperty };
 				rootType = sourceProperty is ModelReferenceProperty ? ((ModelReferenceProperty)sourceProperty).PropertyType : null;
 				i++;
 			}
@@ -395,7 +395,7 @@ namespace ExoModel
 			//then exit out of SetValue returning false
 			foreach (SourceStep step in this.steps.Take(this.steps.Length - 1))
 			{
-				ModelReferenceProperty stepProp = (ModelReferenceProperty)ModelContext.Current.GetModelType(step.DeclaringType).Properties[step.Property];
+				ModelReferenceProperty stepProp = (ModelReferenceProperty)step.DeclaringType.Properties[step.Property];
 				if (stepProp.IsList)
 				{
 					ModelInstanceList list = root.GetList(stepProp);
@@ -452,9 +452,28 @@ namespace ExoModel
 
 		internal class SourceStep
 		{
+			WeakReference declaringType;
+			string declaringTypeName;
+
 			internal string Property { get; set; }
+
 			internal int Index { get; set; }
-			internal string DeclaringType { get; set; }
+
+			internal ModelType DeclaringType
+			{
+				get
+				{
+					var type = declaringType != null ? declaringType.Target as ModelType : null;
+					return type ?? ModelContext.Current.GetModelType(declaringTypeName);
+				}
+				set
+				{
+					if (!value.IsCachable)
+						declaringType = new WeakReference(value);
+					declaringTypeName = value.Name;
+				}
+			}
+
 			internal bool IsReferenceProperty { get; set; }
 		}
 	}

@@ -65,7 +65,7 @@ namespace ExoModel.ETL
 		{
 			get
 			{
-				return Type.Properties.OfType<ModelValueProperty>().Select(p => this.GetFormattedValue(p));
+				return Type.Properties.OfType<IColumn>().OrderBy(p => p.Sequence).OfType<ModelValueProperty>().Select(p => this.GetFormattedValue(p));
 			}
 		}
 

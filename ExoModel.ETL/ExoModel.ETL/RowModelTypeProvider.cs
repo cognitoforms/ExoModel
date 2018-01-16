@@ -193,19 +193,24 @@ namespace ExoModel.ETL
 			this.Instances = new Dictionary<string, RowInstance>();
 		}
 
-		public void AddValueProperty(string name, Type propertyType = null, string format = null)
+		public void AddValueProperty(string name, Type propertyType = null, string format = null, int sequence = 0, double? width = null)
 		{
-			AddProperty(new RowModelValueProperty(this, name, name, null, format, false, propertyType ?? typeof(string), false, false, true));
+			AddValueProperty(name, name, propertyType, format, sequence, width);
 		}
 
-		public void AddCalculatedProperty<T>(string name, Func<RowInstance, T> calculation)
+		public void AddValueProperty(string name, string label, Type propertyType = null, string format = null, int sequence = 0, double? width = null)
 		{
-			AddProperty(new RowModelCalculatedProperty(this, name, typeof(T), i => calculation(i)));
+			AddProperty(new RowModelValueProperty(this, name, label, null, format, false, propertyType ?? typeof(string), false, false, true, sequence, width));
 		}
 
-		public void AddCalculatedProperty(string name, Type propertyType, string expression)
+		public void AddCalculatedProperty<T>(string name, Func<RowInstance, T> calculation, int sequence = 0, double? width = null)
 		{
-			AddProperty(new RowModelCalculatedProperty(this, name, propertyType, expression));
+			AddProperty(new RowModelCalculatedProperty(this, name, typeof(T), i => calculation(i), sequence, width));
+		}
+
+		public void AddCalculatedProperty(string name, Type propertyType, string expression, int sequence = 0, double? width = null)
+		{
+			AddProperty(new RowModelCalculatedProperty(this, name, propertyType, expression, sequence, width));
 		}
 
 		public void AddParentProperty(string name, int level)
@@ -330,7 +335,7 @@ namespace ExoModel.ETL
 
 		IEnumerable<Column> ITable.Columns
 		{
-			get { return Properties.OfType<ModelValueProperty>().Select(p => new Column(p.Name, p.PropertyType, p.Format)); }
+			get { return Properties.OfType<IColumn>().OrderBy(p => p.Sequence).Select(p => new Column(p.Label, p.PropertyType, p.Format, p.Width)); }
 		}
 
 		IEnumerable<IEnumerable<string>> ITable.Rows
@@ -346,11 +351,18 @@ namespace ExoModel.ETL
 
 	#region RowModelValueProperty
 
-	internal class RowModelValueProperty : ModelValueProperty
+	internal class RowModelValueProperty : ModelValueProperty, IColumn
 	{
-		internal RowModelValueProperty(ModelType declaringType, string name, string label, string helptext, string format, bool isStatic, Type propertyType, bool isList, bool isReadOnly, bool isPersisted)
+		internal RowModelValueProperty(ModelType declaringType, string name, string label, string helptext, string format, bool isStatic, Type propertyType, bool isList, bool isReadOnly, bool isPersisted, int sequence = 0, double? width = null)
 			: base(declaringType, name, label, helptext, format, isStatic, propertyType, null, isList, isReadOnly, isPersisted, null)
-		{ }
+		{
+			Sequence = sequence;
+			Width = width;
+		}
+
+		public int Sequence { get; private set; }
+
+		public double? Width { get; private set; }
 
 		protected override object GetValue(object instance)
 		{
@@ -370,21 +382,25 @@ namespace ExoModel.ETL
 	/// <summary>
 	/// Represents properties that are calculated based on delegates and model expressions.
 	/// </summary>
-	internal class RowModelCalculatedProperty : ModelValueProperty
+	internal class RowModelCalculatedProperty : ModelValueProperty, IColumn
 	{
 		string expression;
 		Func<RowInstance, object> calculation;
 
-		internal RowModelCalculatedProperty(ModelType declaringType, string name, Type propertyType, Func<RowInstance, object> calculation)
+		internal RowModelCalculatedProperty(ModelType declaringType, string name, Type propertyType, Func<RowInstance, object> calculation, int sequence = 0, double? width = null)
 			: base(declaringType, name, name, null, null, false, propertyType, null, false, true, false, null)
 		{
 			this.calculation = calculation;
+			Sequence = sequence;
+			Width = width;
 		}
 
-		internal RowModelCalculatedProperty(ModelType declaringType, string name, Type propertyType, string expression)
+		internal RowModelCalculatedProperty(ModelType declaringType, string name, Type propertyType, string expression, int sequence = 0, double? width = null)
 			: base(declaringType, name, name, null, null, false, propertyType, null, false, true, false, null)
 		{
 			this.expression = expression;
+			Sequence = sequence;
+			Width = width;
 		}
 
 		internal void Initialize()
@@ -403,6 +419,10 @@ namespace ExoModel.ETL
 			}
 		}
 
+		public int Sequence { get; private set; }
+
+		public double? Width { get; private set; }
+
 		protected override object GetValue(object instance)
 		{
 			return calculation((RowInstance)instance);
@@ -418,15 +438,19 @@ namespace ExoModel.ETL
 
 	#region RowModelParentIdProperty
 
-	internal class RowModelParentIdProperty : ModelValueProperty
+	internal class RowModelParentIdProperty : ModelValueProperty, IColumn
 	{
 		int level;
 
-		internal RowModelParentIdProperty(ModelType declaringType, string name, int level)
+		internal RowModelParentIdProperty(ModelType declaringType, string name, int level, int sequence = 0, double? width = null)
 			: base(declaringType, name, name, null, null, false, typeof(string), null)
 		{
 			this.level = level;
 		}
+
+		public int Sequence { get; private set; }
+
+		public double? Width { get; private set; }
 
 		protected override object GetValue(object instance)
 		{

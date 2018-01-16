@@ -98,6 +98,14 @@ namespace ExoModel
 
 		Dictionary<string, ModelExpression> Expressions { get; set; }
 
+		public virtual bool IsCachable
+		{
+			get
+			{
+				return Provider != null && Provider.IsCachable;
+			}
+		}
+
 		#endregion
 
 		#region Events
@@ -149,7 +157,7 @@ namespace ExoModel
 
 				// Shortcuts for expression result of type ICollection<T>, IList<T>, List<T>.
 				// NOTE: IsAssignableFrom would work as long as a generic type parameter, e.g. Object, was specified.
-				if (genericTypeDef == typeof (ICollection<>) || genericTypeDef == typeof (IList<>) || genericTypeDef == typeof (List<>))
+				if (genericTypeDef == typeof(ICollection<>) || genericTypeDef == typeof(IList<>) || genericTypeDef == typeof(List<>))
 				{
 					isCollection = true;
 					itemType = type.GetGenericArguments()[0];
@@ -157,7 +165,7 @@ namespace ExoModel
 				}
 
 				// Shortcuts for expression result of type IEnumerable<T>
-				if (genericTypeDef == typeof (IEnumerable<>))
+				if (genericTypeDef == typeof(IEnumerable<>))
 				{
 					isCollection = false;
 					itemType = type.GetGenericArguments()[0];
@@ -174,14 +182,14 @@ namespace ExoModel
 				{
 					var genericTypeDef = i.GetGenericTypeDefinition();
 
-					if (genericTypeDef == typeof (ICollection<>))
+					if (genericTypeDef == typeof(ICollection<>))
 					{
 						isCollection = true;
 						itemType = i.GetGenericArguments()[0];
 						return true;
 					}
 
-					if (genericTypeDef == typeof (IEnumerable<>))
+					if (genericTypeDef == typeof(IEnumerable<>))
 						enumerableItemType = i.GetGenericArguments()[0];
 				}
 			}
@@ -216,7 +224,7 @@ namespace ExoModel
 		/// </summary>
 		internal static void GetTypeInfo(Type type, out bool isModelType, out bool isMulti, out Type itemType)
 		{
-			if (typeof (IModelInstance).IsAssignableFrom(type))
+			if (typeof(IModelInstance).IsAssignableFrom(type))
 			{
 				isModelType = true;
 				isMulti = false;
@@ -228,7 +236,7 @@ namespace ExoModel
 				if (TryGetMultiType(type, out isCollection, out itemType))
 				{
 					isMulti = true;
-					isModelType = typeof (IModelInstance).IsAssignableFrom(itemType);
+					isModelType = typeof(IModelInstance).IsAssignableFrom(itemType);
 				}
 				else
 				{
@@ -261,7 +269,7 @@ namespace ExoModel
 				initializer();
 
 			// Add to base type after all other initialization is complete
-			if (BaseType != null && Provider != null && Provider.IsCachable)
+			if (BaseType != null && IsCachable)
 			{
 				ModelType subType = BaseType.SubTypes[this.Name];
 				if (subType == null)
@@ -560,6 +568,9 @@ namespace ExoModel
 		/// <returns></returns>
 		public ModelExpression GetExpression(Type resultType, string expression, ModelExpression.QuerySyntax querySyntax = ModelExpression.QuerySyntax.DotNet)
 		{
+			if (string.IsNullOrWhiteSpace(expression))
+				return null;
+
 			var key = expression;
 			if (resultType != null)
 			{
@@ -588,12 +599,12 @@ namespace ExoModel
 			try
 			{
 				modelExpression = GetExpression(resultType, expression, querySyntax);
-				return true;
+				return modelExpression != null ? true : false;
 			}
 			catch
 			{
 				modelExpression = null;
-				return false; 
+				return false;
 			}
 		}
 
@@ -1191,8 +1202,16 @@ namespace ExoModel
 			// Handle simple case of [Property]
 			if (formatTokens.Length == 1 && formatTokens[0].Literal == null)
 			{
-				value = formatTokens[0].Property.GetFormattedValue(instance, formatTokens[0].Format);
-				return true;
+				try
+				{
+					value = formatTokens[0].Property.GetFormattedValue(instance, formatTokens[0].Format);
+					return true;
+				}
+				catch
+				{
+					value = "";
+					return false;
+				}
 			}
 
 			// Use a string builder to create and return the formatted result
@@ -1201,7 +1220,16 @@ namespace ExoModel
 			{
 				result.Append(token.Literal);
 				if (token.Property != null)
-					result.Append(token.Property.GetFormattedValue(instance, token.Format));
+				{
+					try
+					{
+						result.Append(token.Property.GetFormattedValue(instance, token.Format));
+					}
+					catch
+					{
+						isValid = false;
+					}
+				}
 			}
 
 			value = result.ToString();
@@ -1288,7 +1316,7 @@ namespace ExoModel
 				ModelStep modelStep = rootStep;
 				foreach (var sourceStep in token.Property.Steps)
 				{
-					modelStep = new ModelStep(rootStep.Path) { PreviousStep = modelStep, Property = Context.GetModelType(sourceStep.DeclaringType).Properties[sourceStep.Property] };
+					modelStep = new ModelStep(rootStep.Path) { PreviousStep = modelStep, Property = sourceStep.DeclaringType.Properties[sourceStep.Property] };
 					modelStep.PreviousStep.NextSteps.Add(modelStep);
 				}
 			}

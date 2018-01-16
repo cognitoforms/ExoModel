@@ -317,7 +317,7 @@ namespace ExoModel
 					// Attempt to create the model type if it is not cached
 					foreach (var provider in typeProviders)
 					{
-						// Allow initialization of cacheable types when attempted to load non-cachable types
+						// Allow initialization of cacheable types when attempting to load non-cachable types
 						if (initializing && !provider.IsCachable)
 						{
 							try
@@ -396,13 +396,13 @@ namespace ExoModel
 							TypeInit(this, new TypeInitEventArgs(initializedTypeArray));
 						}
 					}
-
-					//once everything is initialized, check to see if this type should have been cached
-					if(!type.Provider.IsCachable)
-						modelTypes.Remove(type);
 				}
 				finally
 				{
+					// Ensure type is removed from the cache if it is not cachable
+					if (type != null && !type.IsCachable)
+						modelTypes.Remove(type);
+
 					// If an error occurred during initilization, the initializing flag must be reset
 					if (initialize)
 						initializing = false;

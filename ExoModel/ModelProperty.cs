@@ -57,6 +57,8 @@ namespace ExoModel
 
 		public bool IsPersisted { get; private set; }
 
+		public bool IsCalculated { get; set; }
+
 		public Attribute[] Attributes { get; private set; }
 
 		public ModelType DeclaringType { get; private set; }

@@ -11,6 +11,7 @@ using System.Collections.ObjectModel;
 using Expr = System.Linq.Expressions.Expression;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.ComponentModel;
 
 #pragma warning disable 618
 
@@ -107,6 +108,7 @@ namespace ExoModel
 		{
 			var parameters = rootType == null ? null : new ModelParameterExpression[] { new ModelParameterExpression(new ModelExpressionType(rootType, false), "") };
 			ExpressionParser parser = new ExpressionParser(parameters, expression, values);
+
 			return parser.Parse(resultType);
 		}
 
@@ -833,6 +835,9 @@ namespace ExoModel
 
 		public class ExpressionParser
 		{
+			public delegate void MaxDepthChangedHandler(int depth);
+			public event MaxDepthChangedHandler MaxDepthChanged;
+
 			struct Token
 			{
 				public TokenId id;
@@ -1076,7 +1081,7 @@ namespace ExoModel
 			int textLen;
 			char ch;
 			int depth;
-			static int maxDepth;
+			int maxDepth;
 			Token token;
 			Token prevToken;
 			QuerySyntax querySyntax;
@@ -1191,7 +1196,9 @@ namespace ExoModel
 				}
 				if (depth > maxDepth)
 				{
-					maxDepth = maxDepth + 100;
+					maxDepth = depth;
+					if (MaxDepthChanged != null)
+						MaxDepthChanged(maxDepth);
 				}
 				depth--;
 
@@ -1456,7 +1463,7 @@ namespace ExoModel
 								left = Expr.Multiply(left, right);
 								break;
 							case TokenId.Slash:
-								left = Expr.Divide(left, right);
+								left = Expr.Divide(Expr.Convert(left, typeof(double)), Expr.Convert(right, typeof(double)));
 								break;
 							case TokenId.Percent:
 							case TokenId.Identifier:
@@ -2114,8 +2121,29 @@ namespace ExoModel
 							if (modelType == null)
 								modelType = ModelContext.Current.GetModelType(resultType);
 
-							return new ModelCastExpression(Expr.Call(typeof (Enumerable), signature.Name, typeArgs, args), modelType, true);
+							return new ModelCastExpression(Expr.Call(typeof(Enumerable), signature.Name, typeArgs, args), modelType, true);
 						}
+
+						break;
+
+					case "Average":
+					case "Min":
+					case "Max":
+					case "Sum":
+						Expression left = instance;
+						var lambdaBody = ((ModelLambdaExpression)args[1]).Body;
+
+						if (lambdaBody is MemberExpression)
+							lambdaBody = ((MemberExpression)lambdaBody).Expression;
+
+						if (!IsNullableType(lambdaBody.Type))
+							break;
+
+						var nullsFiltered = Expr.Call(typeof(Enumerable), "Where",
+							new Type[] { typeArgs[0] },
+							new Expression[] { args[0], new ModelLambdaExpression(Expr.NotEqual(lambdaBody, Expr.Constant(null, lambdaBody.Type)), innerIt) });
+
+						args[0] = new ModelCastExpression(nullsFiltered, elementType.ModelType, true);
 
 						break;
 				}
@@ -2304,6 +2332,16 @@ namespace ExoModel
 				return IsNullableType(type) ? type.GetGenericArguments()[0] : type;
 			}
 
+			static Type GetNullableType(Type type)
+			{
+				if (IsNullableType(type))
+					return type;
+				if (type.IsValueType)
+					return typeof(Nullable<>).MakeGenericType(type);
+				else
+					return type;
+			}
+
 			static string GetTypeName(Expression expr)
 			{
 				if (expr is IExpressionType)
@@ -2451,7 +2489,7 @@ namespace ExoModel
 					args[1] = PromoteExpression(args[1], typeof(DateTime), true) ?? args[1];
 				else if (args[0].Type == typeof(String) && GetNonNullableType(args[1].Type) == typeof(DateTime))
 					args[0] = PromoteExpression(args[0], typeof(DateTime), true) ?? args[0];
-					
+
 				return args;
 			}
 
@@ -2733,12 +2771,12 @@ namespace ExoModel
 					{
 						isModelType = true;
 						isList = ((ModelCastExpression)expr).IsList;
-						itemType = typeof (IModelInstance);
-						if (!ExpressionFormatter.TryGetFormat(((ModelCastExpression) expr).Expression, CultureInfo.CurrentCulture, out format, out provider))
+						itemType = typeof(IModelInstance);
+						if (!ExpressionFormatter.TryGetFormat(((ModelCastExpression)expr).Expression, CultureInfo.CurrentCulture, out format, out provider))
 						{
 							// Fall back to the type-level format for model cast expressions
-							if (((ModelCastExpression) expr).ModelType != null)
-								format = ((ModelCastExpression) expr).ModelType.Format;
+							if (((ModelCastExpression)expr).ModelType != null)
+								format = ((ModelCastExpression)expr).ModelType.Format;
 						}
 					}
 					else
@@ -2766,7 +2804,7 @@ namespace ExoModel
 										// ModelInstanceFormatter.ToString
 										typeof(ModelInstanceFormatter).GetMethod("ToString", BindingFlags.NonPublic | BindingFlags.Static, null, new[] { typeof(IModelInstance), typeof(string) }, null),
 										// (i, format)
-										new []
+										new[]
 										{
 											// i
 											i,
@@ -2797,7 +2835,7 @@ namespace ExoModel
 							// string.Join(", ", string[])
 							expr = ExpressionWriter.CallStringJoin(", ", ExpressionWriter.CallLinqToArray(expr, typeof(string)), typeof(string[]));
 						}
-						else if (itemType == typeof (string))
+						else if (itemType == typeof(string))
 						{
 							// string.Join(", ", string[])
 							expr = ExpressionWriter.CallStringJoin(", ", ExpressionWriter.CallLinqToArray(expr, typeof(string)), typeof(string[]));
@@ -2808,7 +2846,7 @@ namespace ExoModel
 							expr = ExpressionWriter.CallLinqCast<object>(expr);
 
 							// string.Join(", ", object[])
-							expr = ExpressionWriter.CallStringJoin(", ", ExpressionWriter.CallLinqToArray(expr, typeof (object)), typeof(object[]));
+							expr = ExpressionWriter.CallStringJoin(", ", ExpressionWriter.CallLinqToArray(expr, typeof(object)), typeof(object[]));
 						}
 					}
 					else if (isModelType)
@@ -2857,7 +2895,7 @@ namespace ExoModel
 				if (IsCompatibleWith(expr.Type, type))
 				{
 					if (type.IsValueType || exact) return Expr.Convert(expr, type);
-						return expr;
+					return expr;
 				}
 
 				return null;
@@ -2922,7 +2960,19 @@ namespace ExoModel
 					MemberInfo[] memberInfos = type.FindMembers(MemberTypes.Field,
 						BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static,
 						Type.FilterNameIgnoreCase, name);
-					if (memberInfos.Length != 0) return ((FieldInfo)memberInfos[0]).GetValue(null);
+					if (memberInfos.Length != 0)
+						return ((FieldInfo)memberInfos[0]).GetValue(null);
+					else
+					{
+						foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static))
+						{
+							if (name.Replace(" ", "").Equals(field.Name, StringComparison.InvariantCultureIgnoreCase))
+								return field.GetValue(null);
+							var description = field.GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault() as DescriptionAttribute;
+							if (description != null && name.Replace(" ", "").Equals(description.Description.Replace(" ", ""), StringComparison.InvariantCultureIgnoreCase))
+								return field.GetValue(null);
+						}
+					}
 				}
 				return null;
 			}
@@ -3693,7 +3743,7 @@ namespace ExoModel
 					if (call.Arguments[0].Type == typeof(string))
 					{
 						callThis = call.Object;
-						callFormat = call.Arguments[0] is ConstantExpression ? (string) ((ConstantExpression) call.Arguments[0]).Value : null;
+						callFormat = call.Arguments[0] is ConstantExpression ? (string)((ConstantExpression)call.Arguments[0]).Value : null;
 						callProvider = null;
 						return true;
 					}
@@ -3702,7 +3752,7 @@ namespace ExoModel
 					{
 						callThis = call.Object;
 						callFormat = null;
-						callProvider = call.Arguments[0] is ConstantExpression ? (IFormatProvider) ((ConstantExpression) call.Arguments[0]).Value : null;
+						callProvider = call.Arguments[0] is ConstantExpression ? (IFormatProvider)((ConstantExpression)call.Arguments[0]).Value : null;
 						return true;
 					}
 				}
@@ -3711,8 +3761,8 @@ namespace ExoModel
 					if (call.Arguments[0].Type == typeof(string) && call.Arguments[1].Type == typeof(IFormatProvider))
 					{
 						callThis = call.Object;
-						callFormat = call.Arguments[0] is ConstantExpression ? (string) ((ConstantExpression) call.Arguments[0]).Value : null;
-						callProvider = call.Arguments[1] is ConstantExpression ? (IFormatProvider) ((ConstantExpression) call.Arguments[1]).Value : null;
+						callFormat = call.Arguments[0] is ConstantExpression ? (string)((ConstantExpression)call.Arguments[0]).Value : null;
+						callProvider = call.Arguments[1] is ConstantExpression ? (IFormatProvider)((ConstantExpression)call.Arguments[1]).Value : null;
 						return true;
 					}
 				}
@@ -3926,7 +3976,7 @@ namespace ExoModel
 								isList = false;
 								return false;
 						}
-					}	
+					}
 				}
 
 				var unaryExpr = expr as UnaryExpression;
@@ -4603,17 +4653,17 @@ namespace ExoModel
 				var call = expr as MethodCallExpression;
 				if (call != null && call.Method.DeclaringType != null)
 				{
-					if (call.Method.DeclaringType == typeof (ModelInstance))
+					if (call.Method.DeclaringType == typeof(ModelInstance))
 					{
 						if (call.Method.IsSpecialName && call.Method.Name == "get_Item")
 						{
 							var indexerArgExpr = call.Arguments[0];
 							if (indexerArgExpr is ConstantExpression)
 							{
-								var indexerArg = ((ConstantExpression) indexerArgExpr).Value;
+								var indexerArg = ((ConstantExpression)indexerArgExpr).Value;
 								if (indexerArg is ModelProperty)
 								{
-									GetPropertyFormat((ModelProperty) indexerArg, out format, out provider);
+									GetPropertyFormat((ModelProperty)indexerArg, out format, out provider);
 									return true;
 								}
 							}
@@ -4664,7 +4714,7 @@ namespace ExoModel
 					{
 						if (call.Method.Name == "ToString" && call.Arguments.Count == 2 && call.Arguments[0].Type == typeof(Boolean) && call.Arguments[1].Type == typeof(string))
 						{
-							var callFormat = call.Arguments[1] is ConstantExpression ? (string) ((ConstantExpression) call.Arguments[1]).Value : null;
+							var callFormat = call.Arguments[1] is ConstantExpression ? (string)((ConstantExpression)call.Arguments[1]).Value : null;
 
 							if (!string.IsNullOrEmpty(callFormat))
 							{
@@ -4954,9 +5004,9 @@ namespace ExoModel
 				if (isModelType)
 				{
 					if (!string.IsNullOrEmpty(format))
-						return FormatInstance(((IModelInstance) result).Instance, format);
+						return FormatInstance(((IModelInstance)result).Instance, format);
 
-					return FormatInstance(((IModelInstance) result).Instance);
+					return FormatInstance(((IModelInstance)result).Instance);
 				}
 
 				return FormatValue(result, format, provider);
@@ -5060,7 +5110,7 @@ namespace ExoModel
 					return true;
 				}
 
-				if (expr.Type == typeof (Boolean) && provider is ModelType.BooleanFormatInfo)
+				if (expr.Type == typeof(Boolean) && provider is ModelType.BooleanFormatInfo)
 				{
 					// BooleanFormatter.ToString(value, format)
 					result = Expr.Call(
@@ -5151,7 +5201,7 @@ namespace ExoModel
 			/// </summary>
 			public static Expression CallStringJoin(string seperator, Expression values, Type arrayType)
 			{
-				return Expr.Call(typeof (string).GetMethod("Join", new[] {typeof (string), arrayType}), new[]
+				return Expr.Call(typeof(string).GetMethod("Join", new[] { typeof(string), arrayType }), new[]
 				{
 					Expr.Constant(seperator),
 					values
