@@ -208,15 +208,6 @@ namespace ExoModel
 		}
 
 		/// <summary>
-		/// Set the last non-cached sequential instance id to the given value.
-		/// </summary>
-		internal void SetLastNonCachedInstanceId(int value)
-		{
-			if (lastNonCachedInstanceId < value)
-				lastNonCachedInstanceId = value;
-		}
-
-		/// <summary>
 		/// Gets the <see cref="ModelInstance"/> associated with the specified real instance.
 		/// </summary>
 		/// <param name="instance"></param>

@@ -360,13 +360,9 @@ namespace ExoModel
 		/// Activates a committed transaction, allowing additional changes to be recorded and appended to the current transaction.
 		/// </summary>
 		/// <returns></returns>
-		public ModelTransaction Record(Action operation, int? maxKnownId = null)
+		public ModelTransaction Record(Action operation)
 		{
 			Begin();
-
-			if (maxKnownId.HasValue)
-				ModelContext.Current.SetLastNonCachedInstanceId(maxKnownId.Value);
-
 			try
 			{
 				operation();
@@ -377,9 +373,7 @@ namespace ExoModel
 				Context.Event -= context_Event;
 				throw;
 			}
-
 			Commit();
-
 			return this;
 		}
 
@@ -429,16 +423,21 @@ namespace ExoModel
 		/// Performs a set of previous changes, performs the specified operation, and records new changes that
 		/// occur as a result of the previous changes and the specified operation.
 		/// </summary>
-		public ModelTransaction Perform(Action operation, int? maxKnownId = null)
+		/// <param name="operation"></param>
+		/// <returns></returns>
+		public ModelTransaction Perform(Action operation)
 		{
-			return Perform(operation, new ModelTransaction(), maxKnownId);
+			return Perform(operation, new ModelTransaction());
 		}
 
 		/// <summary>
 		/// Performs a set of previous changes, performs the specified operation, and records new changes that
 		/// occur as a result of the previous changes and the specified operation.
 		/// </summary>
-		public ModelTransaction Perform(Action operation, ModelTransaction transaction, int? maxKnownId = null)
+		/// <param name="operation"></param>
+		/// <param name="transaction"></param>
+		/// <returns></returns>
+		public ModelTransaction Perform(Action operation, ModelTransaction transaction)
 		{
 			// Create an event scope to track changes that occur as a result of applying previous changes
 			ModelEventScope eventScope = new ModelEventScope();
@@ -459,7 +458,7 @@ namespace ExoModel
 					// Perform the specified operation
 					if (operation != null)
 						operation();
-				}, maxKnownId);
+				});
 			}
 			catch (Exception actionException)
 			{

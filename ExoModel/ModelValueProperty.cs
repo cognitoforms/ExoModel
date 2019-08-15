@@ -46,7 +46,7 @@ namespace ExoModel
 
 		internal IFormatProvider FormatProvider { get; private set; }
 
-		internal bool AutoConvert { get; private set; }
+		internal bool AutoConvert { get; private set; }		
 
 		#endregion
 

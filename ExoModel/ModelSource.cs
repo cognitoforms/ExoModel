@@ -281,12 +281,17 @@ namespace ExoModel
 
 		public bool SetValue(ModelInstance root, object value)
 		{
-			return SetValue(root, value, (i, p, n) => false);
+			return SetValue(root, value, null, null);
 		}
 
 		public bool SetValue(ModelInstance root, object value, Func<ModelInstance, ModelReferenceProperty, int, bool> whenNull)
 		{
-			IModelPropertySource sourceInstance = GetSource(root, whenNull);
+			return SetValue(root, value, whenNull, null);
+		}
+
+		public bool SetValue(ModelInstance root, object value, Func<ModelInstance, ModelReferenceProperty, int, bool> whenNull, Action<ModelInstance, ModelReferenceProperty, int, ModelInstance> whenNotNull)
+		{
+			IModelPropertySource sourceInstance = GetSource(root, whenNull, whenNotNull);
 			sourceInstance[SourceProperty] = value;
 			return true;
 		}
@@ -381,10 +386,15 @@ namespace ExoModel
 
 		public IModelPropertySource GetSource(ModelInstance root)
 		{
-			return GetSource(root, (i, p, n) => false);
+			return GetSource(root, null, null);
 		}
 
 		public IModelPropertySource GetSource(ModelInstance root, Func<ModelInstance, ModelReferenceProperty, int, bool> whenNull)
+		{
+			return GetSource(root, whenNull, null);
+		}
+
+		public IModelPropertySource GetSource(ModelInstance root, Func<ModelInstance, ModelReferenceProperty, int, bool> whenNull, Action<ModelInstance, ModelReferenceProperty, int, ModelInstance> whenNotNull)
 		{
 			// Return the source type for static paths
 			if (IsStatic)
@@ -399,19 +409,29 @@ namespace ExoModel
 				if (stepProp.IsList)
 				{
 					ModelInstanceList list = root.GetList(stepProp);
-					if (list.Count < step.Index + 1 && !whenNull(root, stepProp, step.Index))
+					if (list.Count < step.Index + 1 && (whenNull == null || !whenNull(root, stepProp, step.Index)))
 						return null;
 
-					root = list[step.Index];
+					var item = list[step.Index];
+
+					if (whenNotNull != null)
+						whenNotNull(root, stepProp, step.Index, item);
+
+					root = item;
 				}
 				else
 				{
-					if (root.GetReference(stepProp) == null && !whenNull(root, stepProp, step.Index))
+					if (root.GetReference(stepProp) == null && (whenNull == null || !whenNull(root, stepProp, step.Index)))
 						return null;
 					else
 					{
 						//advance to the next step in the chain.
-						root = root.GetReference(step.Property);
+						var child = root.GetReference(step.Property);
+
+						if (whenNotNull != null)
+							whenNotNull(root, stepProp, step.Index, child);
+
+						root = child;
 					}
 				}
 			}

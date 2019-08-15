@@ -29,10 +29,9 @@ namespace ExoModel
 		Dictionary<string, FormatToken[]> formats = new Dictionary<string, FormatToken[]>();
 		Attribute[] attributes;
 		Dictionary<Type, object> extensions;
-
-		IList<Action> initializers = new List<Action>();
+		
 		HashSet<string> invalidPaths = new HashSet<string>();
-		bool isInitialized = false;
+		
 		#endregion
 
 		#region Contructors
@@ -66,7 +65,9 @@ namespace ExoModel
 
 		#endregion
 
-		#region Properties
+		#region Properties		
+
+		protected bool IsInitialized { get; private set; } = false;
 
 		public ModelContext Context { get; protected set; }
 
@@ -76,7 +77,7 @@ namespace ExoModel
 
 		public string QualifiedName { get; private set; }
 
-		public string Scope { get; private set; }
+		public string Scope { get; private set; }		
 
 		public ModelType BaseType { get; private set; }
 
@@ -253,7 +254,7 @@ namespace ExoModel
 		/// <param name="context"></param>
 		protected internal void Initialize(ModelContext context)
 		{
-			if (isInitialized) return;
+			if (IsInitialized) return;
 
 			// Set the context the model type is registered with
 			this.Context = context;
@@ -263,11 +264,7 @@ namespace ExoModel
 
 			// Allow subclasses to perform initialization, such as adding properties
 			OnInit();
-
-			// Fire after-initialization logic
-			foreach (var initializer in initializers)
-				initializer();
-
+	
 			// Add to base type after all other initialization is complete
 			if (BaseType != null && IsCachable)
 			{
@@ -276,21 +273,9 @@ namespace ExoModel
 					BaseType.SubTypes.Add(this);
 			}
 
-			isInitialized = true;
+			IsInitialized = true;
 		}
-
-		/// <summary>
-		/// Allow types to preform post-initialization logic
-		/// </summary>
-		/// <param name="afterInit"></param>
-		public void AfterInitialize(Action afterInit)
-		{
-			if (Context != null)
-				afterInit();
-			else
-				initializers.Add(afterInit);
-		}
-
+		
 		/// <summary>
 		/// Overriden by subclasses to perform type initialization, specifically including
 		/// setting the base type and adding properties.  This initialization must occur inside this

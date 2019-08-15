@@ -3,6 +3,8 @@ using System;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
+using static ExoModel.ModelExpression;
+using System.Linq.Expressions;
 
 namespace ExoModel
 {
@@ -45,7 +47,7 @@ namespace ExoModel
 
 		public virtual string HelpText { get; private set; }
 
-		public virtual string Format { get; private set; }
+		public virtual string Format { get; protected set; }
 
 		public int Index { get; internal set; }
 
@@ -138,6 +140,11 @@ namespace ExoModel
 		public override string ToString()
 		{
 			return Name;
+		}
+
+		public virtual bool CheckAndPromoteComparison(ref ModelMemberExpression memberExpr, ref ConstantExpression constant)
+		{
+			return true;
 		}
 
 		/// <summary>

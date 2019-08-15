@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
+using static ExoModel.ModelExpression;
 
 namespace ExoModel
 {
@@ -80,7 +82,6 @@ namespace ExoModel
 				return reference != null ? reference.ToString(format ?? Format, provider) : "";
 			}
 		}
-
 		#endregion
 	}
 }

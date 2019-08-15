@@ -690,6 +690,8 @@ namespace ExoModel
 
 			if (instance != null && filters.All(f => f.Allows(property, this.Instance, instance.Instance)))
 				clone.SetReference(property, mapping.TryGetValue(instance, out cloneInstance) ? cloneInstance : instance);
+			else
+				clone.SetReference(property, null);
 		}
 		
 		/// <summary>

@@ -139,11 +139,6 @@ namespace ExoModel
 			return parser.IntelliSense;
 		}
 
-		internal static Type CreateClass(params DynamicProperty[] properties)
-		{
-			return ClassFactory.Instance.GetDynamicClass(properties);
-		}
-
 		internal static Type CreateClass(IEnumerable<DynamicProperty> properties)
 		{
 			return ClassFactory.Instance.GetDynamicClass(properties);
@@ -274,9 +269,10 @@ namespace ExoModel
 				this.IsList = isList;
 			}
 
-			public ModelExpressionType(Type type)
+			public ModelExpressionType(Type type, ModelType modelType = null)
 			{
 				this.Type = type;
+				this.ModelType = modelType;
 				this.Name = type == null ? "" : type.Name;
 				this.IsList = false;
 			}
@@ -372,7 +368,7 @@ namespace ExoModel
 				this.Expression = expression;
 				this.Property = property;
 				this.ModelType = property is ModelReferenceProperty ? ((ModelReferenceProperty)property).PropertyType : null;
-				this.IsList = property is ModelReferenceProperty ? ((ModelReferenceProperty)property).IsList : false;
+				this.IsList = property is ModelReferenceProperty ? ((ModelReferenceProperty)property).IsList : false;				
 			}
 
 			public Expression Expression { get; private set; }
@@ -381,7 +377,7 @@ namespace ExoModel
 
 			public ModelType ModelType { get; private set; }
 
-			public bool IsList { get; private set; }
+			public bool IsList { get; private set; }			
 		}
 
 		#endregion
@@ -717,7 +713,8 @@ namespace ExoModel
 			    { ParseErrorType.IdentifierExpected, "Identifier expected" },
 				{ ParseErrorType.ThenExpected, "'then' expected" },
 				{ ParseErrorType.ElseExpected, "'else' expected" },
-		    };
+				{ ParseErrorType.InvalidValue, "The value {0} is not valid for '{1}'" }
+			};
 
 			public ParseException(string message, int position, params object[] args)
 				: base(message)
@@ -739,6 +736,8 @@ namespace ExoModel
 			public object[] Arguments { get; private set; }
 
 			public ParseErrorType Error { get; private set; }
+
+			public bool IsWarning { get; internal set; }
 
 			public override string ToString()
 			{
@@ -789,6 +788,7 @@ namespace ExoModel
 			InvalidRealLiteral,
 			UnknownIdentifier,
 			NoItInScope,
+			NoOuterItInScope,
 			IifRequiresThreeArgs,
 			FirstExprMustBeBool,
 			BothTypesConvertToOther,
@@ -826,7 +826,8 @@ namespace ExoModel
 			CloseBracketOrCommaExpected,
 			IdentifierExpected,
 			ThenExpected,
-			ElseExpected
+			ElseExpected,
+			InvalidValue
 		}
 
 		#endregion
@@ -1067,6 +1068,7 @@ namespace ExoModel
 			static readonly Expression nullLiteral = Expr.Constant(null);
 
 			static readonly string keywordIt = "it";
+			static readonly string keywordOuterIt = "outer";
 			static readonly string keywordIif = "iif";
 			static readonly string keywordNew = "new";
 
@@ -1076,6 +1078,7 @@ namespace ExoModel
 			IDictionary<string, object> externals;
 			Dictionary<Expression, string> literals;
 			ModelParameterExpression it;
+			ModelParameterExpression outerIt;
 			string text;
 			int textPos;
 			int textLen;
@@ -1085,6 +1088,7 @@ namespace ExoModel
 			Token token;
 			Token prevToken;
 			QuerySyntax querySyntax;
+			List<Exception> _warnings = new List<Exception>();
 
 			internal IntelliSense IntelliSense { get; private set; }
 
@@ -1291,6 +1295,31 @@ namespace ExoModel
 					Expression right = ParseAdditive();
 					bool isEquality = op.id == TokenId.Equal || op.id == TokenId.DoubleEqual || TokenIdentifierIs(op, "eq") || TokenIdentifierIs(op, "ne") ||
 						op.id == TokenId.ExclamationEqual || op.id == TokenId.LessGreater;
+
+					// Allow ModelProperty to transform and validate the comparison expression
+					if (left is ModelMemberExpression || right is ModelMemberExpression)
+					{
+						var memberExpr = left as ModelMemberExpression ?? right as ModelMemberExpression;
+						var constExpr = left as ConstantExpression ?? right as ConstantExpression;
+
+						if (memberExpr != null && constExpr != null)
+						{
+							var before = constExpr.ToString();
+							if (!memberExpr.Property.CheckAndPromoteComparison(ref memberExpr, ref constExpr))
+								Warn(ParseError(ParseErrorType.InvalidValue, before, memberExpr.Property.Name));
+							if (left is ModelMemberExpression)
+							{
+								left = memberExpr;
+								right = constExpr;
+							}
+							else
+							{
+								left = constExpr;
+								right = memberExpr;
+							}
+						}
+					}
+
 					if (isEquality && !left.Type.IsValueType && !right.Type.IsValueType)
 					{
 						if (left.Type != right.Type)
@@ -1388,6 +1417,14 @@ namespace ExoModel
 				}
 				return left;
 			}
+
+			private void Warn(ParseException exception)
+			{
+				exception.IsWarning = true;
+				_warnings.Add(exception);
+			}
+
+			public IReadOnlyCollection<Exception> Warnings => _warnings;
 
 			// +, -, & operators
 			Expression ParseAdditive()
@@ -1655,6 +1692,7 @@ namespace ExoModel
 				{
 					if (value is Type) return ParseTypeAccess(new ModelExpressionType((Type)value));
 					if (value == (object)keywordIt) return ParseIt();
+					if (value == (object)keywordOuterIt) return ParseOuterIt();
 					if (value == (object)keywordIif) return ParseIif();
 					if (value == (object)keywordNew) return ParseNew();
 					NextToken();
@@ -1692,6 +1730,14 @@ namespace ExoModel
 					throw ParseError(ParseErrorType.NoItInScope);
 				NextToken();
 				return it;
+			}
+
+			Expression ParseOuterIt()
+			{
+				if (outerIt == null)
+					throw ParseError(ParseErrorType.NoOuterItInScope);
+				NextToken();
+				return outerIt;
 			}
 
 			Expression ParseIif()
@@ -1952,6 +1998,16 @@ namespace ExoModel
 								if (args[i].Type.IsValueType && !parameters[i].ParameterType.IsValueType)
 									args[i] = Expr.Convert(args[i], parameters[i].ParameterType);
 
+							var propFormat = ((instance as MemberExpression)?.Expression as ModelMemberExpression)?.Property?.Format;
+							if (method.Name == "ToString" && instance.Type == typeof(DateTime) && propFormat != "t" && propFormat != "d")
+							{
+								var newArgs = new Expr[3];
+								newArgs[0] = instance;
+								newArgs[1] = args.Length > 0 ? args[0] : Expr.Constant("");
+								newArgs[2] = args.Length > 1 ? args[1] : Expr.Constant(null, typeof(IFormatProvider));
+								return Expr.Call(typeof(DateTimeFormatter).GetMethod("ToString", BindingFlags.Static | BindingFlags.NonPublic), newArgs);
+							}
+
 							return Expr.Call(instance, (MethodInfo)method, args);
 						default:
 							throw ParseError(errorPos, ParseErrorType.AmbiguousMethodInvocation,
@@ -2026,13 +2082,28 @@ namespace ExoModel
 				return null;
 			}
 
+			Stack<ModelParameterExpression> itStack = new Stack<ModelParameterExpression>();
+			Stack<ModelParameterExpression> outerItStack = new Stack<ModelParameterExpression>();
 			Expression ParseAggregate(Expression instance, IExpressionType elementType, string methodName, int errorPos)
 			{
-				ModelParameterExpression outerIt = it;
-				ModelParameterExpression innerIt = new ModelParameterExpression(elementType, "");
+				// Allow upcasting of element expression to the type of the list (support covariance)
+				// List<IThing>.Where<T>() should be considered valid for List<Thing> where Thing : IThing
+				var collectionType = instance.Type.GenericTypeArguments.FirstOrDefault();
+				if (collectionType == null || !collectionType.IsAssignableFrom(elementType.Type))
+				{
+					collectionType = elementType.Type;
+				}
+
+				itStack.Push(it);
+				outerItStack.Push(outerIt);
+
+				outerIt = it;
+				ModelParameterExpression innerIt = new ModelParameterExpression(new ModelExpressionType(collectionType, elementType.ModelType), "");
 				it = innerIt;
 				Expression[] args = ParseArgumentList();
-				it = outerIt;
+
+				it = itStack.Pop();
+				outerIt = outerItStack.Pop();
 
 				MethodBase signature;
 				if (FindMethod(typeof(IEnumerableSignatures), methodName, false, ref args, out signature) != 1)
@@ -2042,13 +2113,42 @@ namespace ExoModel
 
 				// Contains
 				//		bool Method<TSource>(IEnumerable<TSource> source, TSource value)
-				if (signature.Name == "Contains")
-					return Expr.Call(typeof(Enumerable), "Contains", new Type[] { elementType.Type }, new Expression[] { instance, args[0] });
+				try
+				{
+					if (signature.Name == "Contains")
+					{
+						// Validate List.Contains() when passing constant values for model lists that have validated options
+						var memberExpr = instance as ModelMemberExpression;
+						var constExpr = args[0] as ConstantExpression;
+
+						if (constExpr != null && memberExpr != null && constExpr.Value != null)
+						{
+							if (!memberExpr.Property.CheckAndPromoteComparison(ref memberExpr, ref constExpr))
+							{
+								Warn(ParseError(ParseErrorType.InvalidValue, constExpr.Value, memberExpr.Property.Name));
+							}
+
+							instance = memberExpr;
+							args[0] = constExpr;
+						}
+
+						return Expr.Call(typeof(Enumerable), "Contains", new Type[] { collectionType }, new Expression[] { instance, args[0] });
+					}
+				} catch (Exception e)
+				{
+					if (e is InvalidOperationException)
+					{
+						var originalType = elementType.ModelType != null ? elementType.ModelType.Name.Substring(elementType.ModelType.Name.LastIndexOf('.') + 1) : elementType.Type.Name;
+						throw new ParseException(ParseErrorType.NeitherTypeConvertsToOther, errorPos, originalType, args[0].Type.Name);
+					}
+
+					throw;
+				}
 
 				// Except
 				//		IEnumerable<TSource> Except(IEnumerable<TSource> first, IEnumerable<TSource> second)
 				if (signature.Name == "Except")
-					return Expr.Call(typeof(Enumerable), "Except", new Type[] { elementType.Type }, new Expression[] { instance, args[0] });
+					return Expr.Call(typeof(Enumerable), "Except", new Type[] { collectionType }, new Expression[] { instance, args[0] });
 
 				if (signature.Name == "Min" || signature.Name == "Max" || signature.Name == "Select" || signature.Name == "OrderBy" || signature.Name == "OrderByDescending")
 				{
@@ -2059,7 +2159,7 @@ namespace ExoModel
 					//		IEnumerable<TResult> Select<TSource, TResult>(IEnumerable<TItem> source, Func<TSource, TResult> selector)
 					// OrderBy, OrderByDescending
 					//		IEnumerable<TSource> Method<TSource, TKey>(IEnumerable<TItem> source, Func<TSource, TKey> comparer)
-					typeArgs = new Type[] { elementType.Type, args[0].Type };
+					typeArgs = new Type[] { collectionType, args[0].Type };
 				}
 				else
 				{
@@ -2077,7 +2177,7 @@ namespace ExoModel
 					//		int Method<TSource>(IEnumerable<TSource> source, Func<TSource, bool> predicate)
 					// Except
 					//		IEnumerable<TSource> Method<TSource>(IEnumerable<TSource> first, IEnumerable<TSource> second)
-					typeArgs = new Type[] { elementType.Type };
+					typeArgs = new Type[] { collectionType };
 				}
 
 				if (args.Length == 0)
@@ -2429,6 +2529,7 @@ namespace ExoModel
 			{
 				left = CheckAndPromoteNullable(left, signatures, errorPos);
 				right = CheckAndPromoteNullable(right, signatures, errorPos);
+
 				Expression[] args = new Expression[] { left, right };
 				args = CheckAndPromoteDateTimeComparison(args, signatures, errorPos);
 				MethodBase method;
@@ -2520,15 +2621,16 @@ namespace ExoModel
 					if (IsNullableType(args[i].Type) && coerceNullable)
 						args[i] = Expr.MakeMemberAccess(args[i], args[i].Type.GetMember("Value")[0]);
 				}
-				BindingFlags flags = BindingFlags.Public | BindingFlags.DeclaredOnly |
-					(staticAccess ? BindingFlags.Static : BindingFlags.Instance);
-				foreach (Type t in SelfAndBaseTypes(type))
-				{
-					MemberInfo[] members = t.FindMembers(MemberTypes.Method,
-						flags, Type.FilterNameIgnoreCase, methodName);
-					int count = FindBestMethod(members.Cast<MethodBase>(), ref args, out method);
-					if (count != 0) return count;
-				}
+
+				BindingFlags flags = BindingFlags.Public | BindingFlags.DeclaredOnly | (staticAccess ? BindingFlags.Static : BindingFlags.Instance);
+
+				var members = SelfAndBaseTypes(type)
+					.SelectMany(t => t.FindMembers(MemberTypes.Method, flags, Type.FilterNameIgnoreCase, methodName))
+					.Cast<MethodBase>();
+
+				int count = FindBestMethod(members, ref args, out method);
+
+				if (count != 0) return count;
 				method = null;
 				return 0;
 			}
@@ -2602,12 +2704,14 @@ namespace ExoModel
 					Select(m => new MethodData { MethodBase = m, Parameters = m.GetParameters() }).
 					Where(m => IsApplicable(m, searchArgs)).
 					ToArray();
+
+				// If there is more than one matching method, find the best match
 				if (applicable.Length > 1)
 				{
-					applicable = applicable.
-						Where(m => applicable.All(n => m == n || IsBetterThan(searchArgs, m, n))).
-						ToArray();
+					var bestMethod = applicable.FirstOrDefault(m => applicable.All(n => m == n || IsBetterThan(searchArgs, m, n)));
+					applicable = bestMethod == null ? new MethodData[0] : new MethodData[] { bestMethod };
 				}
+
 				// Check for param arrays
 				if (applicable.Length == 0)
 				{
@@ -3288,16 +3392,14 @@ namespace ExoModel
 
 			static bool IsBetterThan(Expression[] args, MethodData m1, MethodData m2)
 			{
-				bool better = false;
 				for (int i = 0; i < args.Length; i++)
 				{
 					int c = CompareConversions(args[i].Type,
 						m1.Parameters[i].ParameterType,
 						m2.Parameters[i].ParameterType);
 					if (c < 0) return false;
-					if (c > 0) better = true;
 				}
-				return better;
+				return true;
 			}
 
 			// Return 1 if s -> t1 is a better conversion than s -> t2
@@ -3677,12 +3779,12 @@ namespace ExoModel
 				if (token.id != t) throw ParseError(ParseErrorType.SyntaxError);
 			}
 
-			Exception ParseError(ParseErrorType error, params object[] args)
+			ParseException ParseError(ParseErrorType error, params object[] args)
 			{
 				return ParseError(token.pos, error, args);
 			}
 
-			Exception ParseError(int pos, ParseErrorType error, params object[] args)
+			ParseException ParseError(int pos, ParseErrorType error, params object[] args)
 			{
 				return new ParseException(error, pos, args);
 			}
@@ -3694,6 +3796,7 @@ namespace ExoModel
 				d.Add("false", falseLiteral);
 				d.Add("null", nullLiteral);
 				d.Add(keywordIt, keywordIt);
+				d.Add(keywordOuterIt, keywordOuterIt);
 				d.Add(keywordIif, keywordIif);
 				d.Add(keywordNew, keywordNew);
 				foreach (Type type in predefinedTypes) d.Add(type.Name, type);
